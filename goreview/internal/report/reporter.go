@@ -37,17 +37,3 @@ func NewReporter(format string) (Reporter, error) {
 func AvailableFormats() []string {
 	return []string{"markdown", "json", "sarif"}
 }
-
-// Stub implementations for compilation
-// These will be replaced in subsequent commits
-
-// SARIFReporter generates SARIF 2.1.0 reports.
-type SARIFReporter struct{}
-
-func (r *SARIFReporter) Format() string { return "sarif" }
-func (r *SARIFReporter) Generate(result *review.Result) (string, error) {
-	return "", nil
-}
-func (r *SARIFReporter) Write(result *review.Result, w io.Writer) error {
-	return nil
-}

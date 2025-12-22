@@ -23,12 +23,6 @@ func AvailableProviders() []string {
 	return []string{"ollama", "openai"}
 }
 
-// NewOllamaProvider creates a new Ollama provider.
-// Placeholder - will be implemented in commit 4.3.
-func NewOllamaProvider(cfg *config.Config) (Provider, error) {
-	return nil, fmt.Errorf("ollama provider not implemented yet")
-}
-
 // NewOpenAIProvider creates a new OpenAI provider.
 // Placeholder - will be implemented in commit 4.5.
 func NewOpenAIProvider(cfg *config.Config) (Provider, error) {

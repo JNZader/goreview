@@ -68,7 +68,66 @@ func init() {
 }
 
 func runReview(cmd *cobra.Command, args []string) error {
+	// Validate flags
+	if err := validateReviewFlags(cmd, args); err != nil {
+		return err
+	}
+
 	// Will be implemented in next commits
 	fmt.Println("Review command - not yet implemented")
 	return nil
+}
+
+func validateReviewFlags(cmd *cobra.Command, args []string) error {
+	staged, _ := cmd.Flags().GetBool("staged")
+	commit, _ := cmd.Flags().GetString("commit")
+	branch, _ := cmd.Flags().GetString("branch")
+
+	// Count active modes
+	modeCount := 0
+	if staged {
+		modeCount++
+	}
+	if commit != "" {
+		modeCount++
+	}
+	if branch != "" {
+		modeCount++
+	}
+	if len(args) > 0 {
+		modeCount++
+	}
+
+	// Must have exactly one mode
+	if modeCount == 0 {
+		return fmt.Errorf("must specify review mode: --staged, --commit, --branch, or file arguments")
+	}
+	if modeCount > 1 {
+		return fmt.Errorf("only one review mode allowed at a time")
+	}
+
+	// Validate format
+	format, _ := cmd.Flags().GetString("format")
+	validFormats := map[string]bool{"markdown": true, "json": true, "sarif": true}
+	if !validFormats[format] {
+		return fmt.Errorf("invalid format %q, must be: markdown, json, or sarif", format)
+	}
+
+	return nil
+}
+
+func determineReviewMode(cmd *cobra.Command, args []string) (string, interface{}) {
+	if staged, _ := cmd.Flags().GetBool("staged"); staged {
+		return "staged", nil
+	}
+	if commit, _ := cmd.Flags().GetString("commit"); commit != "" {
+		return "commit", commit
+	}
+	if branch, _ := cmd.Flags().GetString("branch"); branch != "" {
+		return "branch", branch
+	}
+	if len(args) > 0 {
+		return "files", args
+	}
+	return "staged", nil // Default
 }

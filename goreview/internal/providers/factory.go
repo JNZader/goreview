@@ -13,6 +13,8 @@ func NewProvider(cfg *config.Config) (Provider, error) {
 		return NewOllamaProvider(cfg)
 	case "openai":
 		return NewOpenAIProvider(cfg)
+	case "gemini":
+		return NewGeminiProvider(cfg)
 	default:
 		return nil, fmt.Errorf("unknown provider: %s", cfg.Provider.Name)
 	}
@@ -20,5 +22,5 @@ func NewProvider(cfg *config.Config) (Provider, error) {
 
 // AvailableProviders returns a list of available provider names.
 func AvailableProviders() []string {
-	return []string{"ollama", "openai"}
+	return []string{"ollama", "openai", "gemini"}
 }

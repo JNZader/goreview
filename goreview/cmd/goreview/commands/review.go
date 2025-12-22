@@ -1,10 +1,21 @@
 package commands
 
 import (
+	"context"
 	"fmt"
+	"os"
+	"time"
 
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
+
+	"github.com/JNZader/goreview/goreview/internal/cache"
+	"github.com/JNZader/goreview/goreview/internal/config"
+	"github.com/JNZader/goreview/goreview/internal/git"
+	"github.com/JNZader/goreview/goreview/internal/providers"
+	"github.com/JNZader/goreview/goreview/internal/report"
+	"github.com/JNZader/goreview/goreview/internal/review"
+	"github.com/JNZader/goreview/goreview/internal/rules"
 )
 
 var reviewCmd = &cobra.Command{
@@ -73,8 +84,101 @@ func runReview(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	// Will be implemented in next commits
-	fmt.Println("Review command - not yet implemented")
+	// Load configuration
+	cfg, err := config.LoadDefault()
+	if err != nil {
+		return fmt.Errorf("loading config: %w", err)
+	}
+
+	// Apply flag overrides
+	applyFlagOverrides(cmd, cfg, args)
+
+	// Create context with timeout
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Minute)
+	defer cancel()
+
+	// Initialize git repository
+	gitRepo, err := git.NewGitRepository(".")
+	if err != nil {
+		return fmt.Errorf("initializing git: %w", err)
+	}
+
+	// Initialize provider
+	provider, err := providers.NewProvider(cfg)
+	if err != nil {
+		return fmt.Errorf("initializing provider: %w", err)
+	}
+	defer provider.Close()
+
+	// Health check provider
+	if err := provider.HealthCheck(ctx); err != nil {
+		return fmt.Errorf("provider not available: %w", err)
+	}
+
+	// Initialize cache (optional)
+	var reviewCache cache.Cache
+	if noCache, _ := cmd.Flags().GetBool("no-cache"); !noCache && cfg.Cache.Enabled {
+		reviewCache = cache.NewLRUCache(cfg.Cache.MaxEntries, cfg.Cache.TTL)
+	}
+
+	// Load rules
+	rulesLoader := rules.NewLoader(cfg.Rules.RulesDir)
+	allRules, err := rulesLoader.Load()
+	if err != nil {
+		return fmt.Errorf("loading rules: %w", err)
+	}
+
+	// Apply preset
+	preset, _ := cmd.Flags().GetString("preset")
+	presetConfig, err := rulesLoader.LoadPreset(preset)
+	if err != nil {
+		return fmt.Errorf("loading preset: %w", err)
+	}
+	activeRules := rules.ApplyPreset(allRules, presetConfig)
+
+	// Create and run engine
+	engine := review.NewEngine(cfg, gitRepo, provider, reviewCache, activeRules)
+	result, err := engine.Run(ctx)
+	if err != nil {
+		return fmt.Errorf("review failed: %w", err)
+	}
+
+	// Generate report
+	format, _ := cmd.Flags().GetString("format")
+	reporter, err := report.NewReporter(format)
+	if err != nil {
+		return err
+	}
+
+	output, err := reporter.Generate(result)
+	if err != nil {
+		return fmt.Errorf("generating report: %w", err)
+	}
+
+	// Write output
+	outputFile, _ := cmd.Flags().GetString("output")
+	if outputFile != "" {
+		if err := os.WriteFile(outputFile, []byte(output), 0644); err != nil {
+			return fmt.Errorf("writing output: %w", err)
+		}
+		fmt.Fprintf(os.Stderr, "Report written to %s\n", outputFile)
+	} else {
+		fmt.Print(output)
+	}
+
+	// Exit with error code if critical issues found
+	if result.TotalIssues > 0 {
+		for _, f := range result.Files {
+			if f.Response != nil {
+				for _, issue := range f.Response.Issues {
+					if issue.Severity == providers.SeverityCritical {
+						os.Exit(1)
+					}
+				}
+			}
+		}
+	}
+
 	return nil
 }
 
@@ -130,4 +234,37 @@ func determineReviewMode(cmd *cobra.Command, args []string) (string, interface{}
 		return "files", args
 	}
 	return "staged", nil // Default
+}
+
+func applyFlagOverrides(cmd *cobra.Command, cfg *config.Config, args []string) {
+	mode, value := determineReviewMode(cmd, args)
+	cfg.Review.Mode = mode
+
+	switch mode {
+	case "commit":
+		cfg.Review.Commit = value.(string)
+	case "branch":
+		cfg.Git.BaseBranch = value.(string)
+	case "files":
+		cfg.Review.Files = value.([]string)
+	}
+
+	if provider, _ := cmd.Flags().GetString("provider"); provider != "" {
+		cfg.Provider.Name = provider
+	}
+	if model, _ := cmd.Flags().GetString("model"); model != "" {
+		cfg.Provider.Model = model
+	}
+	if concurrency, _ := cmd.Flags().GetInt("concurrency"); concurrency > 0 {
+		cfg.Review.MaxConcurrency = concurrency
+	}
+
+	// Include/exclude patterns
+	if includes, _ := cmd.Flags().GetStringSlice("include"); len(includes) > 0 {
+		// Store in config for later use
+		_ = includes
+	}
+	if excludes, _ := cmd.Flags().GetStringSlice("exclude"); len(excludes) > 0 {
+		cfg.Git.IgnorePatterns = append(cfg.Git.IgnorePatterns, excludes...)
+	}
 }

@@ -41,17 +41,6 @@ func AvailableFormats() []string {
 // Stub implementations for compilation
 // These will be replaced in subsequent commits
 
-// MarkdownReporter generates Markdown reports.
-type MarkdownReporter struct{}
-
-func (r *MarkdownReporter) Format() string { return "markdown" }
-func (r *MarkdownReporter) Generate(result *review.Result) (string, error) {
-	return "", nil
-}
-func (r *MarkdownReporter) Write(result *review.Result, w io.Writer) error {
-	return nil
-}
-
 // JSONReporter generates JSON reports.
 type JSONReporter struct {
 	Indent bool

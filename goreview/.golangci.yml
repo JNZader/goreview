@@ -1,0 +1,120 @@
+# golangci-lint configuration
+# https://golangci-lint.run/usage/configuration/
+
+run:
+  # Timeout for analysis
+  timeout: 5m
+
+  # Include test files
+  tests: true
+
+  # Skip vendor, third_party, etc.
+  skip-dirs:
+    - vendor
+    - third_party
+    - testdata
+
+  # Skip generated files
+  skip-files:
+    - ".*_generated\\.go$"
+    - ".*\\.pb\\.go$"
+
+linters:
+  # Disable all linters by default
+  disable-all: true
+
+  # Enable specific linters
+  enable:
+    # Bugs
+    - errcheck      # Check for unchecked errors
+    - gosec         # Security issues
+    - govet         # Suspicious constructs
+    - staticcheck   # Static analysis
+
+    # Style
+    - gofmt         # Check formatting
+    - goimports     # Check imports
+    - misspell      # Spelling mistakes
+
+    # Complexity
+    - gocyclo       # Cyclomatic complexity
+    - funlen        # Function length
+
+    # Performance
+    - prealloc      # Slice preallocation
+
+    # Best practices
+    - revive        # Replacement for golint
+    - unconvert     # Unnecessary type conversions
+    - unparam       # Unused function parameters
+
+linters-settings:
+  errcheck:
+    # Check type assertions
+    check-type-assertions: true
+    # Check blank identifier assignments
+    check-blank: true
+
+  govet:
+    # Report shadowed variables
+    check-shadowing: true
+
+  gocyclo:
+    # Minimum complexity to report
+    min-complexity: 15
+
+  funlen:
+    # Maximum function lines
+    lines: 100
+    # Maximum function statements
+    statements: 50
+
+  goimports:
+    # Put local imports after 3rd party
+    local-prefixes: github.com/JNZader/goreview
+
+  revive:
+    rules:
+      - name: exported
+        severity: warning
+      - name: var-naming
+        severity: warning
+      - name: package-comments
+        severity: warning
+
+  gosec:
+    # Exclude rules
+    excludes:
+      - G104 # Audit errors not checked (we use errcheck for this)
+
+issues:
+  # Maximum issues per linter
+  max-issues-per-linter: 50
+
+  # Maximum same issues
+  max-same-issues: 10
+
+  # Don't skip any linters for new code
+  new: false
+
+  # Exclude some issues in tests
+  exclude-rules:
+    - path: _test\.go
+      linters:
+        - funlen
+        - gocyclo
+
+    # Allow fmt.Printf in main
+    - path: main\.go
+      linters:
+        - forbidigo
+
+severity:
+  # Default severity
+  default-severity: error
+
+  # Severity overrides
+  rules:
+    - linters:
+        - revive
+      severity: warning

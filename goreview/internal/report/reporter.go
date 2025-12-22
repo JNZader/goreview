@@ -41,19 +41,6 @@ func AvailableFormats() []string {
 // Stub implementations for compilation
 // These will be replaced in subsequent commits
 
-// JSONReporter generates JSON reports.
-type JSONReporter struct {
-	Indent bool
-}
-
-func (r *JSONReporter) Format() string { return "json" }
-func (r *JSONReporter) Generate(result *review.Result) (string, error) {
-	return "", nil
-}
-func (r *JSONReporter) Write(result *review.Result, w io.Writer) error {
-	return nil
-}
-
 // SARIFReporter generates SARIF 2.1.0 reports.
 type SARIFReporter struct{}
 

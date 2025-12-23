@@ -1,44 +1,136 @@
-import { logger } from '../utils/logger.js';
-import { WebhookPayload } from './webhookHandler.js';
 import { clearOctokitCache } from '../services/github.js';
+import { clearRepoConfigCache } from '../config/repoConfig.js';
+import { logger } from '../utils/logger.js';
+
+interface InstallationPayload {
+  action: string;
+  installation: {
+    id: number;
+    account: {
+      login: string;
+      type: string;
+    };
+  };
+  repositories?: Array<{
+    id: number;
+    name: string;
+    full_name: string;
+    private: boolean;
+  }>;
+  sender: {
+    login: string;
+  };
+}
 
 /**
  * Handle installation events.
  */
 export async function handleInstallation(
   action: string | undefined,
-  payload: WebhookPayload
+  payload: unknown
 ): Promise<void> {
-  const installation = payload.installation as Record<string, unknown> | undefined;
-  const installationId = installation?.id as number | undefined;
+  const installation = payload as InstallationPayload;
+  const { installation: inst, repositories } = installation;
 
   logger.info({
     action,
-    installationId,
-    account: (installation?.account as Record<string, unknown>)?.login,
-  }, 'Processing installation event');
+    installationId: inst.id,
+    account: inst.account.login,
+    accountType: inst.account.type,
+  }, 'Installation event received');
 
   switch (action) {
     case 'created':
-      logger.info({ installationId }, 'New installation created');
+      await handleInstallationCreated(inst, repositories);
       break;
 
     case 'deleted':
-      if (installationId) {
-        clearOctokitCache(installationId);
-      }
-      logger.info({ installationId }, 'Installation deleted');
+      await handleInstallationDeleted(inst);
       break;
 
-    case 'suspend':
-      logger.info({ installationId }, 'Installation suspended');
+    case 'added':
+      await handleRepositoriesAdded(inst, repositories);
       break;
 
-    case 'unsuspend':
-      logger.info({ installationId }, 'Installation unsuspended');
+    case 'removed':
+      await handleRepositoriesRemoved(inst, repositories);
       break;
 
     default:
       logger.debug({ action }, 'Unhandled installation action');
+  }
+}
+
+async function handleInstallationCreated(
+  installation: InstallationPayload['installation'],
+  repositories: InstallationPayload['repositories']
+): Promise<void> {
+  logger.info({
+    installationId: installation.id,
+    account: installation.account.login,
+    repoCount: repositories?.length || 0,
+  }, 'App installed');
+
+  // Log installed repositories
+  if (repositories) {
+    for (const repo of repositories) {
+      logger.info({
+        installationId: installation.id,
+        repo: repo.full_name,
+        private: repo.private,
+      }, 'Repository added to installation');
+    }
+  }
+
+  // Could send welcome message, initialize settings, etc.
+}
+
+async function handleInstallationDeleted(
+  installation: InstallationPayload['installation']
+): Promise<void> {
+  logger.info({
+    installationId: installation.id,
+    account: installation.account.login,
+  }, 'App uninstalled');
+
+  // Clear caches
+  clearOctokitCache(installation.id);
+
+  // Could clean up any stored data for this installation
+}
+
+async function handleRepositoriesAdded(
+  installation: InstallationPayload['installation'],
+  repositories: InstallationPayload['repositories']
+): Promise<void> {
+  if (!repositories) return;
+
+  for (const repo of repositories) {
+    logger.info({
+      installationId: installation.id,
+      repo: repo.full_name,
+    }, 'Repository added');
+
+    // Clear any cached config for this repo
+    const [owner, name] = repo.full_name.split('/');
+    clearRepoConfigCache(owner, name);
+  }
+}
+
+async function handleRepositoriesRemoved(
+  installation: InstallationPayload['installation'],
+  repositories: InstallationPayload['repositories']
+): Promise<void> {
+  if (!repositories) return;
+
+  for (const repo of repositories) {
+    logger.info({
+      installationId: installation.id,
+      repo: repo.full_name,
+    }, 'Repository removed');
+
+    // Clear cached config
+    const [owner, name] = repo.full_name.split('/');
+    clearRepoConfigCache(owner, name);
   }
 }

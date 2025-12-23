@@ -1,14 +1,78 @@
-# ===========================================
-# AI-Toolkit Root Makefile
-# ===========================================
+# =============================================================================
+# AI Toolkit Makefile
+# =============================================================================
 
 .DEFAULT_GOAL := help
+.PHONY: all build test lint clean docker-build docker-dev docker-stop help
 
-# ===========================================
-# Setup
-# ===========================================
+# Default target
+all: build
 
-.PHONY: setup
+# -----------------------------------------------------------------------------
+# Build targets
+# -----------------------------------------------------------------------------
+
+build: build-cli build-app ## Build all components
+
+build-cli: ## Build GoReview CLI
+	cd goreview && go build -o ../bin/goreview ./cmd/goreview
+
+build-app: ## Build GitHub App
+	cd github-app && npm run build
+
+# -----------------------------------------------------------------------------
+# Test targets
+# -----------------------------------------------------------------------------
+
+test: test-cli test-app ## Run all tests
+
+test-cli: ## Test GoReview CLI
+	cd goreview && go test -v ./...
+
+test-app: ## Test GitHub App
+	cd github-app && npm test
+
+# -----------------------------------------------------------------------------
+# Lint targets
+# -----------------------------------------------------------------------------
+
+lint: lint-cli lint-app ## Lint all code
+
+lint-cli: ## Lint GoReview CLI
+	cd goreview && golangci-lint run
+
+lint-app: ## Lint GitHub App
+	cd github-app && npm run lint
+
+# -----------------------------------------------------------------------------
+# Docker targets
+# -----------------------------------------------------------------------------
+
+docker-build: ## Build Docker images
+	docker compose build
+
+docker-dev: ## Start development environment
+	./scripts/docker-dev.sh
+
+docker-stop: ## Stop Docker services
+	docker compose down
+
+docker-logs: ## View Docker logs
+	docker compose logs -f
+
+docker-shell-app: ## Shell into GitHub App container
+	docker compose exec github-app sh
+
+docker-shell-ollama: ## Shell into Ollama container
+	docker compose exec ollama bash
+
+docker-pull-models: ## Pull Ollama models
+	./scripts/docker-pull-models.sh
+
+# -----------------------------------------------------------------------------
+# Development
+# -----------------------------------------------------------------------------
+
 setup: ## Setup development environment
 	@echo "Setting up development environment..."
 	@echo ""
@@ -16,124 +80,35 @@ setup: ## Setup development environment
 	cd goreview && go mod download
 	@echo ""
 	@echo "2. Installing Node.js dependencies..."
-	cd integrations/github-app && npm install
+	cd github-app && npm install
 	@echo ""
 	@echo "3. Installing development tools..."
 	go install github.com/golangci-lint/golangci-lint/cmd/golangci-lint@latest
-	go install github.com/cosmtrek/air@latest
-	@echo ""
-	@echo "4. Pulling Ollama model..."
-	ollama pull qwen2.5-coder:14b || echo "Ollama not available, skipping..."
 	@echo ""
 	@echo "Setup complete!"
 
-# ===========================================
-# Build
-# ===========================================
-
-.PHONY: build
-build: ## Build all components
-	@echo "Building GoReview CLI..."
-	cd goreview && $(MAKE) build
-	@echo ""
-	@echo "Building GitHub App..."
-	cd integrations/github-app && npm run build
-
-.PHONY: build-goreview
-build-goreview: ## Build only GoReview CLI
-	cd goreview && $(MAKE) build
-
-.PHONY: build-github-app
-build-github-app: ## Build only GitHub App
-	cd integrations/github-app && npm run build
-
-# ===========================================
-# Test
-# ===========================================
-
-.PHONY: test
-test: ## Run all tests
-	@echo "Testing GoReview CLI..."
-	cd goreview && $(MAKE) test
-	@echo ""
-	@echo "Testing GitHub App..."
-	cd integrations/github-app && npm test
-
-.PHONY: test-goreview
-test-goreview: ## Test only GoReview CLI
-	cd goreview && $(MAKE) test
-
-.PHONY: test-github-app
-test-github-app: ## Test only GitHub App
-	cd integrations/github-app && npm test
-
-# ===========================================
-# Lint
-# ===========================================
-
-.PHONY: lint
-lint: ## Lint all code
-	@echo "Linting GoReview CLI..."
-	cd goreview && $(MAKE) lint
-	@echo ""
-	@echo "Linting GitHub App..."
-	cd integrations/github-app && npm run lint
-
-# ===========================================
-# Docker
-# ===========================================
-
-.PHONY: docker-up
-docker-up: ## Start all services with Docker Compose
-	docker compose up -d
-
-.PHONY: docker-down
-docker-down: ## Stop all services
-	docker compose down
-
-.PHONY: docker-logs
-docker-logs: ## Show logs
-	docker compose logs -f
-
-.PHONY: docker-build
-docker-build: ## Build Docker images
-	docker compose build
-
-# ===========================================
-# Development
-# ===========================================
-
-.PHONY: dev
-dev: ## Start development mode
-	@echo "Starting development mode..."
-	@echo "GoReview: make -C goreview dev"
-	@echo "GitHub App: cd integrations/github-app && npm run dev"
-
-.PHONY: ollama-pull
 ollama-pull: ## Pull Ollama model
 	ollama pull qwen2.5-coder:14b
 
-.PHONY: ollama-serve
 ollama-serve: ## Start Ollama server
 	ollama serve
 
-# ===========================================
-# Clean
-# ===========================================
+# -----------------------------------------------------------------------------
+# Clean targets
+# -----------------------------------------------------------------------------
 
-.PHONY: clean
-clean: ## Clean all build artifacts
-	cd goreview && $(MAKE) clean
-	cd integrations/github-app && rm -rf dist node_modules
-	rm -rf .cache logs
+clean: ## Clean build artifacts
+	rm -rf bin/
+	rm -rf goreview/bin/
+	rm -rf github-app/dist/
+	rm -rf github-app/node_modules/
 
-# ===========================================
+# -----------------------------------------------------------------------------
 # Help
-# ===========================================
+# -----------------------------------------------------------------------------
 
-.PHONY: help
 help: ## Show this help
-	@echo "AI-Toolkit Makefile"
+	@echo "AI Toolkit Makefile"
 	@echo ""
 	@echo "Usage: make [target]"
 	@echo ""

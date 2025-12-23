@@ -97,7 +97,7 @@ func TestInstrumentedEngine_MetricsPrometheus(t *testing.T) {
 	}
 }
 
-func TestReviewStats_CacheHitRate(t *testing.T) {
+func TestEngineStats_CacheHitRate(t *testing.T) {
 	tests := []struct {
 		hits   int64
 		misses int64
@@ -111,7 +111,7 @@ func TestReviewStats_CacheHitRate(t *testing.T) {
 	}
 
 	for _, tc := range tests {
-		stats := ReviewStats{
+		stats := EngineStats{
 			CacheHits:   tc.hits,
 			CacheMisses: tc.misses,
 		}
@@ -122,7 +122,7 @@ func TestReviewStats_CacheHitRate(t *testing.T) {
 	}
 }
 
-func TestReviewStats_ProviderErrorRate(t *testing.T) {
+func TestEngineStats_ProviderErrorRate(t *testing.T) {
 	tests := []struct {
 		requests int64
 		errors   int64
@@ -136,7 +136,7 @@ func TestReviewStats_ProviderErrorRate(t *testing.T) {
 	}
 
 	for _, tc := range tests {
-		stats := ReviewStats{
+		stats := EngineStats{
 			ProviderRequests: tc.requests,
 			ProviderErrors:   tc.errors,
 		}

@@ -27,11 +27,11 @@ type Cache interface {
 	ComputeKey(req *providers.ReviewRequest) string
 
 	// Stats returns cache statistics.
-	Stats() CacheStats
+	Stats() Stats
 }
 
-// CacheStats contains cache statistics.
-type CacheStats struct {
+// Stats contains cache statistics.
+type Stats struct {
 	Hits      int64 `json:"hits"`
 	Misses    int64 `json:"misses"`
 	Entries   int   `json:"entries"`

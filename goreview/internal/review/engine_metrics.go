@@ -122,8 +122,8 @@ func (ie *InstrumentedEngine) MetricsPrometheus() string {
 }
 
 // Stats returns a summary of review statistics.
-func (ie *InstrumentedEngine) Stats() ReviewStats {
-	return ReviewStats{
+func (ie *InstrumentedEngine) Stats() EngineStats {
+	return EngineStats{
 		TotalReviews:     ie.collector.Counter(metrics.MetricReviewsTotal).Value(),
 		TotalFiles:       ie.collector.Counter(metrics.MetricFilesProcessed).Value(),
 		TotalIssues:      ie.collector.Counter(metrics.MetricIssuesFound).Value(),
@@ -138,8 +138,8 @@ func (ie *InstrumentedEngine) Stats() ReviewStats {
 	}
 }
 
-// ReviewStats contains aggregate review statistics.
-type ReviewStats struct {
+// EngineStats contains aggregate review statistics.
+type EngineStats struct {
 	TotalReviews     int64         `json:"total_reviews"`
 	TotalFiles       int64         `json:"total_files"`
 	TotalIssues      int64         `json:"total_issues"`
@@ -154,7 +154,7 @@ type ReviewStats struct {
 }
 
 // CacheHitRate returns the cache hit rate as a percentage (0-100).
-func (s ReviewStats) CacheHitRate() float64 {
+func (s EngineStats) CacheHitRate() float64 {
 	total := s.CacheHits + s.CacheMisses
 	if total == 0 {
 		return 0
@@ -163,7 +163,7 @@ func (s ReviewStats) CacheHitRate() float64 {
 }
 
 // ProviderErrorRate returns the provider error rate as a percentage (0-100).
-func (s ReviewStats) ProviderErrorRate() float64 {
+func (s EngineStats) ProviderErrorRate() float64 {
 	if s.ProviderRequests == 0 {
 		return 0
 	}

@@ -28,6 +28,13 @@ func putLineSlice(s *[]Line) {
 	}
 }
 
+// diffParseState holds the state during diff parsing
+type diffParseState struct {
+	diff        *Diff
+	currentFile *FileDiff
+	currentHunk *Hunk
+}
+
 // ParseDiffOptimized parses a unified diff string with optimizations.
 // It uses less memory allocations and avoids regex where possible.
 func ParseDiffOptimized(diffText string) (*Diff, error) {
@@ -45,8 +52,7 @@ func ParseDiffOptimized(diffText string) (*Diff, error) {
 	}
 	diff.Files = make([]FileDiff, 0, estimatedFiles)
 
-	var currentFile *FileDiff
-	var currentHunk *Hunk
+	state := &diffParseState{diff: diff}
 
 	// Parse line by line without creating full slice
 	start := 0
@@ -59,98 +65,129 @@ func ParseDiffOptimized(diffText string) (*Diff, error) {
 				continue
 			}
 
-			// Check for diff header (most common, so check first)
-			if strings.HasPrefix(line, "diff --git ") {
-				// Save previous file
-				if currentFile != nil {
-					if currentHunk != nil {
-						currentFile.Hunks = append(currentFile.Hunks, *currentHunk)
-					}
-					diff.Files = append(diff.Files, *currentFile)
-				}
-
-				// Parse: "diff --git a/path b/path"
-				oldPath, newPath := parseDiffGitLine(line)
-				currentFile = &FileDiff{
-					Path:     newPath,
-					OldPath:  oldPath,
-					Status:   FileModified,
-					Language: detectLanguageOptimized(newPath),
-					Hunks:    make([]Hunk, 0, 4),
-				}
-				currentHunk = nil
-				continue
-			}
-
-			if currentFile == nil {
-				continue
-			}
-
-			// Check for hunk header
-			if strings.HasPrefix(line, "@@") {
-				if currentHunk != nil {
-					currentFile.Hunks = append(currentFile.Hunks, *currentHunk)
-				}
-				currentHunk = parseHunkHeaderOptimized(line)
-				continue
-			}
-
-			// Check for file status
-			if strings.HasPrefix(line, "new file") {
-				currentFile.Status = FileAdded
-				continue
-			}
-			if strings.HasPrefix(line, "deleted file") {
-				currentFile.Status = FileDeleted
-				continue
-			}
-			if strings.HasPrefix(line, "rename from") {
-				currentFile.Status = FileRenamed
-				continue
-			}
-			if strings.HasPrefix(line, "Binary files") {
-				currentFile.IsBinary = true
-				continue
-			}
-
-			// Parse diff line content
-			if currentHunk != nil && len(line) > 0 {
-				lineType := LineContext
-				content := line
-
-				switch line[0] {
-				case '+':
-					lineType = LineAddition
-					content = line[1:]
-					currentFile.Additions++
-				case '-':
-					lineType = LineDeletion
-					content = line[1:]
-					currentFile.Deletions++
-				case ' ':
-					content = line[1:]
-				case '\\':
-					continue // No newline at end of file
-				}
-
-				currentHunk.Lines = append(currentHunk.Lines, Line{
-					Type:    lineType,
-					Content: content,
-				})
-			}
+			state.parseLine(line)
 		}
 	}
 
 	// Add last file and hunk
-	if currentFile != nil {
-		if currentHunk != nil {
-			currentFile.Hunks = append(currentFile.Hunks, *currentHunk)
-		}
-		diff.Files = append(diff.Files, *currentFile)
-	}
+	state.finalize()
 
 	diff.CalculateStats()
 	return diff, nil
+}
+
+// parseLine handles parsing a single line of the diff
+func (s *diffParseState) parseLine(line string) {
+	// Check for diff header (most common, so check first)
+	if strings.HasPrefix(line, "diff --git ") {
+		s.handleNewFile(line)
+		return
+	}
+
+	if s.currentFile == nil {
+		return
+	}
+
+	// Check for hunk header
+	if strings.HasPrefix(line, "@@") {
+		s.handleHunkHeader(line)
+		return
+	}
+
+	// Check for file status
+	if s.handleFileStatus(line) {
+		return
+	}
+
+	// Parse diff line content
+	s.handleDiffLine(line)
+}
+
+// handleNewFile processes a new file header
+func (s *diffParseState) handleNewFile(line string) {
+	// Save previous file
+	if s.currentFile != nil {
+		if s.currentHunk != nil {
+			s.currentFile.Hunks = append(s.currentFile.Hunks, *s.currentHunk)
+		}
+		s.diff.Files = append(s.diff.Files, *s.currentFile)
+	}
+
+	// Parse: "diff --git a/path b/path"
+	oldPath, newPath := parseDiffGitLine(line)
+	s.currentFile = &FileDiff{
+		Path:     newPath,
+		OldPath:  oldPath,
+		Status:   FileModified,
+		Language: detectLanguageOptimized(newPath),
+		Hunks:    make([]Hunk, 0, 4),
+	}
+	s.currentHunk = nil
+}
+
+// handleHunkHeader processes a hunk header line
+func (s *diffParseState) handleHunkHeader(line string) {
+	if s.currentHunk != nil {
+		s.currentFile.Hunks = append(s.currentFile.Hunks, *s.currentHunk)
+	}
+	s.currentHunk = parseHunkHeaderOptimized(line)
+}
+
+// handleFileStatus checks and handles file status lines
+func (s *diffParseState) handleFileStatus(line string) bool {
+	switch {
+	case strings.HasPrefix(line, "new file"):
+		s.currentFile.Status = FileAdded
+	case strings.HasPrefix(line, "deleted file"):
+		s.currentFile.Status = FileDeleted
+	case strings.HasPrefix(line, "rename from"):
+		s.currentFile.Status = FileRenamed
+	case strings.HasPrefix(line, "Binary files"):
+		s.currentFile.IsBinary = true
+	default:
+		return false
+	}
+	return true
+}
+
+// handleDiffLine processes a diff content line
+func (s *diffParseState) handleDiffLine(line string) {
+	if s.currentHunk == nil || len(line) == 0 {
+		return
+	}
+
+	lineType := LineContext
+	content := line
+
+	switch line[0] {
+	case '+':
+		lineType = LineAddition
+		content = line[1:]
+		s.currentFile.Additions++
+	case '-':
+		lineType = LineDeletion
+		content = line[1:]
+		s.currentFile.Deletions++
+	case ' ':
+		content = line[1:]
+	case '\\':
+		return // No newline at end of file
+	}
+
+	s.currentHunk.Lines = append(s.currentHunk.Lines, Line{
+		Type:    lineType,
+		Content: content,
+	})
+}
+
+// finalize adds the last file and hunk to the diff
+func (s *diffParseState) finalize() {
+	if s.currentFile != nil {
+		if s.currentHunk != nil {
+			s.currentFile.Hunks = append(s.currentFile.Hunks, *s.currentHunk)
+		}
+		s.diff.Files = append(s.diff.Files, *s.currentFile)
+	}
 }
 
 // parseDiffGitLine extracts paths from "diff --git a/path b/path"
@@ -242,87 +279,63 @@ func parseRange(s string, start, count *int) {
 	}
 }
 
+// extToLanguage maps file extensions to language names
+var extToLanguage = map[string]string{
+	".go":    "go",
+	".py":    "python",
+	".js":    "javascript",
+	".ts":    "typescript",
+	".tsx":   "typescript",
+	".jsx":   "javascript",
+	".java":  "java",
+	".rb":    "ruby",
+	".rs":    "rust",
+	".c":     "c",
+	".cpp":   "cpp",
+	".h":     "c",
+	".hpp":   "cpp",
+	".cs":    "csharp",
+	".php":   "php",
+	".swift": "swift",
+	".kt":    "kotlin",
+	".scala": "scala",
+	".sh":    "shell",
+	".bash":  "shell",
+	".yaml":  "yaml",
+	".yml":   "yaml",
+	".json":  "json",
+	".xml":   "xml",
+	".html":  "html",
+	".css":   "css",
+	".scss":  "scss",
+	".sql":   "sql",
+	".md":    "markdown",
+}
+
 // detectLanguageOptimized detects language from file extension with faster lookup
 func detectLanguageOptimized(path string) string {
-	// Get extension manually to avoid filepath.Ext allocation
-	ext := ""
+	ext := extractExtension(path)
+	if ext == "" {
+		return "unknown"
+	}
+
+	if lang, ok := extToLanguage[ext]; ok {
+		return lang
+	}
+	return "unknown"
+}
+
+// extractExtension extracts the lowercase extension from a path
+func extractExtension(path string) string {
 	for i := len(path) - 1; i >= 0; i-- {
 		if path[i] == '.' {
-			ext = strings.ToLower(path[i:])
-			break
+			return strings.ToLower(path[i:])
 		}
 		if path[i] == '/' || path[i] == '\\' {
 			break
 		}
 	}
-
-	if ext == "" {
-		return "unknown"
-	}
-
-	// Use switch for faster lookup than map
-	switch ext {
-	case ".go":
-		return "go"
-	case ".py":
-		return "python"
-	case ".js":
-		return "javascript"
-	case ".ts":
-		return "typescript"
-	case ".tsx":
-		return "typescript"
-	case ".jsx":
-		return "javascript"
-	case ".java":
-		return "java"
-	case ".rb":
-		return "ruby"
-	case ".rs":
-		return "rust"
-	case ".c":
-		return "c"
-	case ".cpp":
-		return "cpp"
-	case ".h":
-		return "c"
-	case ".hpp":
-		return "cpp"
-	case ".cs":
-		return "csharp"
-	case ".php":
-		return "php"
-	case ".swift":
-		return "swift"
-	case ".kt":
-		return "kotlin"
-	case ".scala":
-		return "scala"
-	case ".sh":
-		return "shell"
-	case ".bash":
-		return "shell"
-	case ".yaml":
-		return "yaml"
-	case ".yml":
-		return "yaml"
-	case ".json":
-		return "json"
-	case ".xml":
-		return "xml"
-	case ".html":
-		return "html"
-	case ".css":
-		return "css"
-	case ".scss":
-		return "scss"
-	case ".sql":
-		return "sql"
-	case ".md":
-		return "markdown"
-	default:
-		return "unknown"
-	}
+	return ""
 }
 
 // Unused function to satisfy the import

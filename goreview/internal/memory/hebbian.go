@@ -151,10 +151,10 @@ func (h *HebbianLearnerImpl) GetAssociations(ctx context.Context, id string) ([]
 			item := it.Item()
 
 			var assoc Association
-			err := item.Value(func(val []byte) error {
+			valErr := item.Value(func(val []byte) error {
 				return json.Unmarshal(val, &assoc)
 			})
-			if err != nil {
+			if valErr != nil {
 				continue
 			}
 
@@ -183,10 +183,10 @@ func (h *HebbianLearnerImpl) GetAssociations(ctx context.Context, id string) ([]
 			}
 
 			var assoc Association
-			err := item.Value(func(val []byte) error {
+			valErr := item.Value(func(val []byte) error {
 				return json.Unmarshal(val, &assoc)
 			})
-			if err != nil {
+			if valErr != nil {
 				continue
 			}
 
@@ -224,10 +224,10 @@ func (h *HebbianLearnerImpl) Decay(ctx context.Context) error {
 			key := string(item.Key())
 
 			var assoc Association
-			err := item.Value(func(val []byte) error {
+			valErr := item.Value(func(val []byte) error {
 				return json.Unmarshal(val, &assoc)
 			})
-			if err != nil {
+			if valErr != nil {
 				continue
 			}
 
@@ -254,19 +254,19 @@ func (h *HebbianLearnerImpl) Decay(ctx context.Context) error {
 	return h.db.Update(func(txn *badger.Txn) error {
 		// Delete weak associations
 		for _, key := range keysToDelete {
-			if err := txn.Delete([]byte(key)); err != nil {
-				return err
+			if delErr := txn.Delete([]byte(key)); delErr != nil {
+				return delErr
 			}
 		}
 
 		// Update remaining associations
 		for key, assoc := range keysToUpdate {
-			data, err := json.Marshal(assoc)
-			if err != nil {
+			data, marshalErr := json.Marshal(assoc)
+			if marshalErr != nil {
 				continue
 			}
-			if err := txn.Set([]byte(key), data); err != nil {
-				return err
+			if setErr := txn.Set([]byte(key), data); setErr != nil {
+				return setErr
 			}
 		}
 		return nil
@@ -291,10 +291,10 @@ func (h *HebbianLearnerImpl) Prune(ctx context.Context, minStrength float64) (in
 			item := it.Item()
 
 			var assoc Association
-			err := item.Value(func(val []byte) error {
+			valErr := item.Value(func(val []byte) error {
 				return json.Unmarshal(val, &assoc)
 			})
-			if err != nil {
+			if valErr != nil {
 				continue
 			}
 
@@ -315,8 +315,8 @@ func (h *HebbianLearnerImpl) Prune(ctx context.Context, minStrength float64) (in
 
 	err = h.db.Update(func(txn *badger.Txn) error {
 		for _, key := range keysToDelete {
-			if err := txn.Delete([]byte(key)); err != nil {
-				return err
+			if delErr := txn.Delete([]byte(key)); delErr != nil {
+				return delErr
 			}
 		}
 		return nil
@@ -383,10 +383,10 @@ func (h *HebbianLearnerImpl) GetAllAssociations(ctx context.Context) ([]*Associa
 			item := it.Item()
 
 			var assoc Association
-			err := item.Value(func(val []byte) error {
+			valErr := item.Value(func(val []byte) error {
 				return json.Unmarshal(val, &assoc)
 			})
-			if err != nil {
+			if valErr != nil {
 				continue
 			}
 

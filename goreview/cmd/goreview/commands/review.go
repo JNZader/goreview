@@ -85,37 +85,17 @@ func init() {
 }
 
 func runReview(cmd *cobra.Command, args []string) error {
-	// Validate flags
 	if err := validateReviewFlags(cmd, args); err != nil {
 		return err
 	}
 
 	// Initialize profiler if requested
-	cpuProfile, _ := cmd.Flags().GetString("cpuprofile")
-	memProfile, _ := cmd.Flags().GetString("memprofile")
-	pprofAddr, _ := cmd.Flags().GetString("pprof-addr")
-
-	if cpuProfile != "" || memProfile != "" || pprofAddr != "" {
-		prof, err := profiler.New(profiler.Config{
-			CPUProfile: cpuProfile,
-			MemProfile: memProfile,
-			HTTPAddr:   pprofAddr,
-		})
-		if err != nil {
-			return fmt.Errorf("failed to start profiler: %w", err)
-		}
-		defer func() {
-			if err := prof.Stop(); err != nil {
-				fmt.Fprintf(os.Stderr, "Warning: failed to stop profiler: %v\n", err)
-			}
-		}()
-
-		if isVerbose() {
-			fmt.Fprintf(os.Stderr, "Profiler started - Initial memory stats: %s\n", profiler.Stats().String())
-			defer func() {
-				fmt.Fprintf(os.Stderr, "Profiler stopping - Final memory stats: %s\n", profiler.Stats().String())
-			}()
-		}
+	cleanupProfiler, err := setupProfiler(cmd)
+	if err != nil {
+		return err
+	}
+	if cleanupProfiler != nil {
+		defer cleanupProfiler()
 	}
 
 	// Load configuration
@@ -123,61 +103,119 @@ func runReview(cmd *cobra.Command, args []string) error {
 	if err != nil {
 		return fmt.Errorf("loading config: %w", err)
 	}
-
-	// Apply flag overrides
 	applyFlagOverrides(cmd, cfg, args)
 
 	// Create context with timeout
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Minute)
 	defer cancel()
 
-	// Initialize git repository
-	gitRepo, err := git.NewGitRepository(".")
+	// Initialize dependencies
+	result, err := executeReview(ctx, cmd, cfg)
 	if err != nil {
-		return fmt.Errorf("initializing git: %w", err)
+		return err
 	}
 
-	// Initialize provider
+	// Generate and write report
+	if err := outputReport(cmd, result); err != nil {
+		return err
+	}
+
+	// Exit with error code if critical issues found
+	checkCriticalIssues(result)
+	return nil
+}
+
+// setupProfiler initializes profiler if flags are set, returns cleanup function
+func setupProfiler(cmd *cobra.Command) (func(), error) {
+	cpuProfile, _ := cmd.Flags().GetString("cpuprofile")
+	memProfile, _ := cmd.Flags().GetString("memprofile")
+	pprofAddr, _ := cmd.Flags().GetString("pprof-addr")
+
+	if cpuProfile == "" && memProfile == "" && pprofAddr == "" {
+		return nil, nil
+	}
+
+	prof, err := profiler.New(profiler.Config{
+		CPUProfile: cpuProfile,
+		MemProfile: memProfile,
+		HTTPAddr:   pprofAddr,
+	})
+	if err != nil {
+		return nil, fmt.Errorf("failed to start profiler: %w", err)
+	}
+
+	if isVerbose() {
+		fmt.Fprintf(os.Stderr, "Profiler started - Initial memory stats: %s\n", profiler.Stats().String())
+	}
+
+	return func() {
+		if isVerbose() {
+			fmt.Fprintf(os.Stderr, "Profiler stopping - Final memory stats: %s\n", profiler.Stats().String())
+		}
+		if stopErr := prof.Stop(); stopErr != nil {
+			fmt.Fprintf(os.Stderr, "Warning: failed to stop profiler: %v\n", stopErr)
+		}
+	}, nil
+}
+
+// executeReview initializes dependencies and runs the review
+func executeReview(ctx context.Context, cmd *cobra.Command, cfg *config.Config) (*review.Result, error) {
+	gitRepo, err := git.NewRepo(".")
+	if err != nil {
+		return nil, fmt.Errorf("initializing git: %w", err)
+	}
+
 	provider, err := providers.NewProvider(cfg)
 	if err != nil {
-		return fmt.Errorf("initializing provider: %w", err)
+		return nil, fmt.Errorf("initializing provider: %w", err)
 	}
 	defer provider.Close()
 
-	// Health check provider
 	if err := provider.HealthCheck(ctx); err != nil {
-		return fmt.Errorf("provider not available: %w", err)
+		return nil, fmt.Errorf("provider not available: %w", err)
 	}
 
-	// Initialize cache (optional)
-	var reviewCache cache.Cache
-	if noCache, _ := cmd.Flags().GetBool("no-cache"); !noCache && cfg.Cache.Enabled {
-		reviewCache = cache.NewLRUCache(cfg.Cache.MaxEntries, cfg.Cache.TTL)
-	}
-
-	// Load rules
-	rulesLoader := rules.NewLoader(cfg.Rules.RulesDir)
-	allRules, err := rulesLoader.Load()
+	reviewCache := initCache(cmd, cfg)
+	activeRules, err := loadActiveRules(cmd, cfg)
 	if err != nil {
-		return fmt.Errorf("loading rules: %w", err)
+		return nil, err
 	}
 
-	// Apply preset
-	preset, _ := cmd.Flags().GetString("preset")
-	presetConfig, err := rulesLoader.LoadPreset(preset)
-	if err != nil {
-		return fmt.Errorf("loading preset: %w", err)
-	}
-	activeRules := rules.ApplyPreset(allRules, presetConfig)
-
-	// Create and run engine
 	engine := review.NewEngine(cfg, gitRepo, provider, reviewCache, activeRules)
 	result, err := engine.Run(ctx)
 	if err != nil {
-		return fmt.Errorf("review failed: %w", err)
+		return nil, fmt.Errorf("review failed: %w", err)
+	}
+	return result, nil
+}
+
+// initCache creates a cache if enabled
+func initCache(cmd *cobra.Command, cfg *config.Config) cache.Cache {
+	noCache, _ := cmd.Flags().GetBool("no-cache")
+	if noCache || !cfg.Cache.Enabled {
+		return nil
+	}
+	return cache.NewLRUCache(cfg.Cache.MaxEntries, cfg.Cache.TTL)
+}
+
+// loadActiveRules loads and applies rule preset
+func loadActiveRules(cmd *cobra.Command, cfg *config.Config) ([]rules.Rule, error) {
+	rulesLoader := rules.NewLoader(cfg.Rules.RulesDir)
+	allRules, err := rulesLoader.Load()
+	if err != nil {
+		return nil, fmt.Errorf("loading rules: %w", err)
 	}
 
-	// Generate report
+	preset, _ := cmd.Flags().GetString("preset")
+	presetConfig, err := rulesLoader.LoadPreset(preset)
+	if err != nil {
+		return nil, fmt.Errorf("loading preset: %w", err)
+	}
+	return rules.ApplyPreset(allRules, presetConfig), nil
+}
+
+// outputReport generates and writes the review report
+func outputReport(cmd *cobra.Command, result *review.Result) error {
 	format, _ := cmd.Flags().GetString("format")
 	reporter, err := report.NewReporter(format)
 	if err != nil {
@@ -189,7 +227,6 @@ func runReview(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("generating report: %w", err)
 	}
 
-	// Write output
 	outputFile, _ := cmd.Flags().GetString("output")
 	if outputFile != "" {
 		if err := os.WriteFile(outputFile, []byte(output), 0600); err != nil {
@@ -199,21 +236,24 @@ func runReview(cmd *cobra.Command, args []string) error {
 	} else {
 		fmt.Print(output)
 	}
+	return nil
+}
 
-	// Exit with error code if critical issues found
-	if result.TotalIssues > 0 {
-		for _, f := range result.Files {
-			if f.Response != nil {
-				for _, issue := range f.Response.Issues {
-					if issue.Severity == providers.SeverityCritical {
-						os.Exit(1)
-					}
-				}
+// checkCriticalIssues exits with code 1 if critical issues found
+func checkCriticalIssues(result *review.Result) {
+	if result.TotalIssues == 0 {
+		return
+	}
+	for _, f := range result.Files {
+		if f.Response == nil {
+			continue
+		}
+		for _, issue := range f.Response.Issues {
+			if issue.Severity == providers.SeverityCritical {
+				os.Exit(1)
 			}
 		}
 	}
-
-	return nil
 }
 
 func validateReviewFlags(cmd *cobra.Command, args []string) error {

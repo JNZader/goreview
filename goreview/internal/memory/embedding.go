@@ -23,7 +23,7 @@ type Embedder struct {
 // NewEmbedder creates a new embedder instance.
 func NewEmbedder() *Embedder {
 	return &Embedder{
-		stopwords: defaultStopwords(),
+		stopwords:    defaultStopwords(),
 		tokenPattern: regexp.MustCompile(`[a-zA-Z_][a-zA-Z0-9_]*|[0-9]+`),
 	}
 }

@@ -52,7 +52,7 @@ func (c *LRUCache) Get(key string) (*providers.ReviewResponse, bool, error) {
 
 	// Check expiration
 	if time.Now().After(entry.expiresAt) {
-		c.Delete(key)
+		_ = c.Delete(key)
 		atomic.AddInt64(&c.misses, 1)
 		return nil, false, nil
 	}
@@ -120,11 +120,11 @@ func (c *LRUCache) ComputeKey(req *providers.ReviewRequest) string {
 	return ComputeKey(req)
 }
 
-func (c *LRUCache) Stats() CacheStats {
+func (c *LRUCache) Stats() Stats {
 	c.mu.RLock()
 	defer c.mu.RUnlock()
 
-	return CacheStats{
+	return Stats{
 		Hits:    atomic.LoadInt64(&c.hits),
 		Misses:  atomic.LoadInt64(&c.misses),
 		Entries: c.order.Len(),

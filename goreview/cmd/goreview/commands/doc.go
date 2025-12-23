@@ -71,7 +71,7 @@ func runDoc(cmd *cobra.Command, args []string) error {
 	defer cancel()
 
 	// Initialize git repo
-	gitRepo, err := git.NewGitRepository(".")
+	gitRepo, err := git.NewRepo(".")
 	if err != nil {
 		return fmt.Errorf("initializing git: %w", err)
 	}

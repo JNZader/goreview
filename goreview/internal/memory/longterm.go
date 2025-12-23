@@ -96,9 +96,9 @@ func (l *LongTermMem) Get(ctx context.Context, id string) (*Entry, error) {
 	var entry Entry
 
 	err := l.db.View(func(txn *badger.Txn) error {
-		item, err := txn.Get([]byte(id))
-		if err != nil {
-			return err
+		item, getErr := txn.Get([]byte(id))
+		if getErr != nil {
+			return getErr
 		}
 
 		return item.Value(func(val []byte) error {
@@ -142,10 +142,10 @@ func (l *LongTermMem) Search(ctx context.Context, query *Query) ([]*SearchResult
 			item := it.Item()
 
 			var entry Entry
-			err := item.Value(func(val []byte) error {
+			valErr := item.Value(func(val []byte) error {
 				return json.Unmarshal(val, &entry)
 			})
-			if err != nil {
+			if valErr != nil {
 				continue
 			}
 
@@ -235,10 +235,10 @@ func (l *LongTermMem) Stats(ctx context.Context) (*Stats, error) {
 			totalEntries++
 
 			var entry Entry
-			err := it.Item().Value(func(val []byte) error {
+			valErr := it.Item().Value(func(val []byte) error {
 				return json.Unmarshal(val, &entry)
 			})
-			if err == nil {
+			if valErr == nil {
 				byType[entry.Type]++
 			}
 		}
@@ -287,10 +287,10 @@ func (l *LongTermMem) SemanticSearch(ctx context.Context, embedding []float32, l
 			item := it.Item()
 
 			var entry Entry
-			err := item.Value(func(val []byte) error {
+			valErr := item.Value(func(val []byte) error {
 				return json.Unmarshal(val, &entry)
 			})
-			if err != nil {
+			if valErr != nil {
 				continue
 			}
 
@@ -373,10 +373,10 @@ func (l *LongTermMem) GarbageCollect(ctx context.Context) (int, error) {
 			item := it.Item()
 
 			var entry Entry
-			err := item.Value(func(val []byte) error {
+			valErr := item.Value(func(val []byte) error {
 				return json.Unmarshal(val, &entry)
 			})
-			if err != nil {
+			if valErr != nil {
 				continue
 			}
 
@@ -407,8 +407,8 @@ func (l *LongTermMem) GarbageCollect(ctx context.Context) (int, error) {
 	if len(keysToDelete) > 0 {
 		err = l.db.Update(func(txn *badger.Txn) error {
 			for _, key := range keysToDelete {
-				if err := txn.Delete(key); err != nil {
-					return err
+				if delErr := txn.Delete(key); delErr != nil {
+					return delErr
 				}
 			}
 			return nil

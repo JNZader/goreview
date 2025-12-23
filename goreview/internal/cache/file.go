@@ -100,12 +100,12 @@ func (c *FileCache) ComputeKey(req *providers.ReviewRequest) string {
 	return ComputeKey(req)
 }
 
-func (c *FileCache) Stats() CacheStats {
+func (c *FileCache) Stats() Stats {
 	var entryCount int
 	if entries, err := os.ReadDir(c.dir); err == nil {
 		entryCount = len(entries)
 	}
-	return CacheStats{
+	return Stats{
 		Hits:    atomic.LoadInt64(&c.hits),
 		Misses:  atomic.LoadInt64(&c.misses),
 		Entries: entryCount,

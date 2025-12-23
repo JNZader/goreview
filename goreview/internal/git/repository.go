@@ -9,20 +9,20 @@ import (
 	"strings"
 )
 
-// GitRepository implements Repository using git commands.
-type GitRepository struct {
+// Repo implements Repository using git commands.
+type Repo struct {
 	path string
 }
 
-// NewGitRepository creates a new GitRepository.
-func NewGitRepository(path string) (*GitRepository, error) {
+// NewRepo creates a new Repo.
+func NewRepo(path string) (*Repo, error) {
 	absPath, err := filepath.Abs(path)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get absolute path: %w", err)
 	}
 
 	// Verify it's a git repository
-	repo := &GitRepository{path: absPath}
+	repo := &Repo{path: absPath}
 	if _, err := repo.GetRepoRoot(context.Background()); err != nil {
 		return nil, fmt.Errorf("not a git repository: %w", err)
 	}
@@ -31,7 +31,7 @@ func NewGitRepository(path string) (*GitRepository, error) {
 }
 
 // runGit executes a git command and returns the output.
-func (r *GitRepository) runGit(ctx context.Context, args ...string) (string, error) {
+func (r *Repo) runGit(ctx context.Context, args ...string) (string, error) {
 	cmd := exec.CommandContext(ctx, "git", args...)
 	cmd.Dir = r.path
 
@@ -51,7 +51,7 @@ func (r *GitRepository) runGit(ctx context.Context, args ...string) (string, err
 	return stdout.String(), nil
 }
 
-func (r *GitRepository) GetStagedDiff(ctx context.Context) (*Diff, error) {
+func (r *Repo) GetStagedDiff(ctx context.Context) (*Diff, error) {
 	// Get staged diff
 	output, err := r.runGit(ctx, "diff", "--cached", "--unified=3")
 	if err != nil {
@@ -66,7 +66,7 @@ func (r *GitRepository) GetStagedDiff(ctx context.Context) (*Diff, error) {
 	return diff, nil
 }
 
-func (r *GitRepository) GetCommitDiff(ctx context.Context, sha string) (*Diff, error) {
+func (r *Repo) GetCommitDiff(ctx context.Context, sha string) (*Diff, error) {
 	output, err := r.runGit(ctx, "show", sha, "--unified=3", "--format=")
 	if err != nil {
 		return nil, err
@@ -75,7 +75,7 @@ func (r *GitRepository) GetCommitDiff(ctx context.Context, sha string) (*Diff, e
 	return ParseDiff(output)
 }
 
-func (r *GitRepository) GetBranchDiff(ctx context.Context, baseBranch string) (*Diff, error) {
+func (r *Repo) GetBranchDiff(ctx context.Context, baseBranch string) (*Diff, error) {
 	// Get merge base
 	mergeBase, err := r.runGit(ctx, "merge-base", baseBranch, "HEAD")
 	if err != nil {
@@ -91,7 +91,7 @@ func (r *GitRepository) GetBranchDiff(ctx context.Context, baseBranch string) (*
 	return ParseDiff(output)
 }
 
-func (r *GitRepository) GetFileDiff(ctx context.Context, files []string) (*Diff, error) {
+func (r *Repo) GetFileDiff(ctx context.Context, files []string) (*Diff, error) {
 	args := append([]string{"diff", "--unified=3", "--"}, files...)
 	output, err := r.runGit(ctx, args...)
 	if err != nil {
@@ -101,7 +101,7 @@ func (r *GitRepository) GetFileDiff(ctx context.Context, files []string) (*Diff,
 	return ParseDiff(output)
 }
 
-func (r *GitRepository) GetCurrentBranch(ctx context.Context) (string, error) {
+func (r *Repo) GetCurrentBranch(ctx context.Context) (string, error) {
 	output, err := r.runGit(ctx, "rev-parse", "--abbrev-ref", "HEAD")
 	if err != nil {
 		return "", err
@@ -109,7 +109,7 @@ func (r *GitRepository) GetCurrentBranch(ctx context.Context) (string, error) {
 	return strings.TrimSpace(output), nil
 }
 
-func (r *GitRepository) GetRepoRoot(ctx context.Context) (string, error) {
+func (r *Repo) GetRepoRoot(ctx context.Context) (string, error) {
 	output, err := r.runGit(ctx, "rev-parse", "--show-toplevel")
 	if err != nil {
 		return "", err
@@ -117,7 +117,7 @@ func (r *GitRepository) GetRepoRoot(ctx context.Context) (string, error) {
 	return strings.TrimSpace(output), nil
 }
 
-func (r *GitRepository) IsClean(ctx context.Context) (bool, error) {
+func (r *Repo) IsClean(ctx context.Context) (bool, error) {
 	output, err := r.runGit(ctx, "status", "--porcelain")
 	if err != nil {
 		return false, err

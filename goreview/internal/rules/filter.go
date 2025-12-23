@@ -7,7 +7,7 @@ import (
 
 // Filter filters rules based on criteria.
 func Filter(rules []Rule, language, filePath string) []Rule {
-	var filtered []Rule
+	filtered := make([]Rule, 0, len(rules))
 
 	for _, rule := range rules {
 		if !rule.Enabled {
@@ -36,7 +36,7 @@ func ApplyPreset(rules []Rule, preset *Preset) []Rule {
 		return rules
 	}
 
-	var filtered []Rule
+	filtered := make([]Rule, 0, len(rules))
 
 	for _, rule := range rules {
 		// Check excludes
@@ -57,7 +57,7 @@ func ApplyPreset(rules []Rule, preset *Preset) []Rule {
 
 // GetRulesByCategory returns rules for a specific category.
 func GetRulesByCategory(rules []Rule, category Category) []Rule {
-	var filtered []Rule
+	filtered := make([]Rule, 0, len(rules))
 	for _, rule := range rules {
 		if rule.Category == category {
 			filtered = append(filtered, rule)
@@ -76,7 +76,7 @@ func GetRulesBySeverity(rules []Rule, minSeverity Severity) []Rule {
 	}
 
 	minOrder := severityOrder[minSeverity]
-	var filtered []Rule
+	filtered := make([]Rule, 0, len(rules))
 
 	for _, rule := range rules {
 		if severityOrder[rule.Severity] >= minOrder {

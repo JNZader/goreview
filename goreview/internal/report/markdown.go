@@ -16,7 +16,7 @@ func (r *MarkdownReporter) Format() string { return "markdown" }
 
 func (r *MarkdownReporter) Generate(result *review.Result) (string, error) {
 	var sb strings.Builder
-	r.Write(result, &sb)
+	_ = r.Write(result, &sb)
 	return sb.String(), nil
 }
 

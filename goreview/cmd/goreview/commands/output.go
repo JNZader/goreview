@@ -23,7 +23,7 @@ func WriteOutput(content, outputPath string) error {
 	}
 
 	// Write file
-	if err := os.WriteFile(outputPath, []byte(content), 0644); err != nil {
+	if err := os.WriteFile(outputPath, []byte(content), 0600); err != nil {
 		return fmt.Errorf("writing output file: %w", err)
 	}
 

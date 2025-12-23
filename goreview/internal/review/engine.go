@@ -136,7 +136,7 @@ func (e *Engine) getDiff(ctx context.Context) (*git.Diff, error) {
 }
 
 func (e *Engine) filterFiles(files []git.FileDiff) []git.FileDiff {
-	var result []git.FileDiff
+	result := make([]git.FileDiff, 0, len(files))
 	for _, f := range files {
 		// Skip deleted and binary files
 		if f.Status == git.FileDeleted || f.IsBinary {

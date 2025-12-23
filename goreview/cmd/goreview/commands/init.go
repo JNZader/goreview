@@ -86,7 +86,7 @@ func runInit(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("marshaling config: %w", err)
 	}
 
-	if err := os.WriteFile(configFileName, data, 0644); err != nil {
+	if err := os.WriteFile(configFileName, data, 0600); err != nil {
 		return fmt.Errorf("writing config: %w", err)
 	}
 

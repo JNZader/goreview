@@ -212,7 +212,7 @@ func formatDocOutput(doc, style string) string {
 
 func formatAsJSDoc(doc string) string {
 	lines := strings.Split(doc, "\n")
-	var result []string
+	result := make([]string, 0, len(lines)+2)
 	result = append(result, "/**")
 	for _, line := range lines {
 		result = append(result, " * "+line)
@@ -223,7 +223,7 @@ func formatAsJSDoc(doc string) string {
 
 func formatAsGoDoc(doc string) string {
 	lines := strings.Split(doc, "\n")
-	var result []string
+	result := make([]string, 0, len(lines))
 	for _, line := range lines {
 		result = append(result, "// "+line)
 	}
@@ -232,7 +232,7 @@ func formatAsGoDoc(doc string) string {
 
 func writeDocOutput(path, content string, appendMode, prependMode bool) error {
 	if appendMode {
-		f, err := os.OpenFile(path, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
+		f, err := os.OpenFile(path, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0600)
 		if err != nil {
 			return err
 		}
@@ -253,7 +253,7 @@ func writeDocOutput(path, content string, appendMode, prependMode bool) error {
 		content = content + "\n" + string(existing)
 	}
 
-	if err := os.WriteFile(path, []byte(content), 0644); err != nil {
+	if err := os.WriteFile(path, []byte(content), 0600); err != nil {
 		return err
 	}
 

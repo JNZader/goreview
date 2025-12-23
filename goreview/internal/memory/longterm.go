@@ -136,7 +136,7 @@ func (l *LongTermMem) Search(ctx context.Context, query *Query) ([]*SearchResult
 		opts.PrefetchSize = 100
 
 		it := txn.NewIterator(opts)
-		defer it.Close()
+		defer func() { _ = it.Close() }()
 
 		for it.Rewind(); it.Valid(); it.Next() {
 			item := it.Item()
@@ -229,7 +229,7 @@ func (l *LongTermMem) Stats(ctx context.Context) (*Stats, error) {
 		opts.PrefetchSize = 100
 
 		it := txn.NewIterator(opts)
-		defer it.Close()
+		defer func() { _ = it.Close() }()
 
 		for it.Rewind(); it.Valid(); it.Next() {
 			totalEntries++
@@ -281,7 +281,7 @@ func (l *LongTermMem) SemanticSearch(ctx context.Context, embedding []float32, l
 		opts.PrefetchSize = 100
 
 		it := txn.NewIterator(opts)
-		defer it.Close()
+		defer func() { _ = it.Close() }()
 
 		for it.Rewind(); it.Valid(); it.Next() {
 			item := it.Item()
@@ -367,7 +367,7 @@ func (l *LongTermMem) GarbageCollect(ctx context.Context) (int, error) {
 	err := l.db.View(func(txn *badger.Txn) error {
 		opts := badger.DefaultIteratorOptions
 		it := txn.NewIterator(opts)
-		defer it.Close()
+		defer func() { _ = it.Close() }()
 
 		for it.Rewind(); it.Valid(); it.Next() {
 			item := it.Item()

@@ -80,7 +80,7 @@ func (p *GeminiProvider) Review(ctx context.Context, req *ReviewRequest) (*Revie
 	if err != nil {
 		return nil, fmt.Errorf("gemini request failed: %w", err)
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	var result struct {
 		Candidates []struct {
@@ -150,7 +150,7 @@ Return ONLY the commit message, nothing else.`, diff)
 	if err != nil {
 		return "", err
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	var result struct {
 		Candidates []struct {
@@ -200,7 +200,7 @@ Format as Markdown.`, docContext, diff)
 	if err != nil {
 		return "", err
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	var result struct {
 		Candidates []struct {
@@ -231,7 +231,7 @@ func (p *GeminiProvider) HealthCheck(ctx context.Context) error {
 	if err != nil {
 		return err
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 	if resp.StatusCode != http.StatusOK {
 		return fmt.Errorf("gemini health check failed: %d", resp.StatusCode)
 	}

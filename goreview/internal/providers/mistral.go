@@ -78,7 +78,7 @@ func (p *MistralProvider) Review(ctx context.Context, req *ReviewRequest) (*Revi
 	if err != nil {
 		return nil, fmt.Errorf("mistral request failed: %w", err)
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	var result struct {
 		Choices []struct {
@@ -145,7 +145,7 @@ Return ONLY the commit message.`, diff)
 	if err != nil {
 		return "", err
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	var result struct {
 		Choices []struct {
@@ -194,7 +194,7 @@ Format as Markdown.`, docContext, diff)
 	if err != nil {
 		return "", err
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	var result struct {
 		Choices []struct {
@@ -221,7 +221,7 @@ func (p *MistralProvider) HealthCheck(ctx context.Context) error {
 	if err != nil {
 		return err
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 	if resp.StatusCode != http.StatusOK {
 		return fmt.Errorf("mistral health check failed: %d", resp.StatusCode)
 	}

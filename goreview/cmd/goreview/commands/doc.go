@@ -91,7 +91,7 @@ func runDoc(cmd *cobra.Command, args []string) error {
 	if err != nil {
 		return fmt.Errorf("initializing provider: %w", err)
 	}
-	defer provider.Close()
+	defer func() { _ = provider.Close() }()
 
 	// Build documentation context
 	docType, _ := cmd.Flags().GetString("type")
@@ -236,7 +236,7 @@ func writeDocOutput(path, content string, appendMode, prependMode bool) error {
 		if err != nil {
 			return err
 		}
-		defer f.Close()
+		defer func() { _ = f.Close() }()
 		_, err = f.WriteString("\n" + content)
 		if err != nil {
 			return err

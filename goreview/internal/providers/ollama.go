@@ -76,7 +76,7 @@ func (p *OllamaProvider) Review(ctx context.Context, req *ReviewRequest) (*Revie
 	if err != nil {
 		return nil, fmt.Errorf("ollama request failed: %w", err)
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	if resp.StatusCode != http.StatusOK {
 		bodyBytes, _ := io.ReadAll(resp.Body) //nolint:errcheck // best effort for error message
@@ -128,7 +128,7 @@ Return ONLY the commit message.`, diff)
 	if err != nil {
 		return "", err
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	var result struct {
 		Response string `json:"response"`
@@ -165,7 +165,7 @@ Format as Markdown.`, docContext, diff)
 	if err != nil {
 		return "", err
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	var result struct {
 		Response string `json:"response"`
@@ -185,7 +185,7 @@ func (p *OllamaProvider) HealthCheck(ctx context.Context) error {
 	if err != nil {
 		return err
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 	if resp.StatusCode != http.StatusOK {
 		return fmt.Errorf("health check failed: %d", resp.StatusCode)
 	}

@@ -55,7 +55,7 @@ func (c *FileCache) Get(key string) (*providers.ReviewResponse, bool, error) {
 
 	// Check expiration
 	if time.Now().After(entry.ExpiresAt) {
-		os.Remove(path)
+		_ = os.Remove(path)
 		atomic.AddInt64(&c.misses, 1)
 		return nil, false, nil
 	}
@@ -90,7 +90,7 @@ func (c *FileCache) Clear() error {
 
 	for _, entry := range entries {
 		if !entry.IsDir() {
-			os.Remove(filepath.Join(c.dir, entry.Name()))
+			_ = os.Remove(filepath.Join(c.dir, entry.Name()))
 		}
 	}
 	return nil
@@ -140,7 +140,7 @@ func (c *FileCache) Cleanup() error {
 		}
 
 		if time.Now().After(fe.ExpiresAt) {
-			os.Remove(path)
+			_ = os.Remove(path)
 		}
 	}
 

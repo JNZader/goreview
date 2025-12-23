@@ -85,7 +85,7 @@ func runCommit(cmd *cobra.Command, args []string) error {
 	if err != nil {
 		return fmt.Errorf("initializing provider: %w", err)
 	}
-	defer provider.Close()
+	defer func() { _ = provider.Close() }()
 
 	// Generate commit message
 	if isVerbose() {

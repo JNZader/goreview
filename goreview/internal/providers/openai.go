@@ -72,7 +72,7 @@ func (p *OpenAIProvider) Review(ctx context.Context, req *ReviewRequest) (*Revie
 	if err != nil {
 		return nil, err
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	var result struct {
 		Choices []struct {
@@ -115,7 +115,7 @@ func (p *OpenAIProvider) HealthCheck(ctx context.Context) error {
 	if err != nil {
 		return err
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 	return nil
 }
 

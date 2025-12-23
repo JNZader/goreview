@@ -169,7 +169,7 @@ func executeReview(ctx context.Context, cmd *cobra.Command, cfg *config.Config) 
 	if err != nil {
 		return nil, fmt.Errorf("initializing provider: %w", err)
 	}
-	defer provider.Close()
+	defer func() { _ = provider.Close() }()
 
 	if healthErr := provider.HealthCheck(ctx); healthErr != nil {
 		return nil, fmt.Errorf("provider not available: %w", healthErr)

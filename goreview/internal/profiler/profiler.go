@@ -88,7 +88,7 @@ func (p *Profiler) Stop() error {
 		if err != nil {
 			errs = append(errs, fmt.Errorf("create memory profile: %w", err))
 		} else {
-			defer f.Close()
+			defer func() { _ = f.Close() }()
 			if err := pprof.WriteHeapProfile(f); err != nil {
 				errs = append(errs, fmt.Errorf("write memory profile: %w", err))
 			}

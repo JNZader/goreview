@@ -79,7 +79,7 @@ func (p *GroqProvider) Review(ctx context.Context, req *ReviewRequest) (*ReviewR
 	if err != nil {
 		return nil, fmt.Errorf("groq request failed: %w", err)
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	var result struct {
 		Choices []struct {
@@ -147,7 +147,7 @@ Return ONLY the commit message.`, diff)
 	if err != nil {
 		return "", err
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	var result struct {
 		Choices []struct {
@@ -196,7 +196,7 @@ Format as Markdown.`, docContext, diff)
 	if err != nil {
 		return "", err
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	var result struct {
 		Choices []struct {
@@ -223,7 +223,7 @@ func (p *GroqProvider) HealthCheck(ctx context.Context) error {
 	if err != nil {
 		return err
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 	if resp.StatusCode != http.StatusOK {
 		return fmt.Errorf("groq health check failed: %d", resp.StatusCode)
 	}

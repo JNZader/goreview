@@ -27,7 +27,8 @@ func (w *InitWizard) Run() (map[string]interface{}, error) {
 
 	fmt.Println("\n┌─────────────────────────────────────┐")
 	fmt.Println("│     GoReview Configuration Wizard   │")
-	fmt.Println("└─────────────────────────────────────┘\n")
+	fmt.Println("└─────────────────────────────────────┘")
+	fmt.Println()
 
 	// Show detected info
 	w.showDetectedInfo()

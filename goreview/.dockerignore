@@ -1,0 +1,32 @@
+# Git
+.git
+.gitignore
+
+# Build artifacts
+bin/
+dist/
+*.exe
+*.test
+*.out
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# Test and coverage
+coverage/
+*.cover
+*.prof
+
+# Documentation
+docs/
+*.md
+!README.md
+
+# Examples
+examples/
+
+# CI
+.github/

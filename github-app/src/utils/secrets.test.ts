@@ -65,7 +65,10 @@ describe('secrets', () => {
 
     it('should fail decryption with tampered auth tag', () => {
       const encrypted = encryptSecret(plaintext, testPassword);
-      encrypted.authTag = encrypted.authTag.replace('a', 'b');
+      // Modify the first character to ensure tampering
+      const firstChar = encrypted.authTag[0];
+      const newChar = firstChar === '0' ? '1' : '0';
+      encrypted.authTag = newChar + encrypted.authTag.slice(1);
 
       expect(() => decryptSecret(encrypted, testPassword)).toThrow();
     });

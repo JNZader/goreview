@@ -206,7 +206,7 @@ class JobQueue {
    */
   private async executeJob(job: Job): Promise<void> {
     switch (job.type) {
-      case 'pr_review':
+      case 'pr_review': {
         // Dynamic import to avoid circular dependency
         const { processReviewJob } = await import('../handlers/pullRequestHandler.js');
         await processReviewJob(
@@ -217,6 +217,7 @@ class JobQueue {
           job.data.headSha
         );
         break;
+      }
 
       default:
         throw new Error(`Unknown job type: ${job.type}`);

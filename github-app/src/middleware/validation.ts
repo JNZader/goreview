@@ -208,6 +208,7 @@ export function sanitizeString(input: string): string {
   }
 
   return input
+    // eslint-disable-next-line no-control-regex
     .replace(/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/g, '') // Remove control characters
     .replace(/<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi, '') // Remove script tags
     .trim();
@@ -274,7 +275,7 @@ export function validateRequest<T extends z.ZodType>(
       }
 
       // Parse and validate with schema
-      const parseOptions = stripUnknown ? {} : { strict: true };
+      // Note: stripUnknown is handled by Zod's default behavior (strips unknown by default)
       const result = schema.safeParse(data);
 
       if (!result.success) {

@@ -4,6 +4,7 @@
  */
 
 import type { Request, Response, NextFunction, RequestHandler } from 'express';
+import crypto from 'node:crypto';
 import { logger } from '../utils/logger.js';
 
 // =============================================================================
@@ -182,7 +183,6 @@ export function tokenKeyGenerator(req: Request): string {
   if (auth?.startsWith('Bearer ')) {
     const token = auth.slice(7);
     // Hash the token to avoid storing sensitive data
-    const crypto = require('node:crypto');
     const hash = crypto.createHash('sha256').update(token).digest('hex').slice(0, 16);
     return `token:${hash}`;
   }

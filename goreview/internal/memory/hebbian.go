@@ -145,7 +145,7 @@ func (h *HebbianLearnerImpl) GetAssociations(ctx context.Context, id string) ([]
 		opts.Prefix = prefix
 
 		it := txn.NewIterator(opts)
-		defer func() { _ = it.Close() }()
+		defer it.Close() //nolint:errcheck
 
 		for it.Seek(prefix); it.ValidForPrefix(prefix); it.Next() {
 			item := it.Item()
@@ -171,7 +171,7 @@ func (h *HebbianLearnerImpl) GetAssociations(ctx context.Context, id string) ([]
 	err = h.db.View(func(txn *badger.Txn) error {
 		opts := badger.DefaultIteratorOptions
 		it := txn.NewIterator(opts)
-		defer func() { _ = it.Close() }()
+		defer it.Close() //nolint:errcheck
 
 		for it.Rewind(); it.Valid(); it.Next() {
 			item := it.Item()
@@ -217,7 +217,7 @@ func (h *HebbianLearnerImpl) Decay(ctx context.Context) error {
 		opts.Prefix = []byte(associationPrefix)
 
 		it := txn.NewIterator(opts)
-		defer func() { _ = it.Close() }()
+		defer it.Close() //nolint:errcheck
 
 		for it.Seek([]byte(associationPrefix)); it.ValidForPrefix([]byte(associationPrefix)); it.Next() {
 			item := it.Item()
@@ -285,7 +285,7 @@ func (h *HebbianLearnerImpl) Prune(ctx context.Context, minStrength float64) (in
 		opts.Prefix = []byte(associationPrefix)
 
 		it := txn.NewIterator(opts)
-		defer func() { _ = it.Close() }()
+		defer it.Close() //nolint:errcheck
 
 		for it.Seek([]byte(associationPrefix)); it.ValidForPrefix([]byte(associationPrefix)); it.Next() {
 			item := it.Item()
@@ -377,7 +377,7 @@ func (h *HebbianLearnerImpl) GetAllAssociations(ctx context.Context) ([]*Associa
 		opts.Prefix = []byte(associationPrefix)
 
 		it := txn.NewIterator(opts)
-		defer func() { _ = it.Close() }()
+		defer it.Close() //nolint:errcheck
 
 		for it.Seek([]byte(associationPrefix)); it.ValidForPrefix([]byte(associationPrefix)); it.Next() {
 			item := it.Item()
@@ -410,7 +410,7 @@ func (h *HebbianLearnerImpl) Stats(ctx context.Context) (total int64, avgStrengt
 		opts.Prefix = []byte(associationPrefix)
 
 		it := txn.NewIterator(opts)
-		defer func() { _ = it.Close() }()
+		defer it.Close() //nolint:errcheck
 
 		for it.Seek([]byte(associationPrefix)); it.ValidForPrefix([]byte(associationPrefix)); it.Next() {
 			item := it.Item()

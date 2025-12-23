@@ -104,7 +104,7 @@ Return ONLY the commit message, nothing else.`;
       throw new Error(`Ollama error: ${response.status} ${error}`);
     }
 
-    const result = await response.json();
+    const result = (await response.json()) as { response: string };
     return result.response;
   }
 
@@ -152,7 +152,7 @@ Return valid JSON only.`;
         summary: parsed.summary || 'No summary provided',
         score: typeof parsed.score === 'number' ? parsed.score : 70,
       };
-    } catch (error) {
+    } catch {
       logger.warn({ response }, 'Failed to parse Ollama response as JSON');
 
       // Fallback response

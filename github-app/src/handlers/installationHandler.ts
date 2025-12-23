@@ -112,8 +112,12 @@ async function handleRepositoriesAdded(
     }, 'Repository added');
 
     // Clear any cached config for this repo
-    const [owner, name] = repo.full_name.split('/');
-    clearRepoConfigCache(owner, name);
+    const parts = repo.full_name.split('/');
+    const owner = parts[0] ?? '';
+    const name = parts[1] ?? '';
+    if (owner && name) {
+      clearRepoConfigCache(owner, name);
+    }
   }
 }
 
@@ -130,7 +134,11 @@ async function handleRepositoriesRemoved(
     }, 'Repository removed');
 
     // Clear cached config
-    const [owner, name] = repo.full_name.split('/');
-    clearRepoConfigCache(owner, name);
+    const parts = repo.full_name.split('/');
+    const owner = parts[0] ?? '';
+    const name = parts[1] ?? '';
+    if (owner && name) {
+      clearRepoConfigCache(owner, name);
+    }
   }
 }

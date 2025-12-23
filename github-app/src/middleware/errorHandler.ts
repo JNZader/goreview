@@ -3,13 +3,19 @@ import { logger } from '../utils/logger.js';
 import { ZodError } from 'zod';
 
 export class AppError extends Error {
+  public details?: Record<string, unknown>;
+
   constructor(
     public override message: string,
     public statusCode: number = 500,
-    public code?: string
+    public code?: string | Record<string, unknown>
   ) {
     super(message);
     this.name = 'AppError';
+    if (typeof code === 'object') {
+      this.details = code;
+      this.code = undefined;
+    }
   }
 }
 
@@ -29,6 +35,7 @@ export const errorHandler = (
     return res.status(err.statusCode).json({
       error: err.message,
       code: err.code,
+      ...(err.details && { details: err.details }),
     });
   }
 
@@ -39,7 +46,7 @@ export const errorHandler = (
     });
   }
 
-  res.status(500).json({
+  return res.status(500).json({
     error: 'Internal server error',
   });
 };

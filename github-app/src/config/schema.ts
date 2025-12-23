@@ -13,14 +13,15 @@ const durationSchema = z.string().superRefine((val, ctx) => {
   const match = val.match(/^(\d+)(h|m|s)$/);
   if (!match) return 0; // Won't reach here due to superRefine
 
-  const [, num, unit] = match;
+  const num = match[1] ?? '0';
+  const unit = match[2] ?? 's';
   const multipliers: Record<string, number> = {
     h: 3600000,
     m: 60000,
     s: 1000,
   };
 
-  return parseInt(num) * multipliers[unit];
+  return parseInt(num, 10) * (multipliers[unit] ?? 1000);
 });
 
 export const envSchema = z.object({

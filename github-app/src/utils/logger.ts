@@ -1,7 +1,7 @@
-import pino from 'pino';
+import { pino, type Logger as PinoLogger } from 'pino';
 import { config } from '../config/index.js';
 
-export const logger = pino({
+export const logger: PinoLogger = pino({
   level: config.logLevel,
   transport: config.isDevelopment
     ? {
@@ -19,4 +19,4 @@ export const logger = pino({
   redact: ['req.headers.authorization', 'req.headers["x-hub-signature-256"]'],
 });
 
-export type Logger = typeof logger;
+export type Logger = PinoLogger;

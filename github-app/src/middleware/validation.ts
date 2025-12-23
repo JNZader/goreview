@@ -373,8 +373,13 @@ export function validateWebhookSignature(
   const expected = crypto.createHmac('sha256', secret).update(payload).digest('hex');
 
   // Timing-safe comparison
+  const signatureHex = parts[1];
+  if (!signatureHex) {
+    return false;
+  }
+
   try {
-    return crypto.timingSafeEqual(Buffer.from(parts[1], 'hex'), Buffer.from(expected, 'hex'));
+    return crypto.timingSafeEqual(Buffer.from(signatureHex, 'hex'), Buffer.from(expected, 'hex'));
   } catch {
     return false;
   }

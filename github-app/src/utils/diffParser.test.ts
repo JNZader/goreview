@@ -16,10 +16,10 @@ index 1234567..abcdefg 100644
     const files = parseDiff(diff);
 
     expect(files).toHaveLength(1);
-    expect(files[0].path).toBe('main.go');
-    expect(files[0].status).toBe('modified');
-    expect(files[0].language).toBe('go');
-    expect(files[0].additions).toBe(1);
+    expect(files[0]?.path).toBe('main.go');
+    expect(files[0]?.status).toBe('modified');
+    expect(files[0]?.language).toBe('go');
+    expect(files[0]?.additions).toBe(1);
   });
 
   it('detects new files', () => {
@@ -33,7 +33,7 @@ index 0000000..1234567
 
     const files = parseDiff(diff);
 
-    expect(files[0].status).toBe('added');
+    expect(files[0]?.status).toBe('added');
   });
 
   it('detects deleted files', () => {
@@ -47,7 +47,7 @@ index 1234567..0000000
 
     const files = parseDiff(diff);
 
-    expect(files[0].status).toBe('deleted');
+    expect(files[0]?.status).toBe('deleted');
   });
 
   it('handles multiple files', () => {
@@ -69,8 +69,8 @@ index 1234567..abcdefg 100644
     const files = parseDiff(diff);
 
     expect(files).toHaveLength(2);
-    expect(files[0].path).toBe('file1.ts');
-    expect(files[1].path).toBe('file2.ts');
+    expect(files[0]?.path).toBe('file1.ts');
+    expect(files[1]?.path).toBe('file2.ts');
   });
 
   it('counts additions and deletions', () => {
@@ -86,8 +86,8 @@ index 1234567..abcdefg 100644
 
     const files = parseDiff(diff);
 
-    expect(files[0].additions).toBe(1);
-    expect(files[0].deletions).toBe(1);
+    expect(files[0]?.additions).toBe(1);
+    expect(files[0]?.deletions).toBe(1);
   });
 });
 

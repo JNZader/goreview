@@ -30,10 +30,14 @@ function parseFileBlock(block: string): DiffFile | null {
   const lines = block.split('\n');
 
   // Parse header
-  const headerMatch = lines[0].match(/^diff --git a\/(.+) b\/(.+)$/);
+  const firstLine = lines[0];
+  if (!firstLine) return null;
+
+  const headerMatch = firstLine.match(/^diff --git a\/(.+) b\/(.+)$/);
   if (!headerMatch) return null;
 
-  const [, oldPath, newPath] = headerMatch;
+  const oldPath = headerMatch[1] ?? '';
+  const newPath = headerMatch[2] ?? '';
 
   // Determine status
   let status: DiffFile['status'] = 'modified';
@@ -70,10 +74,10 @@ function parseFileBlock(block: string): DiffFile | null {
   }
 
   return {
-    path: newPath,
+    path: newPath || 'unknown',
     oldPath: oldPath !== newPath ? oldPath : undefined,
     status,
-    language: detectLanguage(newPath),
+    language: detectLanguage(newPath || ''),
     content: content.trim(),
     isBinary,
     additions,

@@ -128,7 +128,7 @@ describe('validation', () => {
 
       const result = sanitizeObject(obj);
 
-      expect(result.items[0].name).toBe('item1');
+      expect((result.items as Array<{ name: string }>)[0]?.name).toBe('item1');
     });
   });
 

@@ -152,14 +152,19 @@ export function getClientIp(req: Request): string {
   // Check X-Forwarded-For header (set by proxies/load balancers)
   const forwarded = req.headers['x-forwarded-for'];
   if (forwarded) {
-    const ips = Array.isArray(forwarded) ? forwarded[0] : forwarded.split(',')[0];
-    return ips.trim();
+    const firstForwarded = Array.isArray(forwarded) ? forwarded[0] : forwarded.split(',')[0];
+    if (firstForwarded) {
+      return firstForwarded.trim();
+    }
   }
 
   // Check X-Real-IP header (set by nginx)
   const realIp = req.headers['x-real-ip'];
   if (realIp) {
-    return Array.isArray(realIp) ? realIp[0] : realIp;
+    const ip = Array.isArray(realIp) ? realIp[0] : realIp;
+    if (ip) {
+      return ip;
+    }
   }
 
   // Fall back to socket remote address

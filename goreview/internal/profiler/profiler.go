@@ -43,7 +43,7 @@ func New(cfg Config) (*Profiler, error) {
 		p.cpuFile = f
 
 		if err := pprof.StartCPUProfile(f); err != nil {
-			f.Close()
+			_ = f.Close()
 			return nil, fmt.Errorf("failed to start CPU profile: %w", err)
 		}
 	}

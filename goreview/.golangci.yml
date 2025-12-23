@@ -8,17 +8,6 @@ run:
   # Include test files
   tests: true
 
-  # Skip vendor, third_party, etc.
-  skip-dirs:
-    - vendor
-    - third_party
-    - testdata
-
-  # Skip generated files
-  skip-files:
-    - ".*_generated\\.go$"
-    - ".*\\.pb\\.go$"
-
 linters:
   # Disable all linters by default
   disable-all: true
@@ -30,6 +19,7 @@ linters:
     - gosec         # Security issues
     - govet         # Suspicious constructs
     - staticcheck   # Static analysis
+    - shadow        # Check for shadowed variables
 
     # Style
     - gofmt         # Check formatting
@@ -54,10 +44,20 @@ linters-settings:
     check-type-assertions: true
     # Allow blank identifier assignments (explicit error ignoring with _ = )
     check-blank: false
-
-  govet:
-    # Report shadowed variables
-    check-shadowing: true
+    # Exclude common functions where ignoring errors is acceptable
+    exclude-functions:
+      # IO Close operations (defer pattern)
+      - (*os.File).Close
+      - (io.Closer).Close
+      - (*net/http.Response).Body.Close
+      - io.Closer.Close
+      # fmt write functions (writing to buffers/writers rarely fails)
+      - fmt.Fprintf
+      - fmt.Fprintln
+      - fmt.Fprint
+      # os cleanup operations
+      - os.Remove
+      - os.RemoveAll
 
   gocyclo:
     # Minimum complexity to report
@@ -97,6 +97,17 @@ issues:
   # Don't skip any linters for new code
   new: false
 
+  # Exclude directories
+  exclude-dirs:
+    - vendor
+    - third_party
+    - testdata
+
+  # Exclude generated files
+  exclude-files:
+    - ".*_generated\\.go$"
+    - ".*\\.pb\\.go$"
+
   # Exclude some issues in tests
   exclude-rules:
     - path: _test\.go
@@ -108,6 +119,11 @@ issues:
     - path: main\.go
       linters:
         - forbidigo
+
+    # Ignore errcheck for defer Close patterns
+    - linters:
+        - errcheck
+      source: "defer .*\\.Close\\(\\)"
 
 severity:
   # Default severity

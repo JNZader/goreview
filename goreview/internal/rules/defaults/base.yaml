@@ -1,0 +1,83 @@
+name: Base Rules
+description: Base code review rules
+
+rules:
+  - id: SEC-001
+    name: Hardcoded Secrets
+    description: Detect hardcoded passwords, API keys, tokens
+    category: security
+    severity: critical
+    languages: [go, python, javascript, typescript]
+    enabled: true
+    message: Hardcoded secret detected. Use environment variables.
+    suggestion: Move secrets to environment variables or secret manager.
+
+  - id: SEC-002
+    name: SQL Injection
+    description: Detect potential SQL injection vulnerabilities
+    category: security
+    severity: critical
+    languages: [go, python, javascript, typescript]
+    enabled: true
+    message: Potential SQL injection. Use parameterized queries.
+    suggestion: Use prepared statements with placeholders.
+
+  - id: SEC-003
+    name: Command Injection
+    description: Detect potential command injection
+    category: security
+    severity: critical
+    languages: [go, python, javascript, typescript]
+    enabled: true
+    message: Potential command injection. Sanitize user input.
+    suggestion: Avoid shell execution or properly escape arguments.
+
+  - id: PERF-001
+    name: N+1 Query
+    description: Detect N+1 query patterns
+    category: performance
+    severity: warning
+    languages: [go, python, javascript, typescript]
+    enabled: true
+    message: Potential N+1 query detected.
+    suggestion: Use batch loading or eager loading.
+
+  - id: PERF-002
+    name: Unbounded Collection
+    description: Detect unbounded collections in memory
+    category: performance
+    severity: warning
+    languages: [go, javascript, typescript]
+    enabled: true
+    message: Unbounded collection may cause memory issues.
+    suggestion: Add pagination or limits.
+
+  - id: BP-001
+    name: Error Not Handled
+    description: Detect unhandled errors
+    category: best_practice
+    severity: error
+    languages: [go]
+    enabled: true
+    message: Error is not checked.
+    suggestion: Always check and handle errors.
+
+  - id: BP-002
+    name: Missing Logging
+    description: Detect catch blocks without logging
+    category: best_practice
+    severity: warning
+    languages: [javascript, typescript, python]
+    enabled: true
+    message: Exception caught but not logged.
+    suggestion: Add logging in catch blocks.
+
+  - id: BP-003
+    name: Magic Numbers
+    description: Detect unexplained numeric literals
+    category: best_practice
+    severity: info
+    languages: [go, python, javascript, typescript]
+    enabled: true
+    message: Magic number detected.
+    suggestion: Use named constants instead.

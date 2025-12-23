@@ -1,0 +1,91 @@
+# =============================================================================
+# AI Toolkit - Docker Compose
+# Development environment with all services
+# =============================================================================
+
+services:
+  # ---------------------------------------------------------------------------
+  # GitHub App - Webhook server
+  # ---------------------------------------------------------------------------
+  github-app:
+    build:
+      context: ./github-app
+      target: builder  # Use builder stage for dev (has all deps)
+    ports:
+      - "3000:3000"
+    environment:
+      - NODE_ENV=development
+      - PORT=3000
+      - LOG_LEVEL=debug
+      - OLLAMA_BASE_URL=http://ollama:11434
+    env_file:
+      - ./github-app/.env
+    volumes:
+      # Mount source for hot reload
+      - ./github-app/src:/app/src:ro
+      - ./github-app/package.json:/app/package.json:ro
+    depends_on:
+      ollama:
+        condition: service_healthy
+    networks:
+      - ai-toolkit
+    healthcheck:
+      test: ["CMD", "wget", "--spider", "-q", "http://localhost:3000/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+    restart: unless-stopped
+
+  # ---------------------------------------------------------------------------
+  # Ollama - Local LLM
+  # ---------------------------------------------------------------------------
+  ollama:
+    image: ollama/ollama:latest
+    ports:
+      - "11434:11434"
+    volumes:
+      - ollama-data:/root/.ollama
+    environment:
+      - OLLAMA_HOST=0.0.0.0
+    networks:
+      - ai-toolkit
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:11434/api/tags"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 30s
+    restart: unless-stopped
+    # GPU support (uncomment if using NVIDIA GPU on Linux)
+    # deploy:
+    #   resources:
+    #     reservations:
+    #       devices:
+    #         - driver: nvidia
+    #           count: all
+    #           capabilities: [gpu]
+
+  # ---------------------------------------------------------------------------
+  # Ngrok - Tunnel for webhook development
+  # ---------------------------------------------------------------------------
+  ngrok:
+    image: ngrok/ngrok:latest
+    command: http github-app:3000 --log stdout
+    ports:
+      - "4040:4040"  # Ngrok dashboard
+    environment:
+      - NGROK_AUTHTOKEN=${NGROK_AUTHTOKEN:-}
+    depends_on:
+      - github-app
+    networks:
+      - ai-toolkit
+    profiles:
+      - tunnel  # Only start with: docker compose --profile tunnel up
+
+networks:
+  ai-toolkit:
+    driver: bridge
+
+volumes:
+  ollama-data:
+    driver: local

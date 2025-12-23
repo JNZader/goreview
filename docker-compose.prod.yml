@@ -1,0 +1,52 @@
+# =============================================================================
+# AI Toolkit - Production Docker Compose
+# Use with: docker compose -f docker-compose.yml -f docker-compose.prod.yml up
+# =============================================================================
+
+services:
+  github-app:
+    build:
+      context: ./github-app
+      target: runtime  # Use production runtime stage
+    environment:
+      - NODE_ENV=production
+      - LOG_LEVEL=info
+    volumes: []  # No source mounts in production
+    deploy:
+      resources:
+        limits:
+          cpus: '2'
+          memory: 1G
+        reservations:
+          cpus: '0.5'
+          memory: 256M
+      restart_policy:
+        condition: on-failure
+        delay: 5s
+        max_attempts: 3
+        window: 120s
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  ollama:
+    deploy:
+      resources:
+        limits:
+          cpus: '4'
+          memory: 16G
+        reservations:
+          cpus: '2'
+          memory: 8G
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "50m"
+        max-file: "5"
+
+  # Remove ngrok from production
+  ngrok:
+    deploy:
+      replicas: 0

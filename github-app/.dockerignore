@@ -1,0 +1,34 @@
+# Dependencies
+node_modules/
+
+# Build output
+dist/
+
+# Git
+.git
+.gitignore
+
+# IDE
+.idea/
+.vscode/
+*.swp
+
+# Environment
+.env
+.env.local
+.env*.local
+
+# Tests
+coverage/
+*.test.ts
+__tests__/
+
+# Documentation
+*.md
+!README.md
+
+# TypeScript config (not needed at runtime)
+tsconfig.json
+
+# CI
+.github/

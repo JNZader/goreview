@@ -1,0 +1,163 @@
+# golangci-lint configuration
+# https://golangci-lint.run/usage/configuration/
+
+run:
+  # Timeout for analysis
+  timeout: 5m
+
+  # Include test files
+  tests: true
+
+linters:
+  # Disable all linters by default
+  disable-all: true
+
+  # Enable specific linters
+  enable:
+    # Bugs
+    - errcheck      # Check for unchecked errors
+    - gosec         # Security issues
+    - govet         # Suspicious constructs
+    - staticcheck   # Static analysis
+
+    # Style
+    - gofmt         # Check formatting
+    - goimports     # Check imports
+    - misspell      # Spelling mistakes
+
+    # Complexity
+    - gocyclo       # Cyclomatic complexity
+    - funlen        # Function length
+
+    # Performance
+    - prealloc      # Slice preallocation
+
+    # Best practices
+    - revive        # Replacement for golint
+    - unconvert     # Unnecessary type conversions
+    - unparam       # Unused function parameters
+
+linters-settings:
+  govet:
+    enable:
+      - shadow
+
+  errcheck:
+    # Check type assertions
+    check-type-assertions: true
+    # Allow blank identifier assignments (explicit error ignoring with _ = )
+    check-blank: false
+    # Exclude common functions where ignoring errors is acceptable
+    exclude-functions:
+      # IO Close operations (defer pattern)
+      - (*os.File).Close
+      - (io.Closer).Close
+      - (*net/http.Response).Body.Close
+      - io.Closer.Close
+      # fmt write functions (writing to buffers/writers rarely fails)
+      - fmt.Fprintf
+      - fmt.Fprintln
+      - fmt.Fprint
+      # fmt stdout functions (writing to stdout rarely fails)
+      - fmt.Printf
+      - fmt.Println
+      - fmt.Print
+      # os cleanup operations
+      - os.Remove
+      - os.RemoveAll
+
+  gocyclo:
+    # Minimum complexity to report
+    min-complexity: 15
+
+  funlen:
+    # Maximum function lines
+    lines: 100
+    # Maximum function statements
+    statements: 50
+
+  goimports:
+    # Put local imports after 3rd party
+    local-prefixes: github.com/JNZader/goreview
+
+  revive:
+    rules:
+      - name: exported
+        severity: warning
+      - name: var-naming
+        severity: warning
+      - name: package-comments
+        severity: warning
+
+  gosec:
+    # Exclude rules
+    excludes:
+      - G104 # Audit errors not checked (we use errcheck for this)
+
+issues:
+  # Maximum issues per linter
+  max-issues-per-linter: 50
+
+  # Maximum same issues
+  max-same-issues: 10
+
+  # Don't skip any linters for new code
+  new: false
+
+  # Exclude directories
+  exclude-dirs:
+    - vendor
+    - third_party
+    - testdata
+
+  # Exclude generated files
+  exclude-files:
+    - ".*_generated\\.go$"
+    - ".*\\.pb\\.go$"
+
+  # Exclude some issues in tests
+  exclude-rules:
+    - path: _test\.go
+      linters:
+        - funlen
+        - gocyclo
+
+    # Allow fmt.Printf in main
+    - path: main\.go
+      linters:
+        - forbidigo
+
+    # Ignore errcheck for defer Close patterns
+    - linters:
+        - errcheck
+      source: "defer .+\\.Close\\(\\)"
+
+    # Ignore errcheck for os.Remove (cleanup operations)
+    - linters:
+        - errcheck
+      source: "os\\.Remove"
+
+    # Ignore errcheck for all fmt output functions
+    - linters:
+        - errcheck
+      source: "fmt\\.(Print|Printf|Println|Fprint|Fprintf|Fprintln)"
+
+    # Ignore errcheck for strings.Builder.WriteString (error is always nil)
+    - linters:
+        - errcheck
+      source: "sb\\.WriteString"
+
+    # Ignore errcheck for io.ReadAll with blank identifier
+    - linters:
+        - errcheck
+      source: "io\\.ReadAll"
+
+severity:
+  # Default severity
+  default-severity: error
+
+  # Severity overrides
+  rules:
+    - linters:
+        - revive
+      severity: warning

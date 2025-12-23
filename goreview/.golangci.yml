@@ -137,10 +137,19 @@ issues:
         - errcheck
       source: "os\\.Remove"
 
-    # Ignore errcheck for fmt.Fprintf (writing to buffers)
+    # Ignore errcheck for fmt output functions (writing to stdout/buffers)
     - linters:
         - errcheck
       source: "fmt\\.Fprintf"
+    - linters:
+        - errcheck
+      source: "fmt\\.Printf"
+    - linters:
+        - errcheck
+      source: "fmt\\.Println"
+    - linters:
+        - errcheck
+      source: "fmt\\.Print\\("
 
 severity:
   # Default severity

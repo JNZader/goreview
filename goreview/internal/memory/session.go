@@ -359,6 +359,100 @@ func (s *SessionMem) cleanOldSessions() error {
 	return nil
 }
 
+// matchResult holds intermediate matching state.
+type matchResult struct {
+	score   float64
+	matches int
+	done    bool // early return indicator
+}
+
+// matchByID checks if entry matches by ID.
+func matchByID(entry *Entry, query *Query) (float64, bool) {
+	if query.ID == "" {
+		return 0, false
+	}
+	if entry.ID == query.ID {
+		return 1.0, true
+	}
+	return 0, true
+}
+
+// matchByType checks if entry matches by type.
+func matchByType(entry *Entry, query *Query, r *matchResult) bool {
+	if query.Type == "" {
+		return true
+	}
+	if entry.Type == query.Type {
+		r.score += 1.0
+		r.matches++
+		return true
+	}
+	return false
+}
+
+// matchByTags checks if entry matches by tags.
+func matchByTags(entry *Entry, query *Query, r *matchResult) bool {
+	if len(query.Tags) == 0 {
+		return true
+	}
+	entryTags := make(map[string]bool)
+	for _, t := range entry.Tags {
+		entryTags[t] = true
+	}
+	tagMatches := 0
+	for _, t := range query.Tags {
+		if entryTags[t] {
+			tagMatches++
+		}
+	}
+	if tagMatches == 0 {
+		return false
+	}
+	r.score += float64(tagMatches) / float64(len(query.Tags))
+	r.matches++
+	return true
+}
+
+// matchByContent checks if entry matches by content.
+func matchByContent(entry *Entry, query *Query, r *matchResult) bool {
+	if query.Content == "" {
+		return true
+	}
+	if contains(toLowerASCII(entry.Content), toLowerASCII(query.Content)) {
+		r.score += 1.0
+		r.matches++
+		return true
+	}
+	return false
+}
+
+// matchByStrength checks if entry matches by strength threshold.
+func matchByStrength(entry *Entry, query *Query, r *matchResult) bool {
+	if query.MinStrength <= 0 {
+		return true
+	}
+	if entry.Strength < query.MinStrength {
+		return false
+	}
+	r.score += entry.Strength
+	r.matches++
+	return true
+}
+
+// toLowerASCII converts ASCII letters to lowercase.
+func toLowerASCII(s string) string {
+	result := make([]byte, len(s))
+	for i := 0; i < len(s); i++ {
+		c := s[i]
+		if c >= 'A' && c <= 'Z' {
+			result[i] = c + 32
+		} else {
+			result[i] = c
+		}
+	}
+	return string(result)
+}
+
 // matchScore calculates how well an entry matches a query.
 // Shared between SessionMem and WorkingMem.
 func matchScore(entry *Entry, query *Query) float64 {
@@ -366,82 +460,31 @@ func matchScore(entry *Entry, query *Query) float64 {
 		return 1.0
 	}
 
-	score := 0.0
-	matches := 0
+	// Check ID match first (exact match)
+	if score, done := matchByID(entry, query); done {
+		return score
+	}
 
-	// Match by ID
-	if query.ID != "" {
-		if entry.ID == query.ID {
-			return 1.0
-		}
+	r := &matchResult{}
+
+	// Check each criterion
+	if !matchByType(entry, query, r) {
+		return 0
+	}
+	if !matchByTags(entry, query, r) {
+		return 0
+	}
+	if !matchByContent(entry, query, r) {
+		return 0
+	}
+	if !matchByStrength(entry, query, r) {
 		return 0
 	}
 
-	// Match by type
-	if query.Type != "" {
-		if entry.Type == query.Type {
-			score += 1.0
-			matches++
-		} else {
-			return 0
-		}
-	}
-
-	// Match by tags
-	if len(query.Tags) > 0 {
-		tagMatches := 0
-		entryTags := make(map[string]bool)
-		for _, t := range entry.Tags {
-			entryTags[t] = true
-		}
-		for _, t := range query.Tags {
-			if entryTags[t] {
-				tagMatches++
-			}
-		}
-		if tagMatches == 0 {
-			return 0
-		}
-		score += float64(tagMatches) / float64(len(query.Tags))
-		matches++
-	}
-
-	// Match by content (simple substring match)
-	if query.Content != "" {
-		lower := func(s string) string {
-			result := make([]byte, len(s))
-			for i := 0; i < len(s); i++ {
-				c := s[i]
-				if c >= 'A' && c <= 'Z' {
-					result[i] = c + 32
-				} else {
-					result[i] = c
-				}
-			}
-			return string(result)
-		}
-		if contains(lower(entry.Content), lower(query.Content)) {
-			score += 1.0
-			matches++
-		} else {
-			return 0
-		}
-	}
-
-	// Match by strength
-	if query.MinStrength > 0 {
-		if entry.Strength < query.MinStrength {
-			return 0
-		}
-		score += entry.Strength
-		matches++
-	}
-
-	if matches == 0 {
+	if r.matches == 0 {
 		return 1.0 // No filters, everything matches
 	}
-
-	return score / float64(matches)
+	return r.score / float64(r.matches)
 }
 
 // contains checks if s contains substr.

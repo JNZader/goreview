@@ -153,24 +153,23 @@ func (e *Embedder) normalize(embedding []float32) {
 	}
 }
 
+// codePatterns contains precompiled regex patterns for code feature detection.
+var codePatterns = map[string]*regexp.Regexp{
+	"func":     regexp.MustCompile(`(?i)func\s+\w+`),
+	"class":    regexp.MustCompile(`(?i)class\s+\w+`),
+	"import":   regexp.MustCompile(`(?i)import\s+`),
+	"return":   regexp.MustCompile(`(?i)return\s+`),
+	"error":    regexp.MustCompile(`(?i)error|Error|err\b`),
+	"test":     regexp.MustCompile(`(?i)test|Test|_test\.`),
+	"security": regexp.MustCompile(`(?i)security|unsafe|injection|xss|sql`),
+	"bug":      regexp.MustCompile(`(?i)bug|fix|issue|problem`),
+	"perf":     regexp.MustCompile(`(?i)performance|slow|fast|optimize`),
+}
+
 func (e *Embedder) addCodeFeatures(text string, embedding []float32) {
 	// Detect code patterns and add features
-
-	patterns := map[string]string{
-		"func":     `func\s+\w+`,
-		"class":    `class\s+\w+`,
-		"import":   `import\s+`,
-		"return":   `return\s+`,
-		"error":    `error|Error|err\b`,
-		"test":     `test|Test|_test\.`,
-		"security": `security|unsafe|injection|xss|sql`,
-		"bug":      `bug|fix|issue|problem`,
-		"perf":     `performance|slow|fast|optimize`,
-	}
-
-	for name, pattern := range patterns {
-		matched, _ := regexp.MatchString("(?i)"+pattern, text)
-		if matched {
+	for name, pattern := range codePatterns {
+		if pattern.MatchString(text) {
 			h := e.hash("code_feature:" + name)
 			idx := h % uint64(EmbeddingDim)
 			embedding[idx] += 0.5

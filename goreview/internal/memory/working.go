@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	"sort"
-	"strings"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -305,75 +304,9 @@ func (w *WorkingMem) isExpired(entry *Entry) bool {
 }
 
 // matchScore calculates how well an entry matches a query.
+// Delegates to the shared matchScore function.
 func (w *WorkingMem) matchScore(entry *Entry, query *Query) float64 {
-	if query == nil {
-		return 1.0
-	}
-
-	score := 0.0
-	matches := 0
-
-	// Match by ID
-	if query.ID != "" {
-		if entry.ID == query.ID {
-			return 1.0
-		}
-		return 0
-	}
-
-	// Match by type
-	if query.Type != "" {
-		if entry.Type == query.Type {
-			score += 1.0
-			matches++
-		} else {
-			return 0
-		}
-	}
-
-	// Match by tags
-	if len(query.Tags) > 0 {
-		tagMatches := 0
-		entryTags := make(map[string]bool)
-		for _, t := range entry.Tags {
-			entryTags[t] = true
-		}
-		for _, t := range query.Tags {
-			if entryTags[t] {
-				tagMatches++
-			}
-		}
-		if tagMatches == 0 {
-			return 0
-		}
-		score += float64(tagMatches) / float64(len(query.Tags))
-		matches++
-	}
-
-	// Match by content (simple substring match)
-	if query.Content != "" {
-		if strings.Contains(strings.ToLower(entry.Content), strings.ToLower(query.Content)) {
-			score += 1.0
-			matches++
-		} else {
-			return 0
-		}
-	}
-
-	// Match by strength
-	if query.MinStrength > 0 {
-		if entry.Strength < query.MinStrength {
-			return 0
-		}
-		score += entry.Strength
-		matches++
-	}
-
-	if matches == 0 {
-		return 1.0 // No filters, everything matches
-	}
-
-	return score / float64(matches)
+	return matchScore(entry, query)
 }
 
 // CleanExpired removes all expired entries.

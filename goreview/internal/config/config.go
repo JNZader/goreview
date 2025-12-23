@@ -31,6 +31,9 @@ type Config struct {
 
 	// Rules configures the rule system
 	Rules RulesConfig `mapstructure:"rules" yaml:"rules"`
+
+	// Memory configures the cognitive memory system
+	Memory MemoryConfig `mapstructure:"memory" yaml:"memory"`
 }
 
 // ProviderConfig configures the AI provider.
@@ -149,6 +152,72 @@ type RulesConfig struct {
 
 	// Disabled is the list of disabled rule IDs
 	Disabled []string `mapstructure:"disabled" yaml:"disabled"`
+}
+
+// MemoryConfig configures the cognitive memory system.
+type MemoryConfig struct {
+	// Enabled enables the memory system
+	Enabled bool `mapstructure:"enabled" yaml:"enabled"`
+
+	// Dir is the directory for persistent memory storage
+	Dir string `mapstructure:"dir" yaml:"dir"`
+
+	// Working configures working memory (short-term, in-memory)
+	Working WorkingMemoryConfig `mapstructure:"working" yaml:"working"`
+
+	// Session configures session memory (per-session persistence)
+	Session SessionMemoryConfig `mapstructure:"session" yaml:"session"`
+
+	// LongTerm configures long-term memory (BadgerDB)
+	LongTerm LongTermMemoryConfig `mapstructure:"long_term" yaml:"long_term"`
+
+	// Hebbian configures Hebbian learning (association strengthening)
+	Hebbian HebbianConfig `mapstructure:"hebbian" yaml:"hebbian"`
+}
+
+// WorkingMemoryConfig configures working memory.
+type WorkingMemoryConfig struct {
+	// Capacity is the maximum number of items in working memory
+	Capacity int `mapstructure:"capacity" yaml:"capacity"`
+
+	// TTL is how long items stay in working memory
+	TTL time.Duration `mapstructure:"ttl" yaml:"ttl"`
+}
+
+// SessionMemoryConfig configures session memory.
+type SessionMemoryConfig struct {
+	// MaxSessions is the maximum number of concurrent sessions
+	MaxSessions int `mapstructure:"max_sessions" yaml:"max_sessions"`
+
+	// SessionTTL is how long sessions are kept
+	SessionTTL time.Duration `mapstructure:"session_ttl" yaml:"session_ttl"`
+}
+
+// LongTermMemoryConfig configures long-term memory.
+type LongTermMemoryConfig struct {
+	// Enabled enables long-term memory persistence
+	Enabled bool `mapstructure:"enabled" yaml:"enabled"`
+
+	// MaxSizeMB is the maximum storage size in megabytes
+	MaxSizeMB int `mapstructure:"max_size_mb" yaml:"max_size_mb"`
+
+	// GCInterval is how often to run garbage collection
+	GCInterval time.Duration `mapstructure:"gc_interval" yaml:"gc_interval"`
+}
+
+// HebbianConfig configures Hebbian learning.
+type HebbianConfig struct {
+	// Enabled enables Hebbian learning
+	Enabled bool `mapstructure:"enabled" yaml:"enabled"`
+
+	// LearningRate controls association strengthening speed
+	LearningRate float64 `mapstructure:"learning_rate" yaml:"learning_rate"`
+
+	// DecayRate controls how fast associations weaken
+	DecayRate float64 `mapstructure:"decay_rate" yaml:"decay_rate"`
+
+	// MinStrength is the minimum association strength before removal
+	MinStrength float64 `mapstructure:"min_strength" yaml:"min_strength"`
 }
 
 // Validate validates the configuration and returns an error if invalid.

@@ -9,7 +9,10 @@ import (
 // DefaultConfig returns a Config with sensible default values.
 // These defaults are designed to work out-of-the-box with Ollama.
 func DefaultConfig() *Config {
-	homeDir, _ := os.UserHomeDir()
+	homeDir, err := os.UserHomeDir()
+	if err != nil {
+		homeDir = "."
+	}
 	cacheDir := filepath.Join(homeDir, ".cache", "goreview")
 
 	return &Config{
@@ -82,6 +85,30 @@ func DefaultConfig() *Config {
 
 		Rules: RulesConfig{
 			Preset: "standard",
+		},
+
+		Memory: MemoryConfig{
+			Enabled: false, // Disabled by default
+			Dir:     filepath.Join(cacheDir, "memory"),
+			Working: WorkingMemoryConfig{
+				Capacity: 100,
+				TTL:      15 * time.Minute,
+			},
+			Session: SessionMemoryConfig{
+				MaxSessions: 10,
+				SessionTTL:  1 * time.Hour,
+			},
+			LongTerm: LongTermMemoryConfig{
+				Enabled:    false,
+				MaxSizeMB:  500,
+				GCInterval: 5 * time.Minute,
+			},
+			Hebbian: HebbianConfig{
+				Enabled:      false,
+				LearningRate: 0.1,
+				DecayRate:    0.01,
+				MinStrength:  0.1,
+			},
 		},
 	}
 }

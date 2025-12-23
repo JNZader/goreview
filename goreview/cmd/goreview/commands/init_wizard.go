@@ -52,6 +52,7 @@ func (w *InitWizard) Run() (map[string]interface{}, error) {
 	config["preset"] = preset
 
 	// Exclude patterns
+	//nolint:errcheck // SuggestDefaults always returns []string for exclude
 	excludes := w.info.SuggestDefaults()["exclude"].([]string)
 	config["exclude"] = excludes
 

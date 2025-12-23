@@ -316,10 +316,13 @@ func applyFlagOverrides(cmd *cobra.Command, cfg *config.Config, args []string) {
 
 	switch mode {
 	case "commit":
+		//nolint:errcheck // determineReviewMode returns string for commit mode
 		cfg.Review.Commit = value.(string)
 	case "branch":
+		//nolint:errcheck // determineReviewMode returns string for branch mode
 		cfg.Git.BaseBranch = value.(string)
 	case "files":
+		//nolint:errcheck // determineReviewMode returns []string for files mode
 		cfg.Review.Files = value.([]string)
 	}
 

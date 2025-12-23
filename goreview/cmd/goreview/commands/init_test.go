@@ -153,6 +153,7 @@ func TestBuildYAMLConfig(t *testing.T) {
 		t.Error("Version should be 1.0")
 	}
 
+	//nolint:errcheck // test knows buildYAMLConfig returns map[string]interface{} for provider
 	provider := yamlConfig["provider"].(map[string]interface{})
 	if provider["name"] != "ollama" {
 		t.Error("Provider name should be ollama")
@@ -164,6 +165,7 @@ func TestBuildYAMLConfig(t *testing.T) {
 		t.Error("Ollama base_url should be set")
 	}
 
+	//nolint:errcheck // test knows buildYAMLConfig returns map[string]interface{} for rules
 	rules := yamlConfig["rules"].(map[string]interface{})
 	if rules["preset"] != "standard" {
 		t.Error("Preset should be standard")
@@ -180,6 +182,7 @@ func TestBuildYAMLConfigOpenAI(t *testing.T) {
 
 	yamlConfig := buildYAMLConfig(config)
 
+	//nolint:errcheck // test knows buildYAMLConfig returns map[string]interface{} for provider
 	provider := yamlConfig["provider"].(map[string]interface{})
 	if provider["name"] != "openai" {
 		t.Error("Provider name should be openai")

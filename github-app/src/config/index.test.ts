@@ -1,62 +1,73 @@
-import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
+import { describe, it, expect } from 'vitest';
+import { envSchema } from './schema.js';
 
-describe('Config', () => {
-  const originalEnv = process.env;
+describe('Environment Schema', () => {
+  const validEnv = {
+    GITHUB_APP_ID: '12345',
+    GITHUB_PRIVATE_KEY: '-----BEGIN RSA PRIVATE KEY-----\\ntest\\n-----END RSA PRIVATE KEY-----',
+    GITHUB_WEBHOOK_SECRET: 'a-very-long-secret-key-here',
+  };
 
-  beforeEach(() => {
-    vi.resetModules();
-    process.env = { ...originalEnv };
+  it('validates required fields', () => {
+    const result = envSchema.safeParse(validEnv);
+    expect(result.success).toBe(true);
   });
 
-  afterEach(() => {
-    process.env = originalEnv;
+  it('rejects missing required fields', () => {
+    const result = envSchema.safeParse({});
+    expect(result.success).toBe(false);
   });
 
-  it('should use empty strings for missing github env vars', async () => {
-    delete process.env.GITHUB_APP_ID;
-    delete process.env.GITHUB_PRIVATE_KEY;
-    delete process.env.GITHUB_WEBHOOK_SECRET;
-
-    const { config } = await import('./index.js');
-
-    expect(config.github.appId).toBe('');
-    expect(config.github.privateKey).toBe('');
-    expect(config.github.webhookSecret).toBe('');
+  it('applies defaults', () => {
+    const result = envSchema.safeParse(validEnv);
+    expect(result.success).toBe(true);
+    if (result.success) {
+      expect(result.data.PORT).toBe(3000);
+      expect(result.data.NODE_ENV).toBe('development');
+      expect(result.data.AI_PROVIDER).toBe('ollama');
+    }
   });
 
-  it('should use default values for optional env vars', async () => {
-    const { config } = await import('./index.js');
-
-    expect(config.port).toBe(3000);
-    expect(config.logLevel).toBe('info');
-    expect(config.ollama.baseUrl).toBe('http://localhost:11434');
-    expect(config.ollama.model).toBe('codellama');
+  it('transforms private key newlines', () => {
+    const result = envSchema.safeParse(validEnv);
+    expect(result.success).toBe(true);
+    if (result.success) {
+      expect(result.data.GITHUB_PRIVATE_KEY).toContain('\n');
+    }
   });
 
-  it('should parse env vars correctly', async () => {
-    process.env.GITHUB_APP_ID = '12345';
-    process.env.GITHUB_PRIVATE_KEY = 'test-private-key';
-    process.env.GITHUB_WEBHOOK_SECRET = 'test-webhook-secret';
-    process.env.PORT = '8080';
-    process.env.NODE_ENV = 'production';
-    process.env.LOG_LEVEL = 'debug';
-
-    const { config } = await import('./index.js');
-
-    expect(config.github.appId).toBe('12345');
-    expect(config.github.privateKey).toBe('test-private-key');
-    expect(config.github.webhookSecret).toBe('test-webhook-secret');
-    expect(config.port).toBe(8080);
-    expect(config.nodeEnv).toBe('production');
-    expect(config.logLevel).toBe('debug');
-    expect(config.isDevelopment).toBe(false);
+  it('parses duration strings', () => {
+    const envWithDuration = {
+      ...validEnv,
+      CACHE_TTL: '30m',
+    };
+    const result = envSchema.safeParse(envWithDuration);
+    expect(result.success).toBe(true);
+    if (result.success) {
+      expect(result.data.CACHE_TTL).toBe(30 * 60 * 1000);
+    }
   });
 
-  it('should set isDevelopment based on NODE_ENV', async () => {
-    process.env.NODE_ENV = 'development';
+  it('rejects invalid duration format', () => {
+    const envWithBadDuration = {
+      ...validEnv,
+      CACHE_TTL: 'invalid',
+    };
+    const result = envSchema.safeParse(envWithBadDuration);
+    expect(result.success).toBe(false);
+  });
 
-    const { config } = await import('./index.js');
-
-    expect(config.isDevelopment).toBe(true);
+  it('coerces numeric strings', () => {
+    const envWithStrings = {
+      ...validEnv,
+      PORT: '8080',
+      GITHUB_APP_ID: '99999',
+    };
+    const result = envSchema.safeParse(envWithStrings);
+    expect(result.success).toBe(true);
+    if (result.success) {
+      expect(result.data.PORT).toBe(8080);
+      expect(result.data.GITHUB_APP_ID).toBe(99999);
+    }
   });
 });

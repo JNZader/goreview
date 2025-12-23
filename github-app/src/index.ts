@@ -5,6 +5,7 @@ import { errorHandler } from './middleware/errorHandler.js';
 import { requestLogger } from './middleware/requestLogger.js';
 import { webhookRouter } from './routes/webhook.js';
 import { healthRouter } from './routes/health.js';
+import { adminRouter } from './routes/admin.js';
 
 const app = express();
 
@@ -23,6 +24,7 @@ app.use(requestLogger);
 // Routes
 app.use('/health', healthRouter);
 app.use('/webhook', webhookRouter);
+app.use('/admin', adminRouter);
 
 // Error handling
 app.use(errorHandler);

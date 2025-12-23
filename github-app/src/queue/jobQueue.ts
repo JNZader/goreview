@@ -94,6 +94,36 @@ class JobQueue {
   }
 
   /**
+   * List all jobs, sorted by creation date (newest first).
+   */
+  listJobs(): Job[] {
+    return Array.from(this.jobs.values())
+      .sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
+  }
+
+  /**
+   * Cancel a pending job.
+   * Returns true if job was cancelled, false if not found or not cancellable.
+   */
+  cancelJob(id: string): boolean {
+    const job = this.jobs.get(id);
+
+    if (!job) {
+      return false;
+    }
+
+    // Can only cancel pending jobs
+    if (job.status !== 'pending') {
+      return false;
+    }
+
+    this.jobs.delete(id);
+    logger.info({ jobId: id }, 'Job cancelled');
+
+    return true;
+  }
+
+  /**
    * Process pending jobs.
    */
   private async processQueue(): Promise<void> {

@@ -58,6 +58,10 @@ linters-settings:
       - fmt.Fprintf
       - fmt.Fprintln
       - fmt.Fprint
+      # fmt stdout functions (writing to stdout rarely fails)
+      - fmt.Printf
+      - fmt.Println
+      - fmt.Print
       # os cleanup operations
       - os.Remove
       - os.RemoveAll

@@ -62,9 +62,9 @@ func TestValidateReviewFlags(t *testing.T) {
 			for k, v := range tt.flags {
 				switch val := v.(type) {
 				case bool:
-					cmd.Flags().Set(k, "true")
+					_ = cmd.Flags().Set(k, "true")
 				case string:
-					cmd.Flags().Set(k, val)
+					_ = cmd.Flags().Set(k, val)
 				}
 			}
 
@@ -115,9 +115,9 @@ func TestDetermineReviewMode(t *testing.T) {
 			for k, v := range tt.flags {
 				switch val := v.(type) {
 				case bool:
-					cmd.Flags().Set(k, "true")
+					_ = cmd.Flags().Set(k, "true")
 				case string:
-					cmd.Flags().Set(k, val)
+					_ = cmd.Flags().Set(k, val)
 				}
 			}
 

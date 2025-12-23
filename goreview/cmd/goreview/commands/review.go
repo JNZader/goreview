@@ -171,8 +171,8 @@ func executeReview(ctx context.Context, cmd *cobra.Command, cfg *config.Config) 
 	}
 	defer provider.Close()
 
-	if err := provider.HealthCheck(ctx); err != nil {
-		return nil, fmt.Errorf("provider not available: %w", err)
+	if healthErr := provider.HealthCheck(ctx); healthErr != nil {
+		return nil, fmt.Errorf("provider not available: %w", healthErr)
 	}
 
 	reviewCache := initCache(cmd, cfg)

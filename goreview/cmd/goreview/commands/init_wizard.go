@@ -132,7 +132,7 @@ func (w *InitWizard) selectModel(provider string) string {
 	}
 
 	idx := 0
-	fmt.Sscanf(input, "%d", &idx)
+	_, _ = fmt.Sscanf(input, "%d", &idx)
 	if idx > 0 && idx <= len(options) {
 		return options[idx-1]
 	}

@@ -1,7 +1,22 @@
-// Placeholder - will be implemented in commit 13.3
-export const logger = {
-  info: (...args: unknown[]) => console.log('[INFO]', ...args),
-  error: (...args: unknown[]) => console.error('[ERROR]', ...args),
-  warn: (...args: unknown[]) => console.warn('[WARN]', ...args),
-  debug: (...args: unknown[]) => console.log('[DEBUG]', ...args),
-};
+import pino from 'pino';
+import { config } from '../config/index.js';
+
+export const logger = pino({
+  level: config.logLevel,
+  transport: config.isDevelopment
+    ? {
+        target: 'pino-pretty',
+        options: {
+          colorize: true,
+          translateTime: 'SYS:standard',
+          ignore: 'pid,hostname',
+        },
+      }
+    : undefined,
+  base: {
+    env: config.nodeEnv,
+  },
+  redact: ['req.headers.authorization', 'req.headers["x-hub-signature-256"]'],
+});
+
+export type Logger = typeof logger;

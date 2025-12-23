@@ -126,7 +126,17 @@ issues:
     # Ignore errcheck for defer Close patterns
     - linters:
         - errcheck
-      source: "defer .*\\.Close\\(\\)"
+      source: "defer .+\\.Close\\(\\)"
+
+    # Ignore errcheck for os.Remove (cleanup operations)
+    - linters:
+        - errcheck
+      source: "os\\.Remove"
+
+    # Ignore errcheck for fmt.Fprintf (writing to buffers)
+    - linters:
+        - errcheck
+      source: "fmt\\.Fprintf"
 
 severity:
   # Default severity

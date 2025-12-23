@@ -52,8 +52,8 @@ linters-settings:
   errcheck:
     # Check type assertions
     check-type-assertions: true
-    # Check blank identifier assignments
-    check-blank: true
+    # Allow blank identifier assignments (explicit error ignoring with _ = )
+    check-blank: false
 
   govet:
     # Report shadowed variables

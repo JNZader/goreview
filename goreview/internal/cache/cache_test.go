@@ -104,13 +104,13 @@ func TestFileCache(t *testing.T) {
 	}
 
 	resp := &providers.ReviewResponse{Summary: "test"}
-	if err := cache.Set("key1", resp); err != nil {
-		t.Fatalf("Set() error = %v", err)
+	if setErr := cache.Set("key1", resp); setErr != nil {
+		t.Fatalf("Set() error = %v", setErr)
 	}
 
-	got, found, err := cache.Get("key1")
-	if err != nil || !found {
-		t.Fatalf("Get() = %v, %v, want found", got, err)
+	got, found, getErr := cache.Get("key1")
+	if getErr != nil || !found {
+		t.Fatalf("Get() = %v, %v, want found", got, getErr)
 	}
 	if got.Summary != "test" {
 		t.Errorf("Summary = %v, want test", got.Summary)

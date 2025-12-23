@@ -306,21 +306,21 @@ func TestHebbianLearning(t *testing.T) {
 
 	t.Run("Weaken", func(t *testing.T) {
 		// Get initial strength
-		before, err := hl.GetAssociations(ctx, "source1")
-		if err != nil {
-			t.Fatalf("GetAssociations() error = %v", err)
+		before, beforeErr := hl.GetAssociations(ctx, "source1")
+		if beforeErr != nil {
+			t.Fatalf("GetAssociations() error = %v", beforeErr)
 		}
 		initialStrength := before[0].Strength
 
 		// Weaken
-		if err := hl.Weaken(ctx, "source1", "target1"); err != nil {
-			t.Fatalf("Weaken() error = %v", err)
+		if weakenErr := hl.Weaken(ctx, "source1", "target1"); weakenErr != nil {
+			t.Fatalf("Weaken() error = %v", weakenErr)
 		}
 
 		// Check strength decreased
-		after, err := hl.GetAssociations(ctx, "source1")
-		if err != nil {
-			t.Fatalf("GetAssociations() error = %v", err)
+		after, afterErr := hl.GetAssociations(ctx, "source1")
+		if afterErr != nil {
+			t.Fatalf("GetAssociations() error = %v", afterErr)
 		}
 		if after[0].Strength >= initialStrength {
 			t.Error("Strength should decrease after weaken")

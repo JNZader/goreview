@@ -105,6 +105,7 @@ func TestProjectInfoSuggestDefaults(t *testing.T) {
 			info := &ProjectInfo{Languages: tt.languages}
 			defaults := info.SuggestDefaults()
 
+			//nolint:errcheck // test knows SuggestDefaults returns []string for exclude
 			excludes := defaults["exclude"].([]string)
 			found := false
 			for _, excl := range excludes {

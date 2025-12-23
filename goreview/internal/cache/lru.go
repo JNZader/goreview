@@ -48,6 +48,7 @@ func (c *LRUCache) Get(key string) (*providers.ReviewResponse, bool, error) {
 		return nil, false, nil
 	}
 
+	//nolint:errcheck // list elements always contain *lruEntry
 	entry := elem.Value.(*lruEntry)
 
 	// Check expiration
@@ -72,6 +73,7 @@ func (c *LRUCache) Set(key string, response *providers.ReviewResponse) error {
 
 	// Update existing entry
 	if elem, exists := c.entries[key]; exists {
+		//nolint:errcheck // list elements always contain *lruEntry
 		entry := elem.Value.(*lruEntry)
 		entry.response = response
 		entry.expiresAt = time.Now().Add(c.ttl)
@@ -134,6 +136,7 @@ func (c *LRUCache) Stats() Stats {
 func (c *LRUCache) evictOldest() {
 	elem := c.order.Back()
 	if elem != nil {
+		//nolint:errcheck // list elements always contain *lruEntry
 		entry := elem.Value.(*lruEntry)
 		delete(c.entries, entry.key)
 		c.order.Remove(elem)

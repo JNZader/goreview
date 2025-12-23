@@ -152,11 +152,13 @@ func buildYAMLConfig(config map[string]interface{}) map[string]interface{} {
 
 	// Add Ollama-specific config
 	if config["provider"] == "ollama" {
+		//nolint:errcheck // provider map created above, type is guaranteed
 		yamlConfig["provider"].(map[string]interface{})["base_url"] = "http://localhost:11434"
 	}
 
 	// Add API key placeholder for OpenAI
 	if config["provider"] == "openai" {
+		//nolint:errcheck // provider map created above, type is guaranteed
 		yamlConfig["provider"].(map[string]interface{})["api_key"] = "${OPENAI_API_KEY}"
 	}
 

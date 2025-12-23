@@ -17,6 +17,7 @@ var lineSlicePool = sync.Pool{
 
 // getLineSlice gets a Line slice from the pool
 func getLineSlice() *[]Line {
+	//nolint:errcheck // sync.Pool always returns the type we put in
 	return lineSlicePool.Get().(*[]Line)
 }
 

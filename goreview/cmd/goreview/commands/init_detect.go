@@ -139,29 +139,29 @@ func (p *ProjectInfo) detectFrameworks(dir string) {
 
 // SuggestDefaults returns suggested configuration based on project info.
 func (p *ProjectInfo) SuggestDefaults() map[string]interface{} {
-	defaults := map[string]interface{}{
-		"provider": "ollama",
-		"model":    "codellama",
-		"preset":   "standard",
-		"exclude":  []string{},
-	}
+	excludes := []string{}
 
 	// Language-specific excludes
 	for _, lang := range p.Languages {
 		switch lang {
 		case "javascript", "typescript":
-			defaults["exclude"] = append(defaults["exclude"].([]string),
+			excludes = append(excludes,
 				"node_modules/**", "dist/**", "build/**", "*.min.js")
 		case "go":
-			defaults["exclude"] = append(defaults["exclude"].([]string),
+			excludes = append(excludes,
 				"vendor/**", "*_test.go")
 		case "python":
-			defaults["exclude"] = append(defaults["exclude"].([]string),
+			excludes = append(excludes,
 				"__pycache__/**", "venv/**", ".venv/**", "*.pyc")
 		}
 	}
 
-	return defaults
+	return map[string]interface{}{
+		"provider": "ollama",
+		"model":    "codellama",
+		"preset":   "standard",
+		"exclude":  excludes,
+	}
 }
 
 // PrimaryLanguage returns the main language of the project.

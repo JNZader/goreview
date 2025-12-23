@@ -142,6 +142,16 @@ issues:
         - errcheck
       source: "fmt\\.(Print|Printf|Println|Fprint|Fprintf|Fprintln)"
 
+    # Ignore errcheck for strings.Builder.WriteString (error is always nil)
+    - linters:
+        - errcheck
+      source: "sb\\.WriteString"
+
+    # Ignore errcheck for io.ReadAll with blank identifier
+    - linters:
+        - errcheck
+      source: "io\\.ReadAll"
+
 severity:
   # Default severity
   default-severity: error

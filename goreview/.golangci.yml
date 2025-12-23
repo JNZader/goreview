@@ -19,7 +19,6 @@ linters:
     - gosec         # Security issues
     - govet         # Suspicious constructs
     - staticcheck   # Static analysis
-    - shadow        # Check for shadowed variables
 
     # Style
     - gofmt         # Check formatting
@@ -39,6 +38,10 @@ linters:
     - unparam       # Unused function parameters
 
 linters-settings:
+  govet:
+    enable:
+      - shadow
+
   errcheck:
     # Check type assertions
     check-type-assertions: true

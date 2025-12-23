@@ -16,97 +16,161 @@ vi.mock('../services/github.js', () => ({
   clearOctokitCache: vi.fn(),
 }));
 
+// Mock the repoConfig service
+vi.mock('../config/repoConfig.js', () => ({
+  clearRepoConfigCache: vi.fn(),
+}));
+
 import { logger } from '../utils/logger.js';
 import { clearOctokitCache } from '../services/github.js';
+import { clearRepoConfigCache } from '../config/repoConfig.js';
 
 describe('handleInstallation', () => {
   beforeEach(() => {
     vi.clearAllMocks();
   });
 
+  const createPayload = (
+    action: string,
+    installationId: number = 12345,
+    accountLogin: string = 'testuser',
+    accountType: string = 'User',
+    repositories?: Array<{ id: number; name: string; full_name: string; private: boolean }>
+  ) => ({
+    action,
+    installation: {
+      id: installationId,
+      account: { login: accountLogin, type: accountType },
+    },
+    repositories,
+    sender: { login: 'sender' },
+  });
+
   it('should log installation created event', async () => {
-    const payload = {
-      action: 'created',
-      installation: { id: 12345, account: { login: 'testuser' } },
-    };
+    const payload = createPayload('created', 12345, 'testuser', 'User', [
+      { id: 1, name: 'repo1', full_name: 'testuser/repo1', private: false },
+    ]);
 
     await handleInstallation('created', payload);
 
     expect(logger.info).toHaveBeenCalledWith(
-      { action: 'created', installationId: 12345, account: 'testuser' },
-      'Processing installation event'
+      {
+        action: 'created',
+        installationId: 12345,
+        account: 'testuser',
+        accountType: 'User',
+      },
+      'Installation event received'
     );
-    expect(logger.info).toHaveBeenCalledWith({ installationId: 12345 }, 'New installation created');
+    expect(logger.info).toHaveBeenCalledWith(
+      {
+        installationId: 12345,
+        account: 'testuser',
+        repoCount: 1,
+      },
+      'App installed'
+    );
   });
 
-  it('should clear cache on installation deleted', async () => {
-    const payload = {
-      action: 'deleted',
-      installation: { id: 12345, account: { login: 'testuser' } },
-    };
+  it('should log each repository on installation created', async () => {
+    const payload = createPayload('created', 12345, 'testuser', 'User', [
+      { id: 1, name: 'repo1', full_name: 'testuser/repo1', private: false },
+      { id: 2, name: 'repo2', full_name: 'testuser/repo2', private: true },
+    ]);
+
+    await handleInstallation('created', payload);
+
+    expect(logger.info).toHaveBeenCalledWith(
+      {
+        installationId: 12345,
+        repo: 'testuser/repo1',
+        private: false,
+      },
+      'Repository added to installation'
+    );
+    expect(logger.info).toHaveBeenCalledWith(
+      {
+        installationId: 12345,
+        repo: 'testuser/repo2',
+        private: true,
+      },
+      'Repository added to installation'
+    );
+  });
+
+  it('should clear octokit cache on installation deleted', async () => {
+    const payload = createPayload('deleted');
 
     await handleInstallation('deleted', payload);
 
     expect(clearOctokitCache).toHaveBeenCalledWith(12345);
-    expect(logger.info).toHaveBeenCalledWith({ installationId: 12345 }, 'Installation deleted');
+    expect(logger.info).toHaveBeenCalledWith(
+      {
+        installationId: 12345,
+        account: 'testuser',
+      },
+      'App uninstalled'
+    );
   });
 
-  it('should not clear cache when installationId is missing on delete', async () => {
-    const payload = {
-      action: 'deleted',
-      installation: { account: { login: 'testuser' } },
-    };
+  it('should clear repo config cache on repositories added', async () => {
+    const payload = createPayload('added', 12345, 'testuser', 'User', [
+      { id: 1, name: 'repo1', full_name: 'testuser/repo1', private: false },
+    ]);
 
-    await handleInstallation('deleted', payload);
+    await handleInstallation('added', payload);
 
-    expect(clearOctokitCache).not.toHaveBeenCalled();
-    expect(logger.info).toHaveBeenCalledWith({ installationId: undefined }, 'Installation deleted');
+    expect(clearRepoConfigCache).toHaveBeenCalledWith('testuser', 'repo1');
+    expect(logger.info).toHaveBeenCalledWith(
+      {
+        installationId: 12345,
+        repo: 'testuser/repo1',
+      },
+      'Repository added'
+    );
   });
 
-  it('should log installation suspended event', async () => {
-    const payload = {
-      action: 'suspend',
-      installation: { id: 12345, account: { login: 'testuser' } },
-    };
+  it('should clear repo config cache on repositories removed', async () => {
+    const payload = createPayload('removed', 12345, 'testuser', 'User', [
+      { id: 1, name: 'repo1', full_name: 'testuser/repo1', private: false },
+    ]);
 
-    await handleInstallation('suspend', payload);
+    await handleInstallation('removed', payload);
 
-    expect(logger.info).toHaveBeenCalledWith({ installationId: 12345 }, 'Installation suspended');
-  });
-
-  it('should log installation unsuspended event', async () => {
-    const payload = {
-      action: 'unsuspend',
-      installation: { id: 12345, account: { login: 'testuser' } },
-    };
-
-    await handleInstallation('unsuspend', payload);
-
-    expect(logger.info).toHaveBeenCalledWith({ installationId: 12345 }, 'Installation unsuspended');
+    expect(clearRepoConfigCache).toHaveBeenCalledWith('testuser', 'repo1');
+    expect(logger.info).toHaveBeenCalledWith(
+      {
+        installationId: 12345,
+        repo: 'testuser/repo1',
+      },
+      'Repository removed'
+    );
   });
 
   it('should log debug for unhandled installation actions', async () => {
-    const payload = {
-      action: 'new_permissions_accepted',
-      installation: { id: 12345, account: { login: 'testuser' } },
-    };
+    const payload = createPayload('suspend');
 
-    await handleInstallation('new_permissions_accepted', payload);
+    await handleInstallation('suspend', payload);
 
     expect(logger.debug).toHaveBeenCalledWith(
-      { action: 'new_permissions_accepted' },
+      { action: 'suspend' },
       'Unhandled installation action'
     );
   });
 
-  it('should handle missing installation data gracefully', async () => {
-    const payload = { action: 'created' };
+  it('should handle organization accounts', async () => {
+    const payload = createPayload('created', 99999, 'my-org', 'Organization');
 
     await handleInstallation('created', payload);
 
     expect(logger.info).toHaveBeenCalledWith(
-      { action: 'created', installationId: undefined, account: undefined },
-      'Processing installation event'
+      {
+        action: 'created',
+        installationId: 99999,
+        account: 'my-org',
+        accountType: 'Organization',
+      },
+      'Installation event received'
     );
   });
 });

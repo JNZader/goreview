@@ -108,8 +108,8 @@ func TestFormatAsGoDoc(t *testing.T) {
 
 func TestFormatDocOutput(t *testing.T) {
 	tests := []struct {
-		style       string
-		wantPrefix  string
+		style      string
+		wantPrefix string
 	}{
 		{"jsdoc", "/**"},
 		{"godoc", "// "},

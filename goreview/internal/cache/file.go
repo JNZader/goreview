@@ -75,7 +75,7 @@ func (c *FileCache) Set(key string, response *providers.ReviewResponse) error {
 		return err
 	}
 
-	return os.WriteFile(c.keyPath(key), data, 0644)
+	return os.WriteFile(c.keyPath(key), data, 0600)
 }
 
 func (c *FileCache) Delete(key string) error {

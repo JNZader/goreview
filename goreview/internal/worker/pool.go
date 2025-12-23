@@ -73,7 +73,7 @@ func (p *Pool) Start() {
 }
 
 // worker is the goroutine that processes tasks.
-func (p *Pool) worker(id int) {
+func (p *Pool) worker(_ int) {
 	defer p.wg.Done()
 
 	for {

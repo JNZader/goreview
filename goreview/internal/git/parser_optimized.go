@@ -228,11 +228,17 @@ func parseHunkHeaderOptimized(line string) *Hunk {
 func parseRange(s string, start, count *int) {
 	idx := strings.Index(s, ",")
 	if idx == -1 {
-		*start, _ = strconv.Atoi(s)
+		if v, err := strconv.Atoi(s); err == nil {
+			*start = v
+		}
 		*count = 1
 	} else {
-		*start, _ = strconv.Atoi(s[:idx])
-		*count, _ = strconv.Atoi(s[idx+1:])
+		if v, err := strconv.Atoi(s[:idx]); err == nil {
+			*start = v
+		}
+		if v, err := strconv.Atoi(s[idx+1:]); err == nil {
+			*count = v
+		}
 	}
 }
 

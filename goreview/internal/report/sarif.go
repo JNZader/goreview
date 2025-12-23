@@ -107,7 +107,7 @@ func (r *SARIFReporter) buildReport(result *review.Result) *sarifReport {
 		}
 
 		for _, issue := range file.Response.Issues {
-			sarifResult := sarifResult{
+			res := sarifResult{
 				RuleID:  string(issue.Type),
 				Level:   r.mapLevel(issue.Severity),
 				Message: sarifMessage{Text: issue.Message},
@@ -122,10 +122,10 @@ func (r *SARIFReporter) buildReport(result *review.Result) *sarifReport {
 						EndLine:   issue.Location.EndLine,
 					}
 				}
-				sarifResult.Locations = append(sarifResult.Locations, loc)
+				res.Locations = append(res.Locations, loc)
 			}
 
-			report.Runs[0].Results = append(report.Runs[0].Results, sarifResult)
+			report.Runs[0].Results = append(report.Runs[0].Results, res)
 		}
 	}
 

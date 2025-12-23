@@ -24,8 +24,8 @@ func NewLoader() *Loader {
 	v.SetConfigType("yaml")
 
 	// Add search paths in order of priority
-	v.AddConfigPath(".")      // Current directory (highest priority)
-	v.AddConfigPath("$HOME")  // Home directory
+	v.AddConfigPath(".")             // Current directory (highest priority)
+	v.AddConfigPath("$HOME")         // Home directory
 	v.AddConfigPath("/etc/goreview") // System config (lowest priority)
 
 	// Environment variable support

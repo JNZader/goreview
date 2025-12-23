@@ -63,8 +63,14 @@ func (p *MistralProvider) Review(ctx context.Context, req *ReviewRequest) (*Revi
 		"response_format": map[string]string{"type": "json_object"},
 	}
 
-	body, _ := json.Marshal(mistralReq)
-	httpReq, _ := http.NewRequestWithContext(ctx, "POST", p.baseURL+"/chat/completions", bytes.NewReader(body))
+	body, err := json.Marshal(mistralReq)
+	if err != nil {
+		return nil, fmt.Errorf("marshal request: %w", err)
+	}
+	httpReq, err := http.NewRequestWithContext(ctx, "POST", p.baseURL+"/chat/completions", bytes.NewReader(body))
+	if err != nil {
+		return nil, fmt.Errorf("create request: %w", err)
+	}
 	httpReq.Header.Set("Content-Type", "application/json")
 	httpReq.Header.Set("Authorization", "Bearer "+p.apiKey)
 
@@ -78,7 +84,9 @@ func (p *MistralProvider) Review(ctx context.Context, req *ReviewRequest) (*Revi
 		Choices []struct {
 			Message struct{ Content string } `json:"message"`
 		} `json:"choices"`
-		Usage struct{ TotalTokens int `json:"total_tokens"` } `json:"usage"`
+		Usage struct {
+			TotalTokens int `json:"total_tokens"`
+		} `json:"usage"`
 		Error *struct {
 			Message string `json:"message"`
 		} `json:"error"`
@@ -122,8 +130,14 @@ Return ONLY the commit message.`, diff)
 		"messages": messages,
 	}
 
-	body, _ := json.Marshal(mistralReq)
-	httpReq, _ := http.NewRequestWithContext(ctx, "POST", p.baseURL+"/chat/completions", bytes.NewReader(body))
+	body, err := json.Marshal(mistralReq)
+	if err != nil {
+		return "", fmt.Errorf("marshal request: %w", err)
+	}
+	httpReq, err := http.NewRequestWithContext(ctx, "POST", p.baseURL+"/chat/completions", bytes.NewReader(body))
+	if err != nil {
+		return "", fmt.Errorf("create request: %w", err)
+	}
 	httpReq.Header.Set("Content-Type", "application/json")
 	httpReq.Header.Set("Authorization", "Bearer "+p.apiKey)
 
@@ -138,7 +152,9 @@ Return ONLY the commit message.`, diff)
 			Message struct{ Content string } `json:"message"`
 		} `json:"choices"`
 	}
-	json.NewDecoder(resp.Body).Decode(&result)
+	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
+		return "", fmt.Errorf("decode response: %w", err)
+	}
 
 	if len(result.Choices) > 0 {
 		return result.Choices[0].Message.Content, nil
@@ -163,8 +179,14 @@ Format as Markdown.`, docContext, diff)
 		"messages": messages,
 	}
 
-	body, _ := json.Marshal(mistralReq)
-	httpReq, _ := http.NewRequestWithContext(ctx, "POST", p.baseURL+"/chat/completions", bytes.NewReader(body))
+	body, err := json.Marshal(mistralReq)
+	if err != nil {
+		return "", fmt.Errorf("marshal request: %w", err)
+	}
+	httpReq, err := http.NewRequestWithContext(ctx, "POST", p.baseURL+"/chat/completions", bytes.NewReader(body))
+	if err != nil {
+		return "", fmt.Errorf("create request: %w", err)
+	}
 	httpReq.Header.Set("Content-Type", "application/json")
 	httpReq.Header.Set("Authorization", "Bearer "+p.apiKey)
 
@@ -179,7 +201,9 @@ Format as Markdown.`, docContext, diff)
 			Message struct{ Content string } `json:"message"`
 		} `json:"choices"`
 	}
-	json.NewDecoder(resp.Body).Decode(&result)
+	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
+		return "", fmt.Errorf("decode response: %w", err)
+	}
 
 	if len(result.Choices) > 0 {
 		return result.Choices[0].Message.Content, nil
@@ -188,7 +212,10 @@ Format as Markdown.`, docContext, diff)
 }
 
 func (p *MistralProvider) HealthCheck(ctx context.Context) error {
-	req, _ := http.NewRequestWithContext(ctx, "GET", p.baseURL+"/models", nil)
+	req, err := http.NewRequestWithContext(ctx, "GET", p.baseURL+"/models", nil)
+	if err != nil {
+		return fmt.Errorf("create request: %w", err)
+	}
 	req.Header.Set("Authorization", "Bearer "+p.apiKey)
 	resp, err := p.client.Do(req)
 	if err != nil {

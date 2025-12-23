@@ -47,14 +47,14 @@ func DetectProject(dir string) (*ProjectInfo, error) {
 
 func (p *ProjectInfo) detectLanguages(dir string) {
 	languageFiles := map[string]string{
-		"go.mod":          "go",
-		"package.json":    "javascript",
+		"go.mod":           "go",
+		"package.json":     "javascript",
 		"requirements.txt": "python",
-		"Cargo.toml":      "rust",
-		"pom.xml":         "java",
-		"build.gradle":    "java",
-		"Gemfile":         "ruby",
-		"composer.json":   "php",
+		"Cargo.toml":       "rust",
+		"pom.xml":          "java",
+		"build.gradle":     "java",
+		"Gemfile":          "ruby",
+		"composer.json":    "php",
 	}
 
 	for file, lang := range languageFiles {

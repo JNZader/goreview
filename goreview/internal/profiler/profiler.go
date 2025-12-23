@@ -4,7 +4,7 @@ package profiler
 import (
 	"fmt"
 	"net/http"
-	_ "net/http/pprof" // Registers pprof handlers
+	_ "net/http/pprof" //nolint:gosec // G108: pprof is intentionally exposed when explicitly enabled via --pprof-addr flag
 	"os"
 	"runtime"
 	"runtime/pprof"

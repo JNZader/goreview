@@ -44,11 +44,11 @@ func NewEngine(
 
 // Result contains the complete review results.
 type Result struct {
-	TotalIssues int             `json:"total_issues"`
-	Duration    time.Duration   `json:"duration"`
-	Files       []FileResult    `json:"files"`
-	Stats       git.DiffStats   `json:"stats"`
-	Summary     string          `json:"summary,omitempty"`
+	TotalIssues int           `json:"total_issues"`
+	Duration    time.Duration `json:"duration"`
+	Files       []FileResult  `json:"files"`
+	Stats       git.DiffStats `json:"stats"`
+	Summary     string        `json:"summary,omitempty"`
 }
 
 // FileResult contains review results for a single file.

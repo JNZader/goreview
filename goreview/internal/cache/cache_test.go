@@ -78,8 +78,8 @@ func TestLRUStats(t *testing.T) {
 	cache := NewLRUCache(10, time.Hour)
 
 	cache.Set("key1", &providers.ReviewResponse{Summary: "test"})
-	cache.Get("key1")      // hit
-	cache.Get("key1")      // hit
+	cache.Get("key1")        // hit
+	cache.Get("key1")        // hit
 	cache.Get("nonexistent") // miss
 
 	stats := cache.Stats()

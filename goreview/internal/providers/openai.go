@@ -57,8 +57,14 @@ func (p *OpenAIProvider) Review(ctx context.Context, req *ReviewRequest) (*Revie
 		"max_tokens":  p.config.MaxTokens,
 	}
 
-	body, _ := json.Marshal(openaiReq)
-	httpReq, _ := http.NewRequestWithContext(ctx, "POST", p.baseURL+"/chat/completions", bytes.NewReader(body))
+	body, err := json.Marshal(openaiReq)
+	if err != nil {
+		return nil, fmt.Errorf("marshal request: %w", err)
+	}
+	httpReq, err := http.NewRequestWithContext(ctx, "POST", p.baseURL+"/chat/completions", bytes.NewReader(body))
+	if err != nil {
+		return nil, fmt.Errorf("create request: %w", err)
+	}
 	httpReq.Header.Set("Content-Type", "application/json")
 	httpReq.Header.Set("Authorization", "Bearer "+p.apiKey)
 
@@ -72,13 +78,18 @@ func (p *OpenAIProvider) Review(ctx context.Context, req *ReviewRequest) (*Revie
 		Choices []struct {
 			Message struct{ Content string } `json:"message"`
 		} `json:"choices"`
-		Usage struct{ TotalTokens int `json:"total_tokens"` } `json:"usage"`
+		Usage struct {
+			TotalTokens int `json:"total_tokens"`
+		} `json:"usage"`
 	}
-	json.NewDecoder(resp.Body).Decode(&result)
+	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
+		return nil, fmt.Errorf("decode response: %w", err)
+	}
 
 	var reviewResp ReviewResponse
 	if len(result.Choices) > 0 {
-		json.Unmarshal([]byte(result.Choices[0].Message.Content), &reviewResp)
+		// Ignore unmarshal error - fallback to empty response is acceptable
+		_ = json.Unmarshal([]byte(result.Choices[0].Message.Content), &reviewResp)
 	}
 	reviewResp.TokensUsed = result.Usage.TotalTokens
 	reviewResp.ProcessingTime = time.Since(start).Milliseconds()
@@ -95,13 +106,16 @@ func (p *OpenAIProvider) GenerateDocumentation(ctx context.Context, diff, docCon
 }
 
 func (p *OpenAIProvider) HealthCheck(ctx context.Context) error {
-	req, _ := http.NewRequestWithContext(ctx, "GET", p.baseURL+"/models", nil)
+	req, err := http.NewRequestWithContext(ctx, "GET", p.baseURL+"/models", nil)
+	if err != nil {
+		return fmt.Errorf("create request: %w", err)
+	}
 	req.Header.Set("Authorization", "Bearer "+p.apiKey)
 	resp, err := p.client.Do(req)
 	if err != nil {
 		return err
 	}
-	resp.Body.Close()
+	defer resp.Body.Close()
 	return nil
 }
 

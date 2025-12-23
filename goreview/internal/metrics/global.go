@@ -55,24 +55,24 @@ func StartTimer(name string) *TimerContext {
 // Metric names for goreview
 const (
 	// Review metrics
-	MetricReviewsTotal      = "goreview_reviews_total"
-	MetricReviewDuration    = "goreview_review_duration"
-	MetricFilesProcessed    = "goreview_files_processed_total"
-	MetricFilesSkipped      = "goreview_files_skipped_total"
-	MetricIssuesFound       = "goreview_issues_found_total"
+	MetricReviewsTotal   = "goreview_reviews_total"
+	MetricReviewDuration = "goreview_review_duration"
+	MetricFilesProcessed = "goreview_files_processed_total"
+	MetricFilesSkipped   = "goreview_files_skipped_total"
+	MetricIssuesFound    = "goreview_issues_found_total"
 
 	// Provider metrics
-	MetricProviderRequests  = "goreview_provider_requests_total"
-	MetricProviderErrors    = "goreview_provider_errors_total"
-	MetricProviderLatency   = "goreview_provider_latency"
+	MetricProviderRequests = "goreview_provider_requests_total"
+	MetricProviderErrors   = "goreview_provider_errors_total"
+	MetricProviderLatency  = "goreview_provider_latency"
 
 	// Cache metrics
-	MetricCacheHits         = "goreview_cache_hits_total"
-	MetricCacheMisses       = "goreview_cache_misses_total"
-	MetricCacheSize         = "goreview_cache_size"
+	MetricCacheHits   = "goreview_cache_hits_total"
+	MetricCacheMisses = "goreview_cache_misses_total"
+	MetricCacheSize   = "goreview_cache_size"
 
 	// System metrics
-	MetricMemoryUsage       = "goreview_memory_bytes"
-	MetricGoroutines        = "goreview_goroutines"
-	MetricErrors            = "goreview_errors_total"
+	MetricMemoryUsage = "goreview_memory_bytes"
+	MetricGoroutines  = "goreview_goroutines"
+	MetricErrors      = "goreview_errors_total"
 )

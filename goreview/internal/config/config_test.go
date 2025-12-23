@@ -149,11 +149,11 @@ func TestLoaderDefaults(t *testing.T) {
 func TestLoaderEnvOverride(t *testing.T) {
 	// Set environment variables
 	// Note: Viper with AutomaticEnv binds GOREVIEW_PROVIDER_MODEL to provider.model
-	os.Setenv("GOREVIEW_PROVIDER_MODEL", "codellama:7b")
-	os.Setenv("GOREVIEW_REVIEW_MODE", "commit")
+	_ = os.Setenv("GOREVIEW_PROVIDER_MODEL", "codellama:7b")
+	_ = os.Setenv("GOREVIEW_REVIEW_MODE", "commit")
 	defer func() {
-		os.Unsetenv("GOREVIEW_PROVIDER_MODEL")
-		os.Unsetenv("GOREVIEW_REVIEW_MODE")
+		_ = os.Unsetenv("GOREVIEW_PROVIDER_MODEL")
+		_ = os.Unsetenv("GOREVIEW_REVIEW_MODE")
 	}()
 
 	loader := NewLoader()

@@ -11,8 +11,8 @@ func TestDetectProject(t *testing.T) {
 	dir := t.TempDir()
 
 	// Create go.mod
-	_ = os.WriteFile(filepath.Join(dir, "go.mod"), []byte("module test"), 0644)
-	_ = os.WriteFile(filepath.Join(dir, "main.go"), []byte("package main"), 0644)
+	_ = os.WriteFile(filepath.Join(dir, "go.mod"), []byte("module test"), 0600)
+	_ = os.WriteFile(filepath.Join(dir, "main.go"), []byte("package main"), 0600)
 
 	// Create .git directory
 	_ = os.Mkdir(filepath.Join(dir, ".git"), 0755)
@@ -42,7 +42,7 @@ func TestDetectProjectJavaScript(t *testing.T) {
 	dir := t.TempDir()
 
 	// Create package.json
-	_ = os.WriteFile(filepath.Join(dir, "package.json"), []byte(`{"name": "test"}`), 0644)
+	_ = os.WriteFile(filepath.Join(dir, "package.json"), []byte(`{"name": "test"}`), 0600)
 
 	info, err := DetectProject(dir)
 	if err != nil {
@@ -217,7 +217,7 @@ func TestDetectFrameworks(t *testing.T) {
 			"react": "^18.0.0"
 		}
 	}`
-	_ = os.WriteFile(filepath.Join(dir, "package.json"), []byte(packageJSON), 0644)
+	_ = os.WriteFile(filepath.Join(dir, "package.json"), []byte(packageJSON), 0600)
 
 	info, err := DetectProject(dir)
 	if err != nil {
@@ -240,8 +240,8 @@ func TestScanForLanguages(t *testing.T) {
 	dir := t.TempDir()
 
 	// Create source files without project files
-	_ = os.WriteFile(filepath.Join(dir, "main.go"), []byte("package main"), 0644)
-	_ = os.WriteFile(filepath.Join(dir, "app.py"), []byte("print('hello')"), 0644)
+	_ = os.WriteFile(filepath.Join(dir, "main.go"), []byte("package main"), 0600)
+	_ = os.WriteFile(filepath.Join(dir, "app.py"), []byte("print('hello')"), 0600)
 
 	info, err := DetectProject(dir)
 	if err != nil {

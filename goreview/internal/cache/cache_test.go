@@ -12,7 +12,9 @@ func TestLRUCache(t *testing.T) {
 
 	// Test Set and Get
 	resp := &providers.ReviewResponse{Summary: "test"}
-	cache.Set("key1", resp)
+	if err := cache.Set("key1", resp); err != nil {
+		t.Fatalf("Set() error = %v", err)
+	}
 
 	got, found, err := cache.Get("key1")
 	if err != nil || !found {
@@ -23,7 +25,10 @@ func TestLRUCache(t *testing.T) {
 	}
 
 	// Test miss
-	_, found, _ = cache.Get("nonexistent")
+	_, found, err = cache.Get("nonexistent")
+	if err != nil {
+		t.Errorf("Get(nonexistent) error = %v", err)
+	}
 	if found {
 		t.Error("Get(nonexistent) found, want miss")
 	}
@@ -32,9 +37,9 @@ func TestLRUCache(t *testing.T) {
 func TestLRUEviction(t *testing.T) {
 	cache := NewLRUCache(2, time.Hour)
 
-	cache.Set("key1", &providers.ReviewResponse{Summary: "1"})
-	cache.Set("key2", &providers.ReviewResponse{Summary: "2"})
-	cache.Set("key3", &providers.ReviewResponse{Summary: "3"}) // Evicts key1
+	_ = cache.Set("key1", &providers.ReviewResponse{Summary: "1"})
+	_ = cache.Set("key2", &providers.ReviewResponse{Summary: "2"})
+	_ = cache.Set("key3", &providers.ReviewResponse{Summary: "3"}) // Evicts key1
 
 	_, found, _ := cache.Get("key1")
 	if found {
@@ -50,7 +55,7 @@ func TestLRUEviction(t *testing.T) {
 func TestLRUExpiration(t *testing.T) {
 	cache := NewLRUCache(10, 10*time.Millisecond)
 
-	cache.Set("key1", &providers.ReviewResponse{Summary: "test"})
+	_ = cache.Set("key1", &providers.ReviewResponse{Summary: "test"})
 
 	time.Sleep(20 * time.Millisecond)
 
@@ -63,10 +68,10 @@ func TestLRUExpiration(t *testing.T) {
 func TestLRUClear(t *testing.T) {
 	cache := NewLRUCache(10, time.Hour)
 
-	cache.Set("key1", &providers.ReviewResponse{Summary: "1"})
-	cache.Set("key2", &providers.ReviewResponse{Summary: "2"})
+	_ = cache.Set("key1", &providers.ReviewResponse{Summary: "1"})
+	_ = cache.Set("key2", &providers.ReviewResponse{Summary: "2"})
 
-	cache.Clear()
+	_ = cache.Clear()
 
 	stats := cache.Stats()
 	if stats.Entries != 0 {
@@ -77,10 +82,10 @@ func TestLRUClear(t *testing.T) {
 func TestLRUStats(t *testing.T) {
 	cache := NewLRUCache(10, time.Hour)
 
-	cache.Set("key1", &providers.ReviewResponse{Summary: "test"})
-	cache.Get("key1")        // hit
-	cache.Get("key1")        // hit
-	cache.Get("nonexistent") // miss
+	_ = cache.Set("key1", &providers.ReviewResponse{Summary: "test"})
+	_, _, _ = cache.Get("key1")        // hit
+	_, _, _ = cache.Get("key1")        // hit
+	_, _, _ = cache.Get("nonexistent") // miss
 
 	stats := cache.Stats()
 	if stats.Hits != 2 {
@@ -99,7 +104,9 @@ func TestFileCache(t *testing.T) {
 	}
 
 	resp := &providers.ReviewResponse{Summary: "test"}
-	cache.Set("key1", resp)
+	if err := cache.Set("key1", resp); err != nil {
+		t.Fatalf("Set() error = %v", err)
+	}
 
 	got, found, err := cache.Get("key1")
 	if err != nil || !found {
@@ -117,7 +124,7 @@ func TestFileCacheExpiration(t *testing.T) {
 		t.Fatalf("NewFileCache() error = %v", err)
 	}
 
-	cache.Set("key1", &providers.ReviewResponse{Summary: "test"})
+	_ = cache.Set("key1", &providers.ReviewResponse{Summary: "test"})
 
 	time.Sleep(20 * time.Millisecond)
 
@@ -134,10 +141,10 @@ func TestFileCacheClear(t *testing.T) {
 		t.Fatalf("NewFileCache() error = %v", err)
 	}
 
-	cache.Set("key1", &providers.ReviewResponse{Summary: "1"})
-	cache.Set("key2", &providers.ReviewResponse{Summary: "2"})
+	_ = cache.Set("key1", &providers.ReviewResponse{Summary: "1"})
+	_ = cache.Set("key2", &providers.ReviewResponse{Summary: "2"})
 
-	cache.Clear()
+	_ = cache.Clear()
 
 	stats := cache.Stats()
 	if stats.Entries != 0 {

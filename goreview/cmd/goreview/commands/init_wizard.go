@@ -34,33 +34,21 @@ func (w *InitWizard) Run() (map[string]interface{}, error) {
 	w.showDetectedInfo()
 
 	// Provider selection
-	provider, err := w.selectProvider()
-	if err != nil {
-		return nil, err
-	}
+	provider := w.selectProvider()
 	config["provider"] = provider
 
 	// Model selection
-	model, err := w.selectModel(provider)
-	if err != nil {
-		return nil, err
-	}
+	model := w.selectModel(provider)
 	config["model"] = model
 
 	// API Key (if needed)
 	if provider == "openai" {
-		apiKey, err := w.promptAPIKey()
-		if err != nil {
-			return nil, err
-		}
+		apiKey := w.promptAPIKey()
 		config["api_key"] = apiKey
 	}
 
 	// Preset selection
-	preset, err := w.selectPreset()
-	if err != nil {
-		return nil, err
-	}
+	preset := w.selectPreset()
 	config["preset"] = preset
 
 	// Exclude patterns
@@ -94,7 +82,7 @@ func (w *InitWizard) showDetectedInfo() {
 	fmt.Println()
 }
 
-func (w *InitWizard) selectProvider() (string, error) {
+func (w *InitWizard) selectProvider() string {
 	fmt.Println("Select AI provider:")
 	fmt.Println("  [1] Ollama (local, free)")
 	fmt.Println("  [2] OpenAI (cloud, requires API key)")
@@ -105,15 +93,15 @@ func (w *InitWizard) selectProvider() (string, error) {
 
 	switch input {
 	case "", "1":
-		return "ollama", nil
+		return "ollama"
 	case "2":
-		return "openai", nil
+		return "openai"
 	default:
-		return "ollama", nil
+		return "ollama"
 	}
 }
 
-func (w *InitWizard) selectModel(provider string) (string, error) {
+func (w *InitWizard) selectModel(provider string) string {
 	var options []string
 	var defaultModel string
 
@@ -140,25 +128,25 @@ func (w *InitWizard) selectModel(provider string) (string, error) {
 	input = strings.TrimSpace(input)
 
 	if input == "" {
-		return defaultModel, nil
+		return defaultModel
 	}
 
 	idx := 0
 	fmt.Sscanf(input, "%d", &idx)
 	if idx > 0 && idx <= len(options) {
-		return options[idx-1], nil
+		return options[idx-1]
 	}
 
-	return defaultModel, nil
+	return defaultModel
 }
 
-func (w *InitWizard) promptAPIKey() (string, error) {
+func (w *InitWizard) promptAPIKey() string {
 	fmt.Print("\nEnter OpenAI API key: ")
 	input, _ := w.reader.ReadString('\n')
-	return strings.TrimSpace(input), nil
+	return strings.TrimSpace(input)
 }
 
-func (w *InitWizard) selectPreset() (string, error) {
+func (w *InitWizard) selectPreset() string {
 	fmt.Println("\nSelect rule preset:")
 	fmt.Println("  [1] minimal  - Only critical security rules")
 	fmt.Println("  [2] standard - Recommended for most projects")
@@ -170,13 +158,13 @@ func (w *InitWizard) selectPreset() (string, error) {
 
 	switch input {
 	case "1":
-		return "minimal", nil
+		return "minimal"
 	case "", "2":
-		return "standard", nil
+		return "standard"
 	case "3":
-		return "strict", nil
+		return "strict"
 	default:
-		return "standard", nil
+		return "standard"
 	}
 }
 

@@ -78,7 +78,7 @@ func runInit(cmd *cobra.Command, args []string) error {
 	}
 
 	// Generate YAML
-	yamlConfig := buildYAMLConfig(config, info)
+	yamlConfig := buildYAMLConfig(config)
 
 	// Write configuration file
 	data, err := yaml.Marshal(yamlConfig)
@@ -125,7 +125,7 @@ func buildConfigFromFlags(cmd *cobra.Command, info *ProjectInfo) map[string]inte
 	return config
 }
 
-func buildYAMLConfig(config map[string]interface{}, info *ProjectInfo) map[string]interface{} {
+func buildYAMLConfig(config map[string]interface{}) map[string]interface{} {
 	yamlConfig := map[string]interface{}{
 		"version": "1.0",
 		"provider": map[string]interface{}{

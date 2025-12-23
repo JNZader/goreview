@@ -47,10 +47,7 @@ func InteractiveCommit(diff *git.Diff, generatedMessage string) (string, bool, e
 	case "c", "":
 		return generatedMessage, true, nil
 	case "e":
-		edited, err := editMessage(generatedMessage)
-		if err != nil {
-			return "", false, err
-		}
+		edited := editMessage(generatedMessage)
 		return edited, true, nil
 	case "r":
 		return "", false, fmt.Errorf("regenerate requested")
@@ -83,7 +80,7 @@ func truncate(s string, max int) string {
 	return s[:max-3] + "..."
 }
 
-func editMessage(message string) (string, error) {
+func editMessage(message string) string {
 	fmt.Println("\nEnter new commit message (empty line to finish):")
 	fmt.Println("Current message shown below. Press Enter to keep or type new message.")
 	fmt.Println("─────────────────────────────────────")
@@ -96,7 +93,7 @@ func editMessage(message string) (string, error) {
 	newMessage = strings.TrimSpace(newMessage)
 
 	if newMessage == "" {
-		return message, nil
+		return message
 	}
-	return newMessage, nil
+	return newMessage
 }

@@ -129,5 +129,5 @@ func TestProfiler_Duration(t *testing.T) {
 		t.Errorf("Duration() = %v, expected >= 10ms", duration)
 	}
 
-	p.Stop()
+	_ = p.Stop()
 }

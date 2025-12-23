@@ -18,7 +18,7 @@ func BenchmarkLRUCache_Get(b *testing.B) {
 	// Pre-populate cache
 	for i := 0; i < 500; i++ {
 		key := fmt.Sprintf("key-%d", i)
-		c.Set(key, &providers.ReviewResponse{
+		_ = c.Set(key, &providers.ReviewResponse{
 			Summary: fmt.Sprintf("Review %d", i),
 			Score:   i % 100,
 		})
@@ -28,7 +28,7 @@ func BenchmarkLRUCache_Get(b *testing.B) {
 
 	for i := 0; i < b.N; i++ {
 		key := fmt.Sprintf("key-%d", i%500)
-		c.Get(key)
+		_, _, _ = c.Get(key)
 	}
 }
 
@@ -44,7 +44,7 @@ func BenchmarkLRUCache_Set(b *testing.B) {
 
 	for i := 0; i < b.N; i++ {
 		key := fmt.Sprintf("key-%d", i)
-		c.Set(key, response)
+		_ = c.Set(key, response)
 	}
 }
 
@@ -54,7 +54,7 @@ func BenchmarkLRUCache_Concurrent(b *testing.B) {
 
 	// Pre-populate
 	for i := 0; i < 500; i++ {
-		c.Set(fmt.Sprintf("key-%d", i), &providers.ReviewResponse{
+		_ = c.Set(fmt.Sprintf("key-%d", i), &providers.ReviewResponse{
 			Summary: fmt.Sprintf("Review %d", i),
 		})
 	}
@@ -65,9 +65,9 @@ func BenchmarkLRUCache_Concurrent(b *testing.B) {
 		for pb.Next() {
 			key := fmt.Sprintf("key-%d", i%500)
 			if i%2 == 0 {
-				c.Get(key)
+				_, _, _ = c.Get(key)
 			} else {
-				c.Set(key, &providers.ReviewResponse{Summary: "new"})
+				_ = c.Set(key, &providers.ReviewResponse{Summary: "new"})
 			}
 			i++
 		}
@@ -87,7 +87,7 @@ func BenchmarkLRUCache_WithEviction(b *testing.B) {
 
 	for i := 0; i < b.N; i++ {
 		key := fmt.Sprintf("key-%d", i)
-		c.Set(key, response)
+		_ = c.Set(key, response)
 	}
 }
 
@@ -152,7 +152,7 @@ func BenchmarkFileCache_Load(b *testing.B) {
 	// Pre-save entries
 	for i := 0; i < 100; i++ {
 		key := fmt.Sprintf("key-%d", i)
-		fc.Set(key, &providers.ReviewResponse{
+		_ = fc.Set(key, &providers.ReviewResponse{
 			Summary: "Test review",
 			Score:   i,
 		})
@@ -162,7 +162,7 @@ func BenchmarkFileCache_Load(b *testing.B) {
 
 	for i := 0; i < b.N; i++ {
 		key := fmt.Sprintf("key-%d", i%100)
-		fc.Get(key)
+		_, _, _ = fc.Get(key)
 	}
 
 	_ = ctx
@@ -174,12 +174,12 @@ func BenchmarkLRUCache_Stats(b *testing.B) {
 
 	// Add some entries
 	for i := 0; i < 500; i++ {
-		c.Set(fmt.Sprintf("key-%d", i), &providers.ReviewResponse{Summary: "test"})
+		_ = c.Set(fmt.Sprintf("key-%d", i), &providers.ReviewResponse{Summary: "test"})
 	}
 
 	// Simulate some hits/misses
 	for i := 0; i < 1000; i++ {
-		c.Get(fmt.Sprintf("key-%d", i%600))
+		_, _, _ = c.Get(fmt.Sprintf("key-%d", i%600))
 	}
 
 	b.ResetTimer()
@@ -195,7 +195,7 @@ func BenchmarkLRUCache_MixedWorkload(b *testing.B) {
 
 	// Pre-populate with 250 entries
 	for i := 0; i < 250; i++ {
-		c.Set(fmt.Sprintf("existing-%d", i), &providers.ReviewResponse{
+		_ = c.Set(fmt.Sprintf("existing-%d", i), &providers.ReviewResponse{
 			Summary: fmt.Sprintf("Review %d", i),
 		})
 	}
@@ -205,11 +205,11 @@ func BenchmarkLRUCache_MixedWorkload(b *testing.B) {
 	for i := 0; i < b.N; i++ {
 		switch i % 10 {
 		case 0, 1, 2, 3, 4, 5: // 60% reads (hits)
-			c.Get(fmt.Sprintf("existing-%d", i%250))
+			_, _, _ = c.Get(fmt.Sprintf("existing-%d", i%250))
 		case 6, 7: // 20% reads (misses)
-			c.Get(fmt.Sprintf("nonexistent-%d", i))
+			_, _, _ = c.Get(fmt.Sprintf("nonexistent-%d", i))
 		case 8, 9: // 20% writes
-			c.Set(fmt.Sprintf("new-%d", i), &providers.ReviewResponse{
+			_ = c.Set(fmt.Sprintf("new-%d", i), &providers.ReviewResponse{
 				Summary: "New review",
 			})
 		}

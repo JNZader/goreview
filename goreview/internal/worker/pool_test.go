@@ -76,7 +76,9 @@ func TestPool_ErrorHandling(t *testing.T) {
 		err:      expectedErr,
 	}
 
-	pool.Submit(task)
+	if err := pool.Submit(task); err != nil {
+		t.Fatalf("submit failed: %v", err)
+	}
 
 	result := <-pool.Results()
 	if result.Error != expectedErr {
@@ -98,7 +100,7 @@ func TestPool_Cancellation(t *testing.T) {
 		id:       "long-task",
 		duration: 10 * time.Second,
 	}
-	pool.Submit(task)
+	_ = pool.Submit(task)
 
 	// Cancel immediately
 	pool.Stop()
@@ -268,7 +270,7 @@ func BenchmarkPool_Throughput(b *testing.B) {
 			id:       fmt.Sprintf("task-%d", i),
 			duration: 0, // Instant
 		}
-		pool.Submit(task)
+		_ = pool.Submit(task)
 	}
 }
 
@@ -291,7 +293,7 @@ func BenchmarkPool_Concurrent(b *testing.B) {
 				id:       fmt.Sprintf("task-%d", i),
 				duration: 0,
 			}
-			pool.Submit(task)
+			_ = pool.Submit(task)
 			i++
 		}
 	})

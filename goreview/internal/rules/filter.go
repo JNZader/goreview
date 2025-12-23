@@ -98,7 +98,10 @@ func containsString(slice []string, s string) bool {
 
 func matchesAnyPattern(patterns []string, path string) bool {
 	for _, pattern := range patterns {
-		matched, _ := filepath.Match(pattern, filepath.Base(path))
+		matched, err := filepath.Match(pattern, filepath.Base(path))
+		if err != nil {
+			continue // Skip invalid patterns
+		}
 		if matched {
 			return true
 		}

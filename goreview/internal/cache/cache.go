@@ -40,12 +40,16 @@ type CacheStats struct {
 
 // ComputeKey generates a SHA-256 hash key from a review request.
 func ComputeKey(req *providers.ReviewRequest) string {
-	data, _ := json.Marshal(map[string]interface{}{
+	data, err := json.Marshal(map[string]interface{}{
 		"diff":     req.Diff,
 		"language": req.Language,
 		"path":     req.FilePath,
 		"rules":    req.Rules,
 	})
+	if err != nil {
+		// Fallback to hashing the raw diff if marshal fails
+		data = []byte(req.Diff)
+	}
 
 	hash := sha256.Sum256(data)
 	return hex.EncodeToString(hash[:])

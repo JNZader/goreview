@@ -145,9 +145,7 @@ func TestBuildYAMLConfig(t *testing.T) {
 		"exclude":  []string{"vendor/**"},
 	}
 
-	info := &ProjectInfo{Languages: []string{"go"}}
-
-	yamlConfig := buildYAMLConfig(config, info)
+	yamlConfig := buildYAMLConfig(config)
 
 	// Check structure
 	if yamlConfig["version"] != "1.0" {
@@ -179,9 +177,7 @@ func TestBuildYAMLConfigOpenAI(t *testing.T) {
 		"exclude":  []string{},
 	}
 
-	info := &ProjectInfo{}
-
-	yamlConfig := buildYAMLConfig(config, info)
+	yamlConfig := buildYAMLConfig(config)
 
 	provider := yamlConfig["provider"].(map[string]interface{})
 	if provider["name"] != "openai" {

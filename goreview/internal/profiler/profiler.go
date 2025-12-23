@@ -59,7 +59,7 @@ func New(cfg Config) (*Profiler, error) {
 		go func() {
 			// pprof is already registered via import
 			if err := p.httpServer.ListenAndServe(); err != http.ErrServerClosed {
-				fmt.Fprintf(os.Stderr, "pprof server error: %v\n", err)
+				_, _ = fmt.Fprintf(os.Stderr, "pprof server error: %v\n", err)
 			}
 		}()
 	}

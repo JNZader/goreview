@@ -145,15 +145,15 @@ func setupProfiler(cmd *cobra.Command) (func(), error) {
 	}
 
 	if isVerbose() {
-		fmt.Fprintf(os.Stderr, "Profiler started - Initial memory stats: %s\n", profiler.Stats().String())
+		_, _ = fmt.Fprintf(os.Stderr, "Profiler started - Initial memory stats: %s\n", profiler.Stats().String())
 	}
 
 	return func() {
 		if isVerbose() {
-			fmt.Fprintf(os.Stderr, "Profiler stopping - Final memory stats: %s\n", profiler.Stats().String())
+			_, _ = fmt.Fprintf(os.Stderr, "Profiler stopping - Final memory stats: %s\n", profiler.Stats().String())
 		}
 		if stopErr := prof.Stop(); stopErr != nil {
-			fmt.Fprintf(os.Stderr, "Warning: failed to stop profiler: %v\n", stopErr)
+			_, _ = fmt.Fprintf(os.Stderr, "Warning: failed to stop profiler: %v\n", stopErr)
 		}
 	}, nil
 }
@@ -232,7 +232,7 @@ func outputReport(cmd *cobra.Command, result *review.Result) error {
 		if err := os.WriteFile(outputFile, []byte(output), 0600); err != nil {
 			return fmt.Errorf("writing output: %w", err)
 		}
-		fmt.Fprintf(os.Stderr, "Report written to %s\n", outputFile)
+		_, _ = fmt.Fprintf(os.Stderr, "Report written to %s\n", outputFile)
 	} else {
 		fmt.Print(output)
 	}

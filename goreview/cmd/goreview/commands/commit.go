@@ -89,7 +89,7 @@ func runCommit(cmd *cobra.Command, args []string) error {
 
 	// Generate commit message
 	if isVerbose() {
-		fmt.Fprintf(os.Stderr, "Analyzing %d files...\n", len(diff.Files))
+		_, _ = fmt.Fprintf(os.Stderr, "Analyzing %d files...\n", len(diff.Files))
 	}
 
 	diffText := formatDiffForCommit(diff)
@@ -252,6 +252,6 @@ func executeGitCommit(message string, amend bool) error {
 		return fmt.Errorf("git commit failed: %w", err)
 	}
 
-	fmt.Fprintf(os.Stderr, "Commit created successfully\n")
+	_, _ = fmt.Fprintf(os.Stderr, "Commit created successfully\n")
 	return nil
 }

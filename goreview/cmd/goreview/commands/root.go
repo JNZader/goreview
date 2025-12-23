@@ -107,7 +107,7 @@ func initializeConfig() error {
 
 	if verbose && !quiet {
 		if viper.ConfigFileUsed() != "" {
-			fmt.Fprintf(os.Stderr, "Using config file: %s\n", viper.ConfigFileUsed())
+			_, _ = fmt.Fprintf(os.Stderr, "Using config file: %s\n", viper.ConfigFileUsed())
 		}
 	}
 

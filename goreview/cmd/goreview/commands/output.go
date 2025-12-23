@@ -27,7 +27,7 @@ func WriteOutput(content, outputPath string) error {
 		return fmt.Errorf("writing output file: %w", err)
 	}
 
-	fmt.Fprintf(os.Stderr, "Report written to: %s\n", outputPath)
+	_, _ = fmt.Fprintf(os.Stderr, "Report written to: %s\n", outputPath)
 	return nil
 }
 

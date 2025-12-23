@@ -44,7 +44,7 @@ func (p *ProgressReporter) Start() {
 				p.spinner++
 				progress := float64(p.current) / float64(p.total) * 100
 				bar := p.renderBar(progress)
-				fmt.Fprintf(os.Stderr, "\r%c Reviewing files %s %.0f%% (%d/%d)",
+				_, _ = fmt.Fprintf(os.Stderr, "\r%c Reviewing files %s %.0f%% (%d/%d)",
 					spinner, bar, progress, p.current, p.total)
 				p.mu.Unlock()
 			}
@@ -63,8 +63,8 @@ func (p *ProgressReporter) Increment(filename string) {
 func (p *ProgressReporter) Finish() {
 	close(p.done)
 	duration := time.Since(p.startTime)
-	fmt.Fprintf(os.Stderr, "\r%s\r", strings.Repeat(" ", 80))
-	fmt.Fprintf(os.Stderr, "Reviewed %d files in %s\n", p.total, duration.Round(time.Millisecond))
+	_, _ = fmt.Fprintf(os.Stderr, "\r%s\r", strings.Repeat(" ", 80))
+	_, _ = fmt.Fprintf(os.Stderr, "Reviewed %d files in %s\n", p.total, duration.Round(time.Millisecond))
 }
 
 func (p *ProgressReporter) renderBar(progress float64) string {
@@ -76,12 +76,12 @@ func (p *ProgressReporter) renderBar(progress float64) string {
 
 // PrintSummary prints a summary of the review results.
 func PrintSummary(totalIssues int, files int, duration time.Duration) {
-	fmt.Fprintf(os.Stderr, "\n")
-	fmt.Fprintf(os.Stderr, "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n")
-	fmt.Fprintf(os.Stderr, "  Review Complete\n")
-	fmt.Fprintf(os.Stderr, "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n")
-	fmt.Fprintf(os.Stderr, "  Files reviewed: %d\n", files)
-	fmt.Fprintf(os.Stderr, "  Issues found:   %d\n", totalIssues)
-	fmt.Fprintf(os.Stderr, "  Duration:       %s\n", duration.Round(time.Millisecond))
-	fmt.Fprintf(os.Stderr, "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n")
+	_, _ = fmt.Fprintf(os.Stderr, "\n")
+	_, _ = fmt.Fprintf(os.Stderr, "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n")
+	_, _ = fmt.Fprintf(os.Stderr, "  Review Complete\n")
+	_, _ = fmt.Fprintf(os.Stderr, "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n")
+	_, _ = fmt.Fprintf(os.Stderr, "  Files reviewed: %d\n", files)
+	_, _ = fmt.Fprintf(os.Stderr, "  Issues found:   %d\n", totalIssues)
+	_, _ = fmt.Fprintf(os.Stderr, "  Duration:       %s\n", duration.Round(time.Millisecond))
+	_, _ = fmt.Fprintf(os.Stderr, "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n")
 }

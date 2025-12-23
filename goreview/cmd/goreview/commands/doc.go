@@ -241,7 +241,7 @@ func writeDocOutput(path, content string, appendMode, prependMode bool) error {
 		if err != nil {
 			return err
 		}
-		fmt.Fprintf(os.Stderr, "Appended to: %s\n", path)
+		_, _ = fmt.Fprintf(os.Stderr, "Appended to: %s\n", path)
 		return nil
 	}
 
@@ -258,9 +258,9 @@ func writeDocOutput(path, content string, appendMode, prependMode bool) error {
 	}
 
 	if prependMode {
-		fmt.Fprintf(os.Stderr, "Prepended to: %s\n", path)
+		_, _ = fmt.Fprintf(os.Stderr, "Prepended to: %s\n", path)
 	} else {
-		fmt.Fprintf(os.Stderr, "Written to: %s\n", path)
+		_, _ = fmt.Fprintf(os.Stderr, "Written to: %s\n", path)
 	}
 	return nil
 }

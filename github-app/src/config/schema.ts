@@ -1,0 +1,62 @@
+import { z } from 'zod';
+
+// Duration parser (e.g., "1h", "30m", "60s")
+const durationSchema = z.string().superRefine((val, ctx) => {
+  const match = val.match(/^(\d+)(h|m|s)$/);
+  if (!match) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      message: `Invalid duration format: ${val}. Expected format like "1h", "30m", or "60s"`,
+    });
+  }
+}).transform((val) => {
+  const match = val.match(/^(\d+)(h|m|s)$/);
+  if (!match) return 0; // Won't reach here due to superRefine
+
+  const [, num, unit] = match;
+  const multipliers: Record<string, number> = {
+    h: 3600000,
+    m: 60000,
+    s: 1000,
+  };
+
+  return parseInt(num) * multipliers[unit];
+});
+
+export const envSchema = z.object({
+  // Server
+  NODE_ENV: z.enum(['development', 'production', 'test']).default('development'),
+  PORT: z.coerce.number().default(3000),
+  LOG_LEVEL: z.enum(['debug', 'info', 'warn', 'error']).default('info'),
+
+  // GitHub App
+  GITHUB_APP_ID: z.coerce.number(),
+  GITHUB_PRIVATE_KEY: z.string().transform((key) => {
+    // Handle escaped newlines from env vars
+    return key.replace(/\\n/g, '\n');
+  }),
+  GITHUB_WEBHOOK_SECRET: z.string().min(20),
+  GITHUB_CLIENT_ID: z.string().optional(),
+  GITHUB_CLIENT_SECRET: z.string().optional(),
+
+  // AI Provider
+  AI_PROVIDER: z.enum(['ollama', 'openai']).default('ollama'),
+  AI_MODEL: z.string().default('qwen2.5-coder:14b'),
+  OLLAMA_BASE_URL: z.string().url().default('http://localhost:11434'),
+  OPENAI_API_KEY: z.string().optional(),
+
+  // Rate Limiting
+  RATE_LIMIT_RPS: z.coerce.number().default(10),
+  RATE_LIMIT_BURST: z.coerce.number().default(20),
+
+  // Cache
+  CACHE_TTL: durationSchema.default('1h'),
+  CACHE_MAX_ENTRIES: z.coerce.number().default(1000),
+
+  // Review Settings
+  REVIEW_MAX_FILES: z.coerce.number().default(50),
+  REVIEW_MAX_DIFF_SIZE: z.coerce.number().default(500000), // 500KB
+  REVIEW_TIMEOUT: durationSchema.default('5m'),
+});
+
+export type EnvConfig = z.infer<typeof envSchema>;

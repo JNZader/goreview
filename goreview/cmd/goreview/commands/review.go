@@ -12,6 +12,7 @@ import (
 	"github.com/JNZader/goreview/goreview/internal/cache"
 	"github.com/JNZader/goreview/goreview/internal/config"
 	"github.com/JNZader/goreview/goreview/internal/git"
+	"github.com/JNZader/goreview/goreview/internal/profiler"
 	"github.com/JNZader/goreview/goreview/internal/providers"
 	"github.com/JNZader/goreview/goreview/internal/report"
 	"github.com/JNZader/goreview/goreview/internal/review"
@@ -69,6 +70,11 @@ func init() {
 	reviewCmd.Flags().Bool("no-cache", false, "Disable caching")
 	reviewCmd.Flags().String("preset", "standard", "Rule preset (minimal, standard, strict)")
 
+	// Profiling flags
+	reviewCmd.Flags().String("cpuprofile", "", "Write CPU profile to file")
+	reviewCmd.Flags().String("memprofile", "", "Write memory profile to file")
+	reviewCmd.Flags().String("pprof-addr", "", "Enable pprof HTTP server (e.g., :6060)")
+
 	// Bind to viper
 	_ = viper.BindPFlag("review.staged", reviewCmd.Flags().Lookup("staged"))
 	_ = viper.BindPFlag("review.commit", reviewCmd.Flags().Lookup("commit"))
@@ -82,6 +88,34 @@ func runReview(cmd *cobra.Command, args []string) error {
 	// Validate flags
 	if err := validateReviewFlags(cmd, args); err != nil {
 		return err
+	}
+
+	// Initialize profiler if requested
+	cpuProfile, _ := cmd.Flags().GetString("cpuprofile")
+	memProfile, _ := cmd.Flags().GetString("memprofile")
+	pprofAddr, _ := cmd.Flags().GetString("pprof-addr")
+
+	if cpuProfile != "" || memProfile != "" || pprofAddr != "" {
+		prof, err := profiler.New(profiler.Config{
+			CPUProfile: cpuProfile,
+			MemProfile: memProfile,
+			HTTPAddr:   pprofAddr,
+		})
+		if err != nil {
+			return fmt.Errorf("failed to start profiler: %w", err)
+		}
+		defer func() {
+			if err := prof.Stop(); err != nil {
+				fmt.Fprintf(os.Stderr, "Warning: failed to stop profiler: %v\n", err)
+			}
+		}()
+
+		if isVerbose() {
+			fmt.Fprintf(os.Stderr, "Profiler started - Initial memory stats: %s\n", profiler.Stats().String())
+			defer func() {
+				fmt.Fprintf(os.Stderr, "Profiler stopping - Final memory stats: %s\n", profiler.Stats().String())
+			}()
+		}
 	}
 
 	// Load configuration

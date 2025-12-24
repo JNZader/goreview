@@ -234,13 +234,8 @@ jobs:
         env:
           KOYEB_TOKEN: ${{ secrets.KOYEB_TOKEN }}
         run: |
-          # Create config file with token and organization
-          mkdir -p ~/.koyeb
-          echo "token: $KOYEB_TOKEN" > ~/.koyeb.yaml
-          echo "organization: jnz" >> ~/.koyeb.yaml
-
-          # Redeploy existing service (app/service format)
-          koyeb service redeploy scientific-sofia/goreview
+          # Redeploy using --token flag directly
+          koyeb service redeploy scientific-sofia/goreview --token "$KOYEB_TOKEN"
 
   # ---------------------------------------------------------------------------
   # Notify on completion

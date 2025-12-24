@@ -246,7 +246,7 @@ func writeDocOutput(path, content string, appendMode, prependMode bool) error {
 	}
 
 	if prependMode {
-		existing, err := os.ReadFile(path)
+		existing, err := os.ReadFile(path) //nolint:gosec // CLI tool reads user-specified output files
 		if err != nil && !os.IsNotExist(err) {
 			return err
 		}

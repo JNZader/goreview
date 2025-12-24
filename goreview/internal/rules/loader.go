@@ -91,7 +91,7 @@ func (l *Loader) loadFromDir(dir string) ([]Rule, error) {
 			return nil
 		}
 
-		data, err := os.ReadFile(path)
+		data, err := os.ReadFile(path) //nolint:gosec // Path comes from trusted rules directory walk
 		if err != nil {
 			return err
 		}

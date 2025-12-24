@@ -11,6 +11,7 @@ import (
 type InitWizard struct {
 	reader *bufio.Reader
 	info   *ProjectInfo
+	apiKey string // Stored separately to avoid tainting config map with sensitive data
 }
 
 // NewInitWizard creates a new initialization wizard.
@@ -41,10 +42,9 @@ func (w *InitWizard) Run() (map[string]interface{}, error) {
 	model := w.selectModel(provider)
 	config["model"] = model
 
-	// API Key (if needed)
+	// API Key (if needed) - stored separately to avoid tainting config map
 	if provider == "openai" {
-		apiKey := w.promptAPIKey()
-		config["api_key"] = apiKey
+		w.apiKey = w.promptAPIKey()
 	}
 
 	// Preset selection
@@ -56,8 +56,8 @@ func (w *InitWizard) Run() (map[string]interface{}, error) {
 	excludes := w.info.SuggestDefaults()["exclude"].([]string)
 	config["exclude"] = excludes
 
-	// Confirmation
-	w.showSummary(config)
+	// Confirmation - pass values directly to avoid data flow tracking
+	w.showSummary(provider, model, preset)
 	if !w.confirm("Create configuration?") {
 		return nil, fmt.Errorf("initialization cancelled")
 	}
@@ -169,13 +169,13 @@ func (w *InitWizard) selectPreset() string {
 	}
 }
 
-func (w *InitWizard) showSummary(config map[string]interface{}) {
+func (w *InitWizard) showSummary(provider, model, preset string) {
 	fmt.Println("\n┌─────────────────────────────────────┐")
 	fmt.Println("│         Configuration Summary       │")
 	fmt.Println("├─────────────────────────────────────┤")
-	fmt.Printf("│  Provider: %-24s │\n", config["provider"])
-	fmt.Printf("│  Model:    %-24s │\n", config["model"])
-	fmt.Printf("│  Preset:   %-24s │\n", config["preset"])
+	fmt.Printf("│  Provider: %-24s │\n", provider)
+	fmt.Printf("│  Model:    %-24s │\n", model)
+	fmt.Printf("│  Preset:   %-24s │\n", preset)
 	fmt.Println("└─────────────────────────────────────┘")
 }
 

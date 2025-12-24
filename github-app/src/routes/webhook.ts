@@ -1,14 +1,26 @@
-import { Router, Request, Response, NextFunction } from 'express';
+import { Router, Request, Response, NextFunction, RequestHandler } from 'express';
+import rateLimit from 'express-rate-limit';
 import { verifyWebhookSignature } from '../utils/webhookVerify.js';
 import { logger } from '../utils/logger.js';
 import { AppError } from '../middleware/errorHandler.js';
 import { handleWebhook } from '../handlers/webhookHandler.js';
-import { webhookRateLimiter } from '../middleware/rateLimit.js';
 
 export const webhookRouter = Router();
 
-// Apply rate limiting to all webhook routes
-webhookRouter.use(webhookRateLimiter);
+// Rate limiter specifically for webhook endpoint (CodeQL requires this pattern)
+const webhookLimiter: RequestHandler = rateLimit({
+  windowMs: 60 * 1000, // 1 minute
+  max: 1000, // 1000 requests per minute per IP
+  standardHeaders: true,
+  legacyHeaders: false,
+  keyGenerator: (req) => req.ip ?? 'unknown',
+  handler: (_req, res) => {
+    res.status(429).json({
+      error: 'Too Many Requests',
+      message: 'Rate limit exceeded. Please try again later.',
+    });
+  },
+});
 
 // Signature verification middleware
 const verifySignature = (req: Request, _res: Response, next: NextFunction) => {
@@ -26,8 +38,8 @@ const verifySignature = (req: Request, _res: Response, next: NextFunction) => {
   next();
 };
 
-// Main webhook endpoint
-webhookRouter.post('/', verifySignature, async (req: Request, res: Response) => {
+// Main webhook endpoint with rate limiting
+webhookRouter.post('/', webhookLimiter, verifySignature, async (req: Request, res: Response) => {
   const event = req.headers['x-github-event'] as string;
   const deliveryId = req.headers['x-github-delivery'] as string;
   const payload = JSON.parse((req.body as Buffer).toString());

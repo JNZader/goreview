@@ -95,6 +95,32 @@ Return ONLY the commit message, nothing else.`;
     return result.response.trim();
   }
 
+  async chat(prompt: string): Promise<string> {
+    const ollamaReq = {
+      model: this.model,
+      prompt,
+      stream: false,
+      options: {
+        temperature: 0.7,
+        num_predict: 2048,
+      },
+    };
+
+    const response = await fetch(`${this.baseUrl}/api/generate`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(ollamaReq),
+      signal: AbortSignal.timeout(config.review.timeout),
+    });
+
+    if (!response.ok) {
+      throw new Error(`Ollama error: ${response.status}`);
+    }
+
+    const result = (await response.json()) as { response: string };
+    return result.response.trim();
+  }
+
   async healthCheck(): Promise<boolean> {
     try {
       const response = await fetch(`${this.baseUrl}/api/tags`, {

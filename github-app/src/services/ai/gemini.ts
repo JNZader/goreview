@@ -141,6 +141,47 @@ Return ONLY the commit message, nothing else.`;
     throw new Error('No response from Gemini');
   }
 
+  async chat(prompt: string): Promise<string> {
+    const geminiReq = {
+      contents: [{ parts: [{ text: prompt }] }],
+      generationConfig: {
+        temperature: 0.7,
+        maxOutputTokens: 2048,
+      },
+    };
+
+    const url = `${this.baseUrl}/models/${this.model}:generateContent?key=${this.apiKey}`;
+
+    const response = await fetch(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(geminiReq),
+      signal: AbortSignal.timeout(config.review.timeout),
+    });
+
+    if (!response.ok) {
+      throw new Error(`Gemini error: ${response.status}`);
+    }
+
+    const result = (await response.json()) as {
+      candidates?: Array<{
+        content?: {
+          parts?: Array<{ text?: string }>;
+        };
+      }>;
+    };
+
+    if (
+      result.candidates &&
+      result.candidates[0]?.content?.parts &&
+      result.candidates[0].content.parts[0]?.text
+    ) {
+      return result.candidates[0].content.parts[0].text.trim();
+    }
+
+    throw new Error('No response from Gemini');
+  }
+
   async healthCheck(): Promise<boolean> {
     try {
       const url = `${this.baseUrl}/models/${this.model}?key=${this.apiKey}`;

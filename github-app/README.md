@@ -6,8 +6,10 @@ GitHub App para reviews automaticos de codigo con IA en Pull Requests.
 
 - **Reviews automaticos** - Analiza PRs cuando se abren o actualizan
 - **Comentarios en linea** - Agrega sugerencias directamente en el codigo
+- **Comentarios interactivos** - Responde a menciones @goreview en comentarios
 - **Multiples proveedores** - Soporta Ollama (local), Gemini, Groq y OpenAI
 - **Auto-deteccion** - Selecciona automaticamente el mejor proveedor disponible
+- **Cola persistente** - BullMQ + Redis para alta disponibilidad (fallback a in-memory)
 - **Rate limiting** - Proteccion contra abuso
 - **Cache** - Evita re-analizar codigo sin cambios
 - **Verificacion de webhooks** - Seguridad con firma HMAC
@@ -41,12 +43,15 @@ GitHub App para reviews automaticos de codigo con IA en Pull Requests.
 
 4. Permisos necesarios:
    - **Pull requests**: Read & Write
+   - **Issues**: Read & Write (para responder comentarios)
    - **Contents**: Read
    - **Checks**: Read & Write (opcional)
 
 5. Eventos a suscribirse:
    - Pull request
    - Pull request review
+   - Pull request review comment
+   - Issue comment (para @goreview mentions)
    - Push (opcional)
 
 6. Generar y descargar la clave privada
@@ -120,12 +125,14 @@ src/
 ├── index.ts              # Entry point
 ├── config/               # Configuracion y validacion
 ├── handlers/             # Manejadores de eventos
-│   ├── pullRequest.ts    # Eventos de PR
-│   └── webhookHandler.ts # Manejador de webhooks
+│   ├── pullRequestHandler.ts    # Eventos de PR
+│   ├── commentHandler.ts        # Menciones @goreview
+│   ├── webhookHandler.ts        # Router de webhooks
+│   └── installationHandler.ts   # Instalaciones de la app
 ├── services/             # Servicios
 │   ├── ai/               # Proveedores de IA
 │   │   ├── index.ts      # Factory y exports
-│   │   ├── types.ts      # Interfaces
+│   │   ├── types.ts      # Interfaces (review, chat)
 │   │   ├── gemini.ts     # Google Gemini
 │   │   ├── groq.ts       # Groq Cloud
 │   │   └── ollama.ts     # Ollama local
@@ -135,6 +142,9 @@ src/
 ├── middleware/           # Middleware Express
 ├── routes/               # Rutas HTTP
 ├── queue/                # Cola de procesamiento
+│   ├── index.ts          # Abstraccion (BullMQ o in-memory)
+│   ├── bullQueue.ts      # BullMQ + Redis
+│   └── jobQueue.ts       # In-memory fallback
 └── utils/                # Utilidades
 ```
 
@@ -145,6 +155,15 @@ src/
 - `opened` - PR abierto, inicia review
 - `synchronize` - PR actualizado, re-analiza cambios
 - `reopened` - PR reabierto
+
+### Issue Comment / PR Review Comment
+
+- Responde a menciones `@goreview` en comentarios
+- Comandos soportados:
+  - `@goreview explain [issue]` - Explicar un error o problema
+  - `@goreview suggest [topic]` - Sugerencias de mejora
+  - `@goreview review [code/area]` - Review enfocado
+  - `@goreview help` - Mostrar ayuda
 
 ### Push (Opcional)
 
@@ -173,6 +192,24 @@ AI_PROVIDER=ollama
 OLLAMA_BASE_URL=http://localhost:11434
 AI_MODEL=qwen2.5-coder:14b
 ```
+
+### Redis (Cola Persistente)
+
+```bash
+# Con Redis local
+REDIS_URL=redis://localhost:6379
+
+# Con Upstash Redis (recomendado para serverless/Koyeb)
+REDIS_URL=rediss://default:<password>@<endpoint>.upstash.io:6379
+
+# Sin Redis usa cola in-memory (solo desarrollo)
+# No definir REDIS_URL
+```
+
+**Upstash Redis** (https://upstash.com):
+- Plan gratuito: 10,000 comandos/dia
+- Ideal para serverless (Koyeb, Vercel, etc.)
+- TLS habilitado por defecto (usar `rediss://`)
 
 ### Rate Limiting
 

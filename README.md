@@ -11,6 +11,7 @@ Suite de herramientas para automatizar code review usando inteligencia artificia
 
 ## Caracteristicas Principales
 
+### Core
 - **Review de codigo con IA** - Detecta bugs, vulnerabilidades, problemas de rendimiento
 - **Multiples proveedores** - Ollama (local), OpenAI, Gemini, Groq, Mistral
 - **Generacion de commits** - Mensajes siguiendo Conventional Commits
@@ -19,6 +20,16 @@ Suite de herramientas para automatizar code review usando inteligencia artificia
 - **Sistema de reglas** - Configurable por severidad, categoria y lenguaje
 - **Cache inteligente** - Evita re-analizar codigo sin cambios
 - **Multiples formatos** - Markdown, JSON, SARIF
+
+### Avanzadas
+- **Auto-fix** - Comando `goreview fix` para aplicar correcciones automaticamente
+- **Comentarios interactivos** - Responde a menciones @goreview en GitHub
+- **Token Budgeting** - Gestion inteligente de tokens con chunking de codigo
+- **AST Parsing** - Analisis de contexto de codigo (Go, JS/TS, Python, Java, Rust)
+- **RAG para Style Guides** - Integra guias de estilo del proyecto en reviews
+- **Worker Pool** - Procesamiento concurrente optimizado
+- **Secret Masking** - Enmascaramiento automatico de secretos en logs
+- **Cola persistente** - BullMQ + Redis para alta disponibilidad
 
 ## Inicio Rapido
 
@@ -36,6 +47,9 @@ goreview init
 
 # Revisar cambios
 goreview review --staged
+
+# Auto-fix issues
+goreview fix --staged
 
 # Generar commit
 goreview commit
@@ -60,19 +74,24 @@ cd github-app && npm install && npm run dev
 ```
 iatoolkit/
 ├── goreview/               # CLI en Go
-│   ├── cmd/goreview/       # Comandos (review, commit, doc, init)
+│   ├── cmd/goreview/       # Comandos (review, commit, doc, init, fix)
 │   └── internal/           # Paquetes internos
 │       ├── providers/      # Ollama, OpenAI, Gemini, etc.
-│       ├── review/         # Motor de analisis
+│       ├── review/         # Motor de analisis con Worker Pool
 │       ├── rules/          # Sistema de reglas
 │       ├── cache/          # Cache LRU
 │       ├── git/            # Integracion Git
-│       └── report/         # Generadores de reportes
+│       ├── report/         # Generadores de reportes
+│       ├── tokenizer/      # Token budgeting y chunking
+│       ├── ast/            # AST parsing multi-lenguaje
+│       ├── rag/            # RAG para style guides
+│       └── logger/         # Logger con secret masking
 │
 ├── github-app/             # GitHub App en Node.js
 │   └── src/
-│       ├── handlers/       # Manejadores de webhooks
-│       ├── services/       # Logica de negocio
+│       ├── handlers/       # Webhooks (PRs, comments)
+│       ├── services/       # AI providers, GitHub client
+│       ├── queue/          # BullMQ + Redis
 │       └── routes/         # Endpoints HTTP
 │
 ├── scripts/                # Scripts de utilidad
@@ -118,6 +137,9 @@ GROQ_API_KEY=...
 GITHUB_APP_ID=123456
 GITHUB_PRIVATE_KEY_PATH=./private-key.pem
 GITHUB_WEBHOOK_SECRET=your-secret
+
+# Redis (opcional, para cola persistente)
+REDIS_URL=redis://localhost:6379
 ```
 
 ## Desarrollo

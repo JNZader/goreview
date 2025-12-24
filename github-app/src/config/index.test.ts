@@ -24,7 +24,7 @@ describe('Environment Schema', () => {
     if (result.success) {
       expect(result.data.PORT).toBe(3000);
       expect(result.data.NODE_ENV).toBe('development');
-      expect(result.data.AI_PROVIDER).toBe('ollama');
+      expect(result.data.AI_PROVIDER).toBe('auto');
     }
   });
 

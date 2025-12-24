@@ -14,8 +14,6 @@ on:
 
 env:
   REGISTRY: ghcr.io
-  GOREVIEW_IMAGE: ghcr.io/${{ github.repository_owner }}/goreview
-  GITHUB_APP_IMAGE: ghcr.io/${{ github.repository_owner }}/goreview-github-app
 
 jobs:
   # ---------------------------------------------------------------------------
@@ -32,6 +30,9 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
+      - name: Set lowercase owner
+        run: echo "OWNER_LC=${GITHUB_REPOSITORY_OWNER,,}" >> $GITHUB_ENV
+
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 
@@ -47,7 +48,7 @@ jobs:
         id: meta
         uses: docker/metadata-action@v5
         with:
-          images: ${{ env.GOREVIEW_IMAGE }}
+          images: ${{ env.REGISTRY }}/${{ env.OWNER_LC }}/goreview
           tags: |
             type=ref,event=branch
             type=ref,event=pr
@@ -83,6 +84,9 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
+      - name: Set lowercase owner
+        run: echo "OWNER_LC=${GITHUB_REPOSITORY_OWNER,,}" >> $GITHUB_ENV
+
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 
@@ -98,7 +102,7 @@ jobs:
         id: meta
         uses: docker/metadata-action@v5
         with:
-          images: ${{ env.GITHUB_APP_IMAGE }}
+          images: ${{ env.REGISTRY }}/${{ env.OWNER_LC }}/goreview-github-app
           tags: |
             type=ref,event=branch
             type=ref,event=pr

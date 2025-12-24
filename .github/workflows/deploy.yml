@@ -219,30 +219,28 @@ jobs:
     needs: [release, docker]
 
     steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Install Koyeb CLI
+        run: |
+          curl -fsSL https://raw.githubusercontent.com/koyeb/koyeb-cli/master/install.sh | bash
+          echo "$HOME/.koyeb/bin" >> $GITHUB_PATH
+
       - name: Deploy to Koyeb
-        uses: koyeb/action-git-deploy@v1
-        with:
-          app-name: goreview-github-app
-          service-name: main
-          git-url: https://github.com/${{ github.repository }}
-          git-branch: main
-          git-builder: docker
-          git-workdir: github-app
         env:
           KOYEB_TOKEN: ${{ secrets.KOYEB_TOKEN }}
-
-      # Alternative: Use Koyeb CLI if action doesn't work
-      - name: Deploy via Koyeb CLI (fallback)
-        if: failure()
         run: |
-          # Install Koyeb CLI
-          curl -fsSL https://raw.githubusercontent.com/koyeb/koyeb-cli/master/install.sh | bash
-          export PATH=$PATH:$HOME/.koyeb/bin
-
-          # Trigger redeploy
-          koyeb services redeploy goreview-github-app/main \
-            --token ${{ secrets.KOYEB_TOKEN }} || true
-        continue-on-error: true
+          # Redeploy existing service
+          koyeb service redeploy goreview/goreview \
+            --token "$KOYEB_TOKEN" || \
+          # If redeploy fails, try to update the service
+          koyeb service update goreview/goreview \
+            --git github.com/${{ github.repository }} \
+            --git-branch main \
+            --git-workdir github-app \
+            --git-builder docker \
+            --token "$KOYEB_TOKEN"
 
   # ---------------------------------------------------------------------------
   # Notify on completion

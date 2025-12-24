@@ -3,8 +3,12 @@ import { verifyWebhookSignature } from '../utils/webhookVerify.js';
 import { logger } from '../utils/logger.js';
 import { AppError } from '../middleware/errorHandler.js';
 import { handleWebhook } from '../handlers/webhookHandler.js';
+import { webhookRateLimiter } from '../middleware/rateLimit.js';
 
 export const webhookRouter = Router();
+
+// Apply rate limiting to all webhook routes
+webhookRouter.use(webhookRateLimiter);
 
 // Signature verification middleware
 const verifySignature = (req: Request, _res: Response, next: NextFunction) => {

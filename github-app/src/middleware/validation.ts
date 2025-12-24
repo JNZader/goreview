@@ -200,18 +200,18 @@ export const JobIdParamSchema = z.object({
 // =============================================================================
 
 /**
- * Sanitizes a string by removing potentially dangerous characters
+ * Sanitizes a string by removing potentially dangerous characters.
+ * Note: For webhook payloads from GitHub, we trust the source.
+ * This sanitization removes control characters that could cause issues in logging/display.
  */
 export function sanitizeString(input: string): string {
   if (typeof input !== 'string') {
     return '';
   }
 
-  return input
-    // eslint-disable-next-line no-control-regex
-    .replace(/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/g, '') // Remove control characters
-    .replace(/<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi, '') // Remove script tags
-    .trim();
+  // Remove ASCII control characters (except tab, newline, carriage return)
+  // eslint-disable-next-line no-control-regex
+  return input.replace(/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/g, '').trim();
 }
 
 /**

@@ -102,7 +102,8 @@ func outputConfigYAML(cfg *config.Config) error {
 	fmt.Printf("  model: %s\n", cfg.Provider.Model)
 	fmt.Printf("  base_url: %s\n", cfg.Provider.BaseURL)
 	if cfg.Provider.APIKey != "" {
-		fmt.Printf("  api_key: %s\n", cfg.Provider.APIKey)
+		// Never print the actual API key; always show a constant placeholder
+		fmt.Printf("  api_key: %s\n", "***REDACTED***")
 	}
 	fmt.Printf("  timeout: %s\n", cfg.Provider.Timeout)
 	fmt.Printf("  max_tokens: %d\n", cfg.Provider.MaxTokens)

@@ -58,7 +58,10 @@ describe('secrets', () => {
 
     it('should fail decryption with tampered ciphertext', () => {
       const encrypted = encryptSecret(plaintext, testPassword);
-      encrypted.encrypted = encrypted.encrypted.replace('a', 'b');
+      // Flip the first character to guarantee tampering
+      const firstChar = encrypted.encrypted[0];
+      const newChar = firstChar === '0' ? '1' : '0';
+      encrypted.encrypted = newChar + encrypted.encrypted.slice(1);
 
       expect(() => decryptSecret(encrypted, testPassword)).toThrow();
     });

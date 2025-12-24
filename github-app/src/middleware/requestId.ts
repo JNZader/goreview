@@ -5,12 +5,10 @@
 import type { Request, Response, NextFunction } from 'express';
 import crypto from 'node:crypto';
 
-// Extend Express Request type
-declare global {
-  namespace Express {
-    interface Request {
-      id: string;
-    }
+// Extend Express Request type using module augmentation
+declare module 'express-serve-static-core' {
+  interface Request {
+    id: string;
   }
 }
 

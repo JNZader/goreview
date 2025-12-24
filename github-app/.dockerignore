@@ -27,8 +27,6 @@ __tests__/
 *.md
 !README.md
 
-# TypeScript config (not needed at runtime)
-tsconfig.json
 
 # CI
 .github/

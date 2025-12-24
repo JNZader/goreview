@@ -1,5 +1,5 @@
 import { Octokit } from '@octokit/rest';
-import { ollamaService, ReviewIssue } from './ollama.js';
+import { getProvider, ReviewIssue } from './ai/index.js';
 import { loadRepoConfig, RepoConfig } from '../config/repoConfig.js';
 import { config } from '../config/index.js';
 import { logger } from '../utils/logger.js';
@@ -159,7 +159,7 @@ export class PRReviewService {
       const batchResults = await Promise.all(
         batch.map(async (file) => {
           try {
-            const response = await ollamaService.review({
+            const response = await getProvider().review({
               diff: file.content,
               language: file.language,
               filePath: file.path,

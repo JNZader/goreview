@@ -1,158 +1,213 @@
-# AI-Toolkit
+# GoReview - AI Code Review Toolkit
 
-Suite de herramientas de IA para automatizar code review.
+Suite de herramientas para automatizar code review usando inteligencia artificial.
 
 ## Componentes
 
-- **GoReview CLI**: Herramienta de linea de comandos para code review con IA
-- **GitHub App**: Integracion con GitHub para reviews automaticos en PRs
-- **Rules System**: Sistema de reglas YAML configurables
+| Componente | Descripcion | Tecnologia |
+|------------|-------------|------------|
+| **[GoReview CLI](./goreview/)** | Herramienta de linea de comandos | Go |
+| **[GitHub App](./github-app/)** | Integracion con GitHub PRs | Node.js/TypeScript |
 
-## Caracteristicas
+## Caracteristicas Principales
 
-- Review de codigo con IA (Ollama, OpenAI)
-- Generacion de mensajes de commit
-- Generacion de documentacion/changelog
-- Cache LRU para optimizar requests
-- Multiples formatos de output (Markdown, JSON, SARIF)
-- Procesamiento paralelo de archivos
-- Integracion con GitHub PRs
+- **Review de codigo con IA** - Detecta bugs, vulnerabilidades, problemas de rendimiento
+- **Multiples proveedores** - Ollama (local), OpenAI, Gemini, Groq, Mistral
+- **Generacion de commits** - Mensajes siguiendo Conventional Commits
+- **Documentacion automatica** - Changelogs y documentacion de cambios
+- **Integracion GitHub** - Reviews automaticos en Pull Requests
+- **Sistema de reglas** - Configurable por severidad, categoria y lenguaje
+- **Cache inteligente** - Evita re-analizar codigo sin cambios
+- **Multiples formatos** - Markdown, JSON, SARIF
 
-## Instalacion
+## Inicio Rapido
 
-### Prerequisitos
-
-- Go 1.24+
-- Node.js 20+ (para GitHub App)
-- Docker (opcional)
-- Ollama (para LLM local)
-
-### Desde binarios
+### CLI
 
 ```bash
-# Descargar ultima version
-curl -sSL https://github.com/JNZader/goreview/releases/latest/download/goreview-linux-amd64 -o goreview
-chmod +x goreview
-sudo mv goreview /usr/local/bin/
-```
+# Instalar
+go install github.com/JNZader/goreview/goreview/cmd/goreview@latest
 
-### Desde codigo fuente
+# O compilar desde fuente
+cd goreview && make build
 
-```bash
-git clone https://github.com/JNZader/goreview.git
-cd goreview/goreview
-make build
-./build/goreview version
-```
+# Configurar proyecto
+goreview init
 
-## Uso
+# Revisar cambios
+goreview review --staged
 
-### Review de cambios staged
-
-```bash
-goreview review
-```
-
-### Review de un commit especifico
-
-```bash
-goreview review --commit HEAD~1
-```
-
-### Review comparando con rama
-
-```bash
-goreview review --base main
-```
-
-### Generar mensaje de commit
-
-```bash
+# Generar commit
 goreview commit
 ```
 
-### Generar documentacion
+### GitHub App
 
 ```bash
-goreview doc --output CHANGELOG.md
+# Configurar variables de entorno
+cp github-app/.env.example github-app/.env
+# Editar .env con credenciales de GitHub App
+
+# Ejecutar con Docker
+docker compose up -d
+
+# O ejecutar localmente
+cd github-app && npm install && npm run dev
+```
+
+## Estructura del Proyecto
+
+```
+iatoolkit/
+├── goreview/               # CLI en Go
+│   ├── cmd/goreview/       # Comandos (review, commit, doc, init)
+│   └── internal/           # Paquetes internos
+│       ├── providers/      # Ollama, OpenAI, Gemini, etc.
+│       ├── review/         # Motor de analisis
+│       ├── rules/          # Sistema de reglas
+│       ├── cache/          # Cache LRU
+│       ├── git/            # Integracion Git
+│       └── report/         # Generadores de reportes
+│
+├── github-app/             # GitHub App en Node.js
+│   └── src/
+│       ├── handlers/       # Manejadores de webhooks
+│       ├── services/       # Logica de negocio
+│       └── routes/         # Endpoints HTTP
+│
+├── scripts/                # Scripts de utilidad
+├── iteraciones/            # Documentacion de desarrollo
+├── docker-compose.yml      # Desarrollo local
+└── docker-compose.prod.yml # Produccion
 ```
 
 ## Configuracion
 
-Crear archivo `.goreview.yaml` en la raiz del proyecto:
+### CLI (.goreview.yaml)
 
 ```yaml
+version: "1.0"
+
 provider:
-  name: ollama
+  name: ollama                    # ollama, openai, gemini, groq, mistral
   model: qwen2.5-coder:14b
   base_url: http://localhost:11434
-  timeout: 5m
 
 review:
-  mode: staged
-  min_severity: warning
   max_concurrency: 5
+  min_severity: warning           # info, warning, error, critical
 
-output:
-  format: markdown
-  color: true
+rules:
+  preset: standard                # minimal, standard, strict
 
 cache:
   enabled: true
   ttl: 24h
 ```
 
-## Desarrollo
+### Variables de Entorno
 
 ```bash
-# Setup del entorno
-make setup
+# Proveedores de IA
+GOREVIEW_PROVIDER_NAME=ollama
+OPENAI_API_KEY=sk-...
+GEMINI_API_KEY=...
+GROQ_API_KEY=...
 
-# Compilar
-make build
-
-# Ejecutar tests
-make test
-
-# Linting
-make lint
-
-# Modo desarrollo con hot reload
-make dev
+# GitHub App
+GITHUB_APP_ID=123456
+GITHUB_PRIVATE_KEY_PATH=./private-key.pem
+GITHUB_WEBHOOK_SECRET=your-secret
 ```
 
-## GitHub App
+## Desarrollo
 
-Para configurar la GitHub App:
+### Requisitos
 
-1. Crear GitHub App en Settings > Developer settings
-2. Configurar webhook URL
-3. Copiar `.env.example` a `.env` y agregar credenciales
-4. Ejecutar `docker compose up`
+- Go 1.23+
+- Node.js 20+
+- Docker (opcional)
+- Ollama (para LLM local)
 
-Ver [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md) para mas detalles.
+### Comandos
 
-## Arquitectura
+```bash
+# Root - Docker
+make dev              # Iniciar todo en desarrollo
+make build            # Compilar todo
+make test             # Ejecutar tests
 
+# GoReview CLI
+cd goreview
+make build            # Compilar
+make test             # Tests
+make lint             # Linting
+
+# GitHub App
+cd github-app
+npm install           # Instalar dependencias
+npm run dev           # Desarrollo con hot-reload
+npm test              # Tests
+npm run lint          # Linting
 ```
-goreview/ (repo)
-├── goreview/           # CLI en Go
-│   ├── cmd/            # Entry points
-│   └── internal/       # Paquetes internos
-├── integrations/       # Integraciones
-│   └── github-app/     # GitHub App en Node.js
-├── goreview-rules/     # Reglas YAML
-└── docs/               # Documentacion
+
+## Docker
+
+```bash
+# Desarrollo (con hot-reload)
+docker compose up
+
+# Produccion
+docker compose -f docker-compose.prod.yml up -d
+
+# Solo CLI
+docker build -t goreview ./goreview
+docker run -v $(pwd):/app goreview review --staged
+
+# Solo GitHub App
+docker build -t goreview-app ./github-app
+docker run -p 3000:3000 --env-file .env goreview-app
 ```
+
+## Proveedores de IA Soportados
+
+| Proveedor | Tipo | Modelo Recomendado |
+|-----------|------|-------------------|
+| Ollama | Local | qwen2.5-coder:14b |
+| OpenAI | Cloud | gpt-4 |
+| Gemini | Cloud | gemini-pro |
+| Groq | Cloud | llama-3.1-70b-versatile |
+| Mistral | Cloud | codestral-latest |
+
+### Configurar Ollama (Recomendado)
+
+```bash
+# Instalar
+curl -fsSL https://ollama.com/install.sh | sh
+
+# Descargar modelo
+ollama pull qwen2.5-coder:14b
+
+# Iniciar servidor
+ollama serve
+```
+
+## CI/CD
+
+El proyecto incluye GitHub Actions para:
+
+- **Lint** - golangci-lint (Go), ESLint (TypeScript)
+- **Test** - Tests unitarios con coverage
+- **Build** - Compilacion multi-plataforma
 
 ## Contribuir
 
 1. Fork el repositorio
-2. Crear rama feature (`git checkout -b feature/amazing-feature`)
-3. Commit cambios (`git commit -m 'feat: add amazing feature'`)
-4. Push a la rama (`git push origin feature/amazing-feature`)
-5. Abrir Pull Request
+2. Crear rama (`git checkout -b feature/nueva-funcionalidad`)
+3. Commit (`git commit -m 'feat: agregar funcionalidad'`)
+4. Push (`git push origin feature/nueva-funcionalidad`)
+5. Crear Pull Request
 
 ## Licencia
 
-MIT License - ver [LICENSE](LICENSE) para detalles.
+MIT License - ver [LICENSE](LICENSE)

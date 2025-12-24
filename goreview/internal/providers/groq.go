@@ -76,13 +76,13 @@ func (p *GroqProvider) Review(ctx context.Context, req *ReviewRequest) (*ReviewR
 
 	body, err := json.Marshal(groqReq)
 	if err != nil {
-		return nil, fmt.Errorf("marshal request: %w", err)
+		return nil, fmt.Errorf(ErrMarshalRequest, err)
 	}
-	httpReq, err := http.NewRequestWithContext(ctx, "POST", p.baseURL+"/chat/completions", bytes.NewReader(body))
+	httpReq, err := http.NewRequestWithContext(ctx, "POST", p.baseURL+ChatCompletionsPath, bytes.NewReader(body))
 	if err != nil {
-		return nil, fmt.Errorf("create request: %w", err)
+		return nil, fmt.Errorf(ErrCreateRequest, err)
 	}
-	httpReq.Header.Set("Content-Type", "application/json")
+	httpReq.Header.Set("Content-Type", ContentTypeJSON)
 	httpReq.Header.Set("Authorization", "Bearer "+p.apiKey)
 
 	resp, err := p.client.Do(httpReq)
@@ -144,13 +144,13 @@ Return ONLY the commit message.`, diff)
 
 	body, err := json.Marshal(groqReq)
 	if err != nil {
-		return "", fmt.Errorf("marshal request: %w", err)
+		return "", fmt.Errorf(ErrMarshalRequest, err)
 	}
-	httpReq, err := http.NewRequestWithContext(ctx, "POST", p.baseURL+"/chat/completions", bytes.NewReader(body))
+	httpReq, err := http.NewRequestWithContext(ctx, "POST", p.baseURL+ChatCompletionsPath, bytes.NewReader(body))
 	if err != nil {
-		return "", fmt.Errorf("create request: %w", err)
+		return "", fmt.Errorf(ErrCreateRequest, err)
 	}
-	httpReq.Header.Set("Content-Type", "application/json")
+	httpReq.Header.Set("Content-Type", ContentTypeJSON)
 	httpReq.Header.Set("Authorization", "Bearer "+p.apiKey)
 
 	resp, err := p.client.Do(httpReq)
@@ -165,7 +165,7 @@ Return ONLY the commit message.`, diff)
 		} `json:"choices"`
 	}
 	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
-		return "", fmt.Errorf("decode response: %w", err)
+		return "", fmt.Errorf(ErrDecodeResponse, err)
 	}
 
 	if len(result.Choices) > 0 {
@@ -193,13 +193,13 @@ Format as Markdown.`, docContext, diff)
 
 	body, err := json.Marshal(groqReq)
 	if err != nil {
-		return "", fmt.Errorf("marshal request: %w", err)
+		return "", fmt.Errorf(ErrMarshalRequest, err)
 	}
-	httpReq, err := http.NewRequestWithContext(ctx, "POST", p.baseURL+"/chat/completions", bytes.NewReader(body))
+	httpReq, err := http.NewRequestWithContext(ctx, "POST", p.baseURL+ChatCompletionsPath, bytes.NewReader(body))
 	if err != nil {
-		return "", fmt.Errorf("create request: %w", err)
+		return "", fmt.Errorf(ErrCreateRequest, err)
 	}
-	httpReq.Header.Set("Content-Type", "application/json")
+	httpReq.Header.Set("Content-Type", ContentTypeJSON)
 	httpReq.Header.Set("Authorization", "Bearer "+p.apiKey)
 
 	resp, err := p.client.Do(httpReq)
@@ -214,7 +214,7 @@ Format as Markdown.`, docContext, diff)
 		} `json:"choices"`
 	}
 	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
-		return "", fmt.Errorf("decode response: %w", err)
+		return "", fmt.Errorf(ErrDecodeResponse, err)
 	}
 
 	if len(result.Choices) > 0 {
@@ -226,7 +226,7 @@ Format as Markdown.`, docContext, diff)
 func (p *GroqProvider) HealthCheck(ctx context.Context) error {
 	req, err := http.NewRequestWithContext(ctx, "GET", p.baseURL+"/models", nil)
 	if err != nil {
-		return fmt.Errorf("create request: %w", err)
+		return fmt.Errorf(ErrCreateRequest, err)
 	}
 	req.Header.Set("Authorization", "Bearer "+p.apiKey)
 	resp, err := p.client.Do(req)

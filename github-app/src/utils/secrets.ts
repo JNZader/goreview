@@ -22,7 +22,7 @@ const SENSITIVE_PATTERNS = [
   { pattern: /ghs_[a-zA-Z0-9]{36}/g, name: 'GitHub App Token' },
   { pattern: /ghr_[a-zA-Z0-9]{36}/g, name: 'GitHub Refresh Token' },
   { pattern: /github_pat_[a-zA-Z0-9]{22}_[a-zA-Z0-9]{59}/g, name: 'GitHub Fine-grained PAT' },
-  { pattern: /Bearer\s+[a-zA-Z0-9._-]+/gi, name: 'Bearer Token' },
+  { pattern: /Bearer\s+[-a-zA-Z0-9._]+/gi, name: 'Bearer Token' },
   { pattern: /-----BEGIN[A-Z ]+PRIVATE KEY-----[\s\S]*?-----END[A-Z ]+PRIVATE KEY-----/g, name: 'Private Key' },
   { pattern: /sk-[a-zA-Z0-9]{48}/g, name: 'API Key' },
   { pattern: /[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/g, name: 'Email' },

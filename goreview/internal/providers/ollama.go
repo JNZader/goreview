@@ -74,13 +74,13 @@ func (p *OllamaProvider) Review(ctx context.Context, req *ReviewRequest) (*Revie
 
 	body, err := json.Marshal(ollamaReq)
 	if err != nil {
-		return nil, fmt.Errorf("marshal request: %w", err)
+		return nil, fmt.Errorf(ErrMarshalRequest, err)
 	}
-	httpReq, err := http.NewRequestWithContext(ctx, "POST", p.baseURL+"/api/generate", bytes.NewReader(body))
+	httpReq, err := http.NewRequestWithContext(ctx, "POST", p.baseURL+APIGeneratePath, bytes.NewReader(body))
 	if err != nil {
-		return nil, fmt.Errorf("create request: %w", err)
+		return nil, fmt.Errorf(ErrCreateRequest, err)
 	}
-	httpReq.Header.Set("Content-Type", "application/json")
+	httpReq.Header.Set("Content-Type", ContentTypeJSON)
 
 	resp, err := p.client.Do(httpReq)
 	if err != nil {
@@ -126,13 +126,13 @@ Return ONLY the commit message.`, diff)
 
 	body, err := json.Marshal(ollamaReq)
 	if err != nil {
-		return "", fmt.Errorf("marshal request: %w", err)
+		return "", fmt.Errorf(ErrMarshalRequest, err)
 	}
-	httpReq, err := http.NewRequestWithContext(ctx, "POST", p.baseURL+"/api/generate", bytes.NewReader(body))
+	httpReq, err := http.NewRequestWithContext(ctx, "POST", p.baseURL+APIGeneratePath, bytes.NewReader(body))
 	if err != nil {
-		return "", fmt.Errorf("create request: %w", err)
+		return "", fmt.Errorf(ErrCreateRequest, err)
 	}
-	httpReq.Header.Set("Content-Type", "application/json")
+	httpReq.Header.Set("Content-Type", ContentTypeJSON)
 
 	resp, err := p.client.Do(httpReq)
 	if err != nil {
@@ -144,7 +144,7 @@ Return ONLY the commit message.`, diff)
 		Response string `json:"response"`
 	}
 	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
-		return "", fmt.Errorf("decode response: %w", err)
+		return "", fmt.Errorf(ErrDecodeResponse, err)
 	}
 	return result.Response, nil
 }
@@ -163,13 +163,13 @@ Format as Markdown.`, docContext, diff)
 
 	body, err := json.Marshal(ollamaReq)
 	if err != nil {
-		return "", fmt.Errorf("marshal request: %w", err)
+		return "", fmt.Errorf(ErrMarshalRequest, err)
 	}
-	httpReq, err := http.NewRequestWithContext(ctx, "POST", p.baseURL+"/api/generate", bytes.NewReader(body))
+	httpReq, err := http.NewRequestWithContext(ctx, "POST", p.baseURL+APIGeneratePath, bytes.NewReader(body))
 	if err != nil {
-		return "", fmt.Errorf("create request: %w", err)
+		return "", fmt.Errorf(ErrCreateRequest, err)
 	}
-	httpReq.Header.Set("Content-Type", "application/json")
+	httpReq.Header.Set("Content-Type", ContentTypeJSON)
 
 	resp, err := p.client.Do(httpReq)
 	if err != nil {
@@ -181,7 +181,7 @@ Format as Markdown.`, docContext, diff)
 		Response string `json:"response"`
 	}
 	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
-		return "", fmt.Errorf("decode response: %w", err)
+		return "", fmt.Errorf(ErrDecodeResponse, err)
 	}
 	return result.Response, nil
 }
@@ -189,7 +189,7 @@ Format as Markdown.`, docContext, diff)
 func (p *OllamaProvider) HealthCheck(ctx context.Context) error {
 	req, err := http.NewRequestWithContext(ctx, "GET", p.baseURL+"/api/tags", nil)
 	if err != nil {
-		return fmt.Errorf("create request: %w", err)
+		return fmt.Errorf(ErrCreateRequest, err)
 	}
 	resp, err := p.client.Do(req)
 	if err != nil {

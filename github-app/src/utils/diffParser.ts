@@ -26,10 +26,48 @@ export function parseDiff(diff: string): DiffFile[] {
   return files;
 }
 
+/**
+ * Determine file status from diff block content
+ */
+function determineFileStatus(block: string): DiffFile['status'] {
+  if (block.includes('new file mode')) return 'added';
+  if (block.includes('deleted file mode')) return 'deleted';
+  if (block.includes('rename from')) return 'renamed';
+  return 'modified';
+}
+
+/**
+ * Extract hunks content and count additions/deletions
+ */
+function extractHunks(lines: string[]): { content: string; additions: number; deletions: number } {
+  let content = '';
+  let additions = 0;
+  let deletions = 0;
+  let inHunk = false;
+
+  for (const line of lines) {
+    if (line.startsWith('@@')) {
+      inHunk = true;
+      content += line + '\n';
+      continue;
+    }
+
+    if (!inHunk) continue;
+
+    content += line + '\n';
+
+    if (line.startsWith('+') && !line.startsWith('+++')) {
+      additions++;
+    } else if (line.startsWith('-') && !line.startsWith('---')) {
+      deletions++;
+    }
+  }
+
+  return { content: content.trim(), additions, deletions };
+}
+
 function parseFileBlock(block: string): DiffFile | null {
   const lines = block.split('\n');
-
-  // Parse header
   const firstLine = lines[0];
   if (!firstLine) return null;
 
@@ -38,48 +76,15 @@ function parseFileBlock(block: string): DiffFile | null {
 
   const oldPath = headerMatch[1] ?? '';
   const newPath = headerMatch[2] ?? '';
-
-  // Determine status
-  let status: DiffFile['status'] = 'modified';
-  if (block.includes('new file mode')) {
-    status = 'added';
-  } else if (block.includes('deleted file mode')) {
-    status = 'deleted';
-  } else if (block.includes('rename from')) {
-    status = 'renamed';
-  }
-
-  // Check for binary
-  const isBinary = block.includes('Binary files');
-
-  // Extract content (everything after @@)
-  let content = '';
-  let additions = 0;
-  let deletions = 0;
-
-  let inHunk = false;
-  for (const line of lines) {
-    if (line.startsWith('@@')) {
-      inHunk = true;
-      content += line + '\n';
-    } else if (inHunk) {
-      content += line + '\n';
-
-      if (line.startsWith('+') && !line.startsWith('+++')) {
-        additions++;
-      } else if (line.startsWith('-') && !line.startsWith('---')) {
-        deletions++;
-      }
-    }
-  }
+  const { content, additions, deletions } = extractHunks(lines);
 
   return {
     path: newPath || 'unknown',
     oldPath: oldPath !== newPath ? oldPath : undefined,
-    status,
+    status: determineFileStatus(block),
     language: detectLanguage(newPath || ''),
-    content: content.trim(),
-    isBinary,
+    content,
+    isBinary: block.includes('Binary files'),
     additions,
     deletions,
   };

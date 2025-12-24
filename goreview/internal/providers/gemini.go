@@ -77,14 +77,14 @@ func (p *GeminiProvider) Review(ctx context.Context, req *ReviewRequest) (*Revie
 
 	body, err := json.Marshal(geminiReq)
 	if err != nil {
-		return nil, fmt.Errorf("marshal request: %w", err)
+		return nil, fmt.Errorf(ErrMarshalRequest, err)
 	}
 	url := fmt.Sprintf("%s/models/%s:generateContent?key=%s", p.baseURL, p.model, p.apiKey)
 	httpReq, err := http.NewRequestWithContext(ctx, "POST", url, bytes.NewReader(body))
 	if err != nil {
-		return nil, fmt.Errorf("create request: %w", err)
+		return nil, fmt.Errorf(ErrCreateRequest, err)
 	}
-	httpReq.Header.Set("Content-Type", "application/json")
+	httpReq.Header.Set("Content-Type", ContentTypeJSON)
 
 	resp, err := p.client.Do(httpReq)
 	if err != nil {
@@ -147,14 +147,14 @@ Return ONLY the commit message, nothing else.`, diff)
 
 	body, err := json.Marshal(geminiReq)
 	if err != nil {
-		return "", fmt.Errorf("marshal request: %w", err)
+		return "", fmt.Errorf(ErrMarshalRequest, err)
 	}
 	url := fmt.Sprintf("%s/models/%s:generateContent?key=%s", p.baseURL, p.model, p.apiKey)
 	httpReq, err := http.NewRequestWithContext(ctx, "POST", url, bytes.NewReader(body))
 	if err != nil {
-		return "", fmt.Errorf("create request: %w", err)
+		return "", fmt.Errorf(ErrCreateRequest, err)
 	}
-	httpReq.Header.Set("Content-Type", "application/json")
+	httpReq.Header.Set("Content-Type", ContentTypeJSON)
 
 	resp, err := p.client.Do(httpReq)
 	if err != nil {
@@ -172,7 +172,7 @@ Return ONLY the commit message, nothing else.`, diff)
 		} `json:"candidates"`
 	}
 	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
-		return "", fmt.Errorf("decode response: %w", err)
+		return "", fmt.Errorf(ErrDecodeResponse, err)
 	}
 
 	if len(result.Candidates) > 0 && len(result.Candidates[0].Content.Parts) > 0 {
@@ -197,14 +197,14 @@ Format as Markdown.`, docContext, diff)
 
 	body, err := json.Marshal(geminiReq)
 	if err != nil {
-		return "", fmt.Errorf("marshal request: %w", err)
+		return "", fmt.Errorf(ErrMarshalRequest, err)
 	}
 	url := fmt.Sprintf("%s/models/%s:generateContent?key=%s", p.baseURL, p.model, p.apiKey)
 	httpReq, err := http.NewRequestWithContext(ctx, "POST", url, bytes.NewReader(body))
 	if err != nil {
-		return "", fmt.Errorf("create request: %w", err)
+		return "", fmt.Errorf(ErrCreateRequest, err)
 	}
-	httpReq.Header.Set("Content-Type", "application/json")
+	httpReq.Header.Set("Content-Type", ContentTypeJSON)
 
 	resp, err := p.client.Do(httpReq)
 	if err != nil {
@@ -222,7 +222,7 @@ Format as Markdown.`, docContext, diff)
 		} `json:"candidates"`
 	}
 	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
-		return "", fmt.Errorf("decode response: %w", err)
+		return "", fmt.Errorf(ErrDecodeResponse, err)
 	}
 
 	if len(result.Candidates) > 0 && len(result.Candidates[0].Content.Parts) > 0 {
@@ -235,7 +235,7 @@ func (p *GeminiProvider) HealthCheck(ctx context.Context) error {
 	url := fmt.Sprintf("%s/models/%s?key=%s", p.baseURL, p.model, p.apiKey)
 	req, err := http.NewRequestWithContext(ctx, "GET", url, nil)
 	if err != nil {
-		return fmt.Errorf("create request: %w", err)
+		return fmt.Errorf(ErrCreateRequest, err)
 	}
 	resp, err := p.client.Do(req)
 	if err != nil {

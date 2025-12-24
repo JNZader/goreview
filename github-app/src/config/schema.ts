@@ -1,8 +1,11 @@
 import { z } from 'zod';
 
 // Duration parser (e.g., "1h", "30m", "60s")
+// Using character class [hms] instead of alternation for SonarQube S6035
+const DURATION_REGEX = /^(\d+)([hms])$/;
+
 const durationSchema = z.string().superRefine((val, ctx) => {
-  const match = val.match(/^(\d+)(h|m|s)$/);
+  const match = val.match(DURATION_REGEX);
   if (!match) {
     ctx.addIssue({
       code: z.ZodIssueCode.custom,
@@ -10,7 +13,7 @@ const durationSchema = z.string().superRefine((val, ctx) => {
     });
   }
 }).transform((val) => {
-  const match = val.match(/^(\d+)(h|m|s)$/);
+  const match = val.match(DURATION_REGEX);
   if (!match) return 0; // Won't reach here due to superRefine
 
   const num = match[1] ?? '0';

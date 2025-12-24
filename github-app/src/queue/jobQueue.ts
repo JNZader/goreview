@@ -205,23 +205,20 @@ class JobQueue {
    * Execute job based on type.
    */
   private async executeJob(job: Job): Promise<void> {
-    switch (job.type) {
-      case 'pr_review': {
-        // Dynamic import to avoid circular dependency
-        const { processReviewJob } = await import('../handlers/pullRequestHandler.js');
-        await processReviewJob(
-          job.data.installationId,
-          job.data.owner,
-          job.data.repo,
-          job.data.pullNumber,
-          job.data.headSha
-        );
-        break;
-      }
-
-      default:
-        throw new Error(`Unknown job type: ${job.type}`);
+    if (job.type === 'pr_review') {
+      // Dynamic import to avoid circular dependency
+      const { processReviewJob } = await import('../handlers/pullRequestHandler.js');
+      await processReviewJob(
+        job.data.installationId,
+        job.data.owner,
+        job.data.repo,
+        job.data.pullNumber,
+        job.data.headSha
+      );
+      return;
     }
+
+    throw new Error(`Unknown job type: ${job.type}`);
   }
 
   /**

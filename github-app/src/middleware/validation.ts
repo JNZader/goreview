@@ -210,8 +210,29 @@ export function sanitizeString(input: string): string {
   }
 
   // Remove ASCII control characters (except tab, newline, carriage return)
-  // eslint-disable-next-line no-control-regex
-  return input.replace(/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/g, '').trim();
+  // Using character code filtering instead of regex with literal control chars (SonarQube S6324)
+  return input
+    .split('')
+    .filter((char) => {
+      const code = char.charCodeAt(0);
+      // Allow tab (9), newline (10), carriage return (13), and printable chars (32-126, 128+)
+      return code === 9 || code === 10 || code === 13 || (code >= 32 && code !== 127);
+    })
+    .join('')
+    .trim();
+}
+
+/**
+ * Sanitizes a single value (string, object, or other)
+ */
+function sanitizeValue(value: unknown): unknown {
+  if (typeof value === 'string') {
+    return sanitizeString(value);
+  }
+  if (typeof value === 'object' && value !== null) {
+    return sanitizeObject(value as Record<string, unknown>);
+  }
+  return value;
 }
 
 /**
@@ -221,20 +242,10 @@ export function sanitizeObject<T extends Record<string, unknown>>(obj: T): T {
   const sanitized: Record<string, unknown> = {};
 
   for (const [key, value] of Object.entries(obj)) {
-    if (typeof value === 'string') {
-      sanitized[key] = sanitizeString(value);
-    } else if (Array.isArray(value)) {
-      sanitized[key] = value.map((item) =>
-        typeof item === 'string'
-          ? sanitizeString(item)
-          : typeof item === 'object' && item !== null
-            ? sanitizeObject(item as Record<string, unknown>)
-            : item
-      );
-    } else if (typeof value === 'object' && value !== null) {
-      sanitized[key] = sanitizeObject(value as Record<string, unknown>);
+    if (Array.isArray(value)) {
+      sanitized[key] = value.map(sanitizeValue);
     } else {
-      sanitized[key] = value;
+      sanitized[key] = sanitizeValue(value);
     }
   }
 

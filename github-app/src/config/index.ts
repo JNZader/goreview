@@ -40,6 +40,8 @@ export const config = {
     model: env.AI_MODEL,
     ollamaBaseUrl: env.OLLAMA_BASE_URL,
     openaiApiKey: env.OPENAI_API_KEY,
+    geminiApiKey: env.GEMINI_API_KEY,
+    groqApiKey: env.GROQ_API_KEY,
   },
 
   // Rate Limiting

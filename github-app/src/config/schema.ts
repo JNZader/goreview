@@ -34,17 +34,19 @@ export const envSchema = z.object({
   GITHUB_APP_ID: z.coerce.number(),
   GITHUB_PRIVATE_KEY: z.string().transform((key) => {
     // Handle escaped newlines from env vars
-    return key.replace(/\\n/g, '\n');
+    return key.replace(/\n/g, '\n');
   }),
   GITHUB_WEBHOOK_SECRET: z.string().min(20),
   GITHUB_CLIENT_ID: z.string().optional(),
   GITHUB_CLIENT_SECRET: z.string().optional(),
 
   // AI Provider
-  AI_PROVIDER: z.enum(['ollama', 'openai']).default('ollama'),
-  AI_MODEL: z.string().default('qwen2.5-coder:14b'),
+  AI_PROVIDER: z.enum(['ollama', 'openai', 'gemini', 'groq', 'auto']).default('auto'),
+  AI_MODEL: z.string().default(''),
   OLLAMA_BASE_URL: z.string().url().default('http://localhost:11434'),
   OPENAI_API_KEY: z.string().optional(),
+  GEMINI_API_KEY: z.string().optional(),
+  GROQ_API_KEY: z.string().optional(),
 
   // Rate Limiting
   RATE_LIMIT_RPS: z.coerce.number().default(10),

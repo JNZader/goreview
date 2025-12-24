@@ -6,7 +6,8 @@ GitHub App para reviews automaticos de codigo con IA en Pull Requests.
 
 - **Reviews automaticos** - Analiza PRs cuando se abren o actualizan
 - **Comentarios en linea** - Agrega sugerencias directamente en el codigo
-- **Multiples proveedores** - Soporta Ollama (local) y OpenAI
+- **Multiples proveedores** - Soporta Ollama (local), Gemini, Groq y OpenAI
+- **Auto-deteccion** - Selecciona automaticamente el mejor proveedor disponible
 - **Rate limiting** - Proteccion contra abuso
 - **Cache** - Evita re-analizar codigo sin cambios
 - **Verificacion de webhooks** - Seguridad con firma HMAC
@@ -15,7 +16,16 @@ GitHub App para reviews automaticos de codigo con IA en Pull Requests.
 
 - Node.js 20+
 - GitHub App configurada
-- Proveedor de IA (Ollama u OpenAI)
+- Proveedor de IA (Gemini, Groq, Ollama u OpenAI)
+
+## Proveedores de IA Soportados
+
+| Proveedor | Tipo | Modelo por Defecto | Notas |
+|-----------|------|-------------------|-------|
+| **Gemini** | Cloud | gemini-2.0-flash | Gratis, mejor calidad |
+| **Groq** | Cloud | llama-3.3-70b-versatile | Gratis, muy rapido |
+| **Ollama** | Local | qwen2.5-coder:14b | Requiere GPU |
+| **OpenAI** | Cloud | gpt-4 | Pago |
 
 ## Instalacion
 
@@ -55,14 +65,16 @@ GITHUB_APP_ID=123456
 GITHUB_PRIVATE_KEY="-----BEGIN RSA PRIVATE KEY-----\n...\n-----END RSA PRIVATE KEY-----"
 GITHUB_WEBHOOK_SECRET=tu-secreto-generado
 
-# AI Provider
-AI_PROVIDER=ollama
-AI_MODEL=qwen2.5-coder:14b
-OLLAMA_BASE_URL=http://localhost:11434
+# AI Provider (auto, gemini, groq, ollama, openai)
+AI_PROVIDER=auto
 
-# O usar OpenAI
-# AI_PROVIDER=openai
-# OPENAI_API_KEY=sk-...
+# API Keys (segun proveedor)
+GEMINI_API_KEY=...        # https://aistudio.google.com
+GROQ_API_KEY=gsk_...      # https://console.groq.com
+
+# O usar Ollama local
+# AI_PROVIDER=ollama
+# OLLAMA_BASE_URL=http://localhost:11434
 ```
 
 ### 3. Ejecutar
@@ -109,15 +121,18 @@ src/
 ├── config/               # Configuracion y validacion
 ├── handlers/             # Manejadores de eventos
 │   ├── pullRequest.ts    # Eventos de PR
-│   └── review.ts         # Logica de review
+│   └── webhookHandler.ts # Manejador de webhooks
 ├── services/             # Servicios
+│   ├── ai/               # Proveedores de IA
+│   │   ├── index.ts      # Factory y exports
+│   │   ├── types.ts      # Interfaces
+│   │   ├── gemini.ts     # Google Gemini
+│   │   ├── groq.ts       # Groq Cloud
+│   │   └── ollama.ts     # Ollama local
 │   ├── github.ts         # Cliente de GitHub
-│   ├── ai.ts             # Cliente de IA
-│   └── cache.ts          # Cache en memoria
+│   ├── reviewService.ts  # Logica de review
+│   └── commentService.ts # Comentarios en PRs
 ├── middleware/           # Middleware Express
-│   ├── errorHandler.ts   # Manejo de errores
-│   ├── requestLogger.ts  # Logging de requests
-│   └── rateLimit.ts      # Rate limiting
 ├── routes/               # Rutas HTTP
 ├── queue/                # Cola de procesamiento
 └── utils/                # Utilidades
@@ -136,6 +151,28 @@ src/
 - Analiza commits directos a ramas protegidas
 
 ## Configuracion Avanzada
+
+### Proveedores de IA
+
+```bash
+# Auto-detectar (usa el primero disponible: Gemini > Groq > Ollama)
+AI_PROVIDER=auto
+
+# Gemini (recomendado para calidad)
+AI_PROVIDER=gemini
+GEMINI_API_KEY=...
+AI_MODEL=gemini-2.0-flash
+
+# Groq (recomendado para velocidad)
+AI_PROVIDER=groq
+GROQ_API_KEY=gsk_...
+AI_MODEL=llama-3.3-70b-versatile
+
+# Ollama (local, requiere GPU)
+AI_PROVIDER=ollama
+OLLAMA_BASE_URL=http://localhost:11434
+AI_MODEL=qwen2.5-coder:14b
+```
 
 ### Rate Limiting
 
@@ -203,13 +240,13 @@ Verificar:
 2. `GITHUB_PRIVATE_KEY` incluye `-----BEGIN/END RSA PRIVATE KEY-----`
 3. Los saltos de linea estan como `\n`
 
-### Ollama no responde
+### Proveedor de IA no responde
 
 ```
-Error: Connection refused
+Error: Connection refused / API error
 ```
 
 Verificar:
-1. Ollama esta corriendo: `ollama serve`
-2. El modelo esta descargado: `ollama pull qwen2.5-coder:14b`
-3. `OLLAMA_BASE_URL` es accesible desde el contenedor
+1. El API key es valido
+2. Para Ollama: `ollama serve` esta corriendo
+3. Para Ollama: El modelo esta descargado: `ollama pull qwen2.5-coder:14b`

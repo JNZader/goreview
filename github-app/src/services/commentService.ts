@@ -1,6 +1,6 @@
 import { Octokit } from '@octokit/rest';
 import { PRReviewResult, FileReviewResult } from './reviewService.js';
-import { ReviewIssue } from './ollama.js';
+import { ReviewIssue } from './ai/index.js';
 import { loadRepoConfig } from '../config/repoConfig.js';
 import { logger } from '../utils/logger.js';
 

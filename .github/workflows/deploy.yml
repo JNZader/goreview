@@ -214,37 +214,12 @@ jobs:
           cache-to: type=gha,mode=max
 
   # ---------------------------------------------------------------------------
-  # Deploy to Koyeb
-  # ---------------------------------------------------------------------------
-  deploy-koyeb:
-    name: Deploy to Koyeb
-    runs-on: ubuntu-latest
-    needs: [release, docker]
-
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-
-      - name: Install Koyeb CLI
-        run: |
-          curl -fsSL https://koyeb.com/install.sh | bash
-          echo "$HOME/.koyeb/bin" >> $GITHUB_PATH
-
-      - name: Deploy to Koyeb
-        env:
-          KOYEB_TOKEN: ${{ secrets.KOYEB_TOKEN }}
-        run: |
-          # Create minimal config and redeploy
-          echo "token: $KOYEB_TOKEN" > ~/.koyeb.yaml
-          koyeb service redeploy scientific-sofia/goreview || echo "::warning::Koyeb deploy failed - check KOYEB_TOKEN secret"
-
-  # ---------------------------------------------------------------------------
   # Notify on completion
   # ---------------------------------------------------------------------------
   notify:
     name: Notify
     runs-on: ubuntu-latest
-    needs: [release, deploy-koyeb]
+    needs: [release, docker]
     if: always()
 
     steps:
@@ -255,4 +230,3 @@ jobs:
           echo "- **Version**: ${{ needs.release.outputs.version }}" >> $GITHUB_STEP_SUMMARY
           echo "- **Release**: ✅ Created" >> $GITHUB_STEP_SUMMARY
           echo "- **Docker**: ✅ Published to GHCR" >> $GITHUB_STEP_SUMMARY
-          echo "- **Koyeb**: ${{ needs.deploy-koyeb.result == 'success' && '✅ Deployed' || '⚠️ Check deployment' }}" >> $GITHUB_STEP_SUMMARY

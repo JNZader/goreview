@@ -209,7 +209,7 @@ func parseIntSafe(s string, result *int) {
 
 // Go-specific parsing
 //
-//nolint:gocyclo // Complex parsing logic requires multiple branches
+//nolint:gocyclo,funlen // Complex parsing logic requires multiple branches and statements
 func (p *Parser) parseGo(lines []string, ctx *Context) {
 	packagePattern := regexp.MustCompile(`^package\s+(\w+)`)
 	importPattern := regexp.MustCompile(`^\s*(?:import\s+)?(?:(\w+)\s+)?"([^"]+)"`)

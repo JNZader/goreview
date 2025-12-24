@@ -450,11 +450,11 @@ func inferTagsFromCode(code string) []string {
 		"error":       {"error", "err", "exception", "panic", "throw"},
 		"logging":     {"log", "logger", "print", "debug", "warn"},
 		"testing":     {"test", "spec", "expect", "assert", "mock"},
-		"async":       {"async", "await", "promise", "goroutine", "channel"},
+		"async":       {"async", "await", "promise"},
 		"naming":      {"func ", "function ", "def ", "class ", "var ", "const "},
 		"security":    {"password", "secret", "token", "auth", "crypto"},
 		"performance": {"cache", "optimize", "benchmark", "profile"},
-		"concurrency": {"mutex", "lock", "sync", "atomic", "thread"},
+		"concurrency": {"mutex", "lock", "sync", "atomic", "thread", "goroutine", "channel"},
 	}
 
 	for tag, patterns := range tagPatterns {

@@ -1,0 +1,10 @@
+#!/usr/bin/env sh
+
+# Run lint-staged for TypeScript files
+cd github-app && npx lint-staged
+
+# Run Go linting if Go files changed
+if git diff --cached --name-only | grep -q '\.go$'; then
+  echo "Running Go linting..."
+  cd ../goreview && golangci-lint run --fast || exit 1
+fi

@@ -42,6 +42,16 @@ func NewOllamaProvider(cfg *config.Config) (*OllamaProvider, error) {
 func (p *OllamaProvider) Name() string { return "ollama" }
 
 func (p *OllamaProvider) Review(ctx context.Context, req *ReviewRequest) (*ReviewResponse, error) {
+	// Validate input
+	if err := ValidateReviewRequest(req); err != nil {
+		return nil, fmt.Errorf("invalid request: %w", err)
+	}
+
+	// Empty diff returns empty response
+	if len(req.Diff) == 0 {
+		return &ReviewResponse{}, nil
+	}
+
 	if p.rateLimiter != nil {
 		if err := p.rateLimiter.Wait(ctx); err != nil {
 			return nil, err

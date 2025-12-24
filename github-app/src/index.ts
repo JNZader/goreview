@@ -3,6 +3,8 @@ import { config } from './config/index.js';
 import { logger } from './utils/logger.js';
 import { errorHandler } from './middleware/errorHandler.js';
 import { requestLogger } from './middleware/requestLogger.js';
+import { requestIdMiddleware } from './middleware/requestId.js';
+import { securityHeaders } from './middleware/security.js';
 import { webhookRouter } from './routes/webhook.js';
 import { healthRouter } from './routes/health.js';
 import { adminRouter } from './routes/admin.js';
@@ -12,11 +14,17 @@ const app = express();
 // Trust proxy for accurate IP logging
 app.set('trust proxy', 1);
 
-// Raw body for webhook signature verification
-app.use('/webhook', express.raw({ type: 'application/json' }));
+// Security headers
+app.use(securityHeaders());
 
-// JSON parsing for other routes
-app.use(express.json());
+// Request ID tracing
+app.use(requestIdMiddleware);
+
+// Raw body for webhook signature verification (with size limit)
+app.use('/webhook', express.raw({ type: 'application/json', limit: '1mb' }));
+
+// JSON parsing for other routes (with size limit)
+app.use(express.json({ limit: '500kb' }));
 
 // Request logging
 app.use(requestLogger);

@@ -60,12 +60,12 @@ describe('handleInstallation', () => {
             installationId: 12345,
             repo: 'testuser/repo1',
             private: false,
-        }, 'Repository added to installation');
+        }, 'Repository added');
         expect(logger.info).toHaveBeenCalledWith({
             installationId: 12345,
             repo: 'testuser/repo2',
             private: true,
-        }, 'Repository added to installation');
+        }, 'Repository added');
     });
     it('should clear octokit cache on installation deleted', async () => {
         const payload = createPayload('deleted');
@@ -85,6 +85,7 @@ describe('handleInstallation', () => {
         expect(logger.info).toHaveBeenCalledWith({
             installationId: 12345,
             repo: 'testuser/repo1',
+            private: false,
         }, 'Repository added');
     });
     it('should clear repo config cache on repositories removed', async () => {
@@ -96,6 +97,7 @@ describe('handleInstallation', () => {
         expect(logger.info).toHaveBeenCalledWith({
             installationId: 12345,
             repo: 'testuser/repo1',
+            private: false,
         }, 'Repository removed');
     });
     it('should log debug for unhandled installation actions', async () => {

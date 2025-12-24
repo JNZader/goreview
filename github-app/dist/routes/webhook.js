@@ -11,7 +11,8 @@ const webhookLimiter = rateLimit({
     max: 1000, // 1000 requests per minute per IP
     standardHeaders: true,
     legacyHeaders: false,
-    keyGenerator: (req) => req.ip ?? 'unknown',
+    // Use default keyGenerator which properly handles IPv6
+    validate: { xForwardedForHeader: false },
     handler: (_req, res) => {
         res.status(429).json({
             error: 'Too Many Requests',

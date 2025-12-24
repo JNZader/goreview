@@ -11,6 +11,9 @@ import { adminRouter } from './routes/admin.js';
 
 const app = express();
 
+// Disable X-Powered-By header to prevent fingerprinting
+app.disable('x-powered-by');
+
 // Trust proxy for accurate IP logging
 app.set('trust proxy', 1);
 

@@ -3,6 +3,7 @@ import { jobQueue } from '../queue/jobQueue.js';
 import { config } from '../config/index.js';
 import { AppError } from '../middleware/errorHandler.js';
 import { logger } from '../utils/logger.js';
+import { secureCompare } from '../utils/secrets.js';
 
 export const adminRouter = Router();
 
@@ -19,7 +20,8 @@ const requireAuth = (req: Request, _res: Response, next: NextFunction) => {
   const token = authHeader.slice(7);
 
   // Use webhook secret as admin token for simplicity
-  if (token !== config.github.webhookSecret) {
+  // Use timing-safe comparison to prevent timing attacks
+  if (!secureCompare(token, config.github.webhookSecret)) {
     logger.warn({ ip: req.ip }, 'Invalid admin token');
     throw new AppError('Invalid token', 403);
   }

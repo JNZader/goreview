@@ -9,6 +9,11 @@ import (
 	"strings"
 )
 
+// Git command constants (SonarQube S1192)
+const (
+	unifiedContextFlag = "--unified=3"
+)
+
 // Repo implements Repository using git commands.
 type Repo struct {
 	path string
@@ -53,7 +58,7 @@ func (r *Repo) runGit(ctx context.Context, args ...string) (string, error) {
 
 func (r *Repo) GetStagedDiff(ctx context.Context) (*Diff, error) {
 	// Get staged diff
-	output, err := r.runGit(ctx, "diff", "--cached", "--unified=3")
+	output, err := r.runGit(ctx, "diff", "--cached", unifiedContextFlag)
 	if err != nil {
 		return nil, err
 	}
@@ -67,7 +72,7 @@ func (r *Repo) GetStagedDiff(ctx context.Context) (*Diff, error) {
 }
 
 func (r *Repo) GetCommitDiff(ctx context.Context, sha string) (*Diff, error) {
-	output, err := r.runGit(ctx, "show", sha, "--unified=3", "--format=")
+	output, err := r.runGit(ctx, "show", sha, unifiedContextFlag, "--format=")
 	if err != nil {
 		return nil, err
 	}
@@ -83,7 +88,7 @@ func (r *Repo) GetBranchDiff(ctx context.Context, baseBranch string) (*Diff, err
 	}
 
 	mergeBase = strings.TrimSpace(mergeBase)
-	output, err := r.runGit(ctx, "diff", mergeBase, "HEAD", "--unified=3")
+	output, err := r.runGit(ctx, "diff", mergeBase, "HEAD", unifiedContextFlag)
 	if err != nil {
 		return nil, err
 	}
@@ -92,7 +97,7 @@ func (r *Repo) GetBranchDiff(ctx context.Context, baseBranch string) (*Diff, err
 }
 
 func (r *Repo) GetFileDiff(ctx context.Context, files []string) (*Diff, error) {
-	args := append([]string{"diff", "--unified=3", "--"}, files...)
+	args := append([]string{"diff", unifiedContextFlag, "--"}, files...)
 	output, err := r.runGit(ctx, args...)
 	if err != nil {
 		return nil, err

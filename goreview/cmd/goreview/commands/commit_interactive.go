@@ -9,6 +9,11 @@ import (
 	"github.com/JNZader/goreview/goreview/internal/git"
 )
 
+// UI constants (SonarQube S1192)
+const (
+	thinSeparator = "─────────────────────────────────────"
+)
+
 // InteractiveCommit handles the interactive commit flow.
 func InteractiveCommit(diff *git.Diff, generatedMessage string) (string, bool, error) {
 	// Show summary
@@ -27,9 +32,9 @@ func InteractiveCommit(diff *git.Diff, generatedMessage string) (string, bool, e
 
 	// Show generated message
 	fmt.Println("\nGenerated commit message:")
-	fmt.Println("─────────────────────────────────────")
+	fmt.Println(thinSeparator)
 	fmt.Println(generatedMessage)
-	fmt.Println("─────────────────────────────────────")
+	fmt.Println(thinSeparator)
 
 	// Ask for action
 	fmt.Println("\nOptions:")
@@ -83,9 +88,9 @@ func truncate(s string, max int) string {
 func editMessage(message string) string {
 	fmt.Println("\nEnter new commit message (empty line to finish):")
 	fmt.Println("Current message shown below. Press Enter to keep or type new message.")
-	fmt.Println("─────────────────────────────────────")
+	fmt.Println(thinSeparator)
 	fmt.Println(message)
-	fmt.Println("─────────────────────────────────────")
+	fmt.Println(thinSeparator)
 	fmt.Print("New message (or press Enter to keep): ")
 
 	reader := bufio.NewReader(os.Stdin)

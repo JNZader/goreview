@@ -161,42 +161,10 @@ func (s *parseState) finalizeFile() {
 }
 
 // detectLanguage detects the programming language from file extension.
+// Uses the shared extToLanguage map from parser_optimized.go
 func detectLanguage(path string) string {
 	ext := strings.ToLower(filepath.Ext(path))
-
-	languages := map[string]string{
-		".go":    "go",
-		".py":    "python",
-		".js":    "javascript",
-		".ts":    "typescript",
-		".tsx":   "typescript",
-		".jsx":   "javascript",
-		".java":  "java",
-		".rb":    "ruby",
-		".rs":    "rust",
-		".c":     "c",
-		".cpp":   "cpp",
-		".h":     "c",
-		".hpp":   "cpp",
-		".cs":    "csharp",
-		".php":   "php",
-		".swift": "swift",
-		".kt":    "kotlin",
-		".scala": "scala",
-		".sh":    "shell",
-		".bash":  "shell",
-		".yaml":  "yaml",
-		".yml":   "yaml",
-		".json":  "json",
-		".xml":   "xml",
-		".html":  "html",
-		".css":   "css",
-		".scss":  "scss",
-		".sql":   "sql",
-		".md":    "markdown",
-	}
-
-	if lang, ok := languages[ext]; ok {
+	if lang, ok := extToLanguage[ext]; ok {
 		return lang
 	}
 	return "unknown"

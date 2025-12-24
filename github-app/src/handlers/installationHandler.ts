@@ -2,6 +2,33 @@ import { clearOctokitCache } from '../services/github.js';
 import { clearRepoConfigCache } from '../config/repoConfig.js';
 import { logger } from '../utils/logger.js';
 
+type RepoInfo = { id: number; name: string; full_name: string; private: boolean };
+
+/** Parse owner and name from full repo name */
+function parseRepoFullName(fullName: string): { owner: string; name: string } | null {
+  const parts = fullName.split('/');
+  const owner = parts[0] ?? '';
+  const name = parts[1] ?? '';
+  return owner && name ? { owner, name } : null;
+}
+
+/** Log and process repository changes */
+function processRepos(
+  installationId: number,
+  repositories: RepoInfo[] | undefined,
+  action: 'added' | 'removed',
+  clearCache: boolean
+): void {
+  if (!repositories) return;
+  for (const repo of repositories) {
+    logger.info({ installationId, repo: repo.full_name, private: repo.private }, `Repository ${action}`);
+    if (clearCache) {
+      const parsed = parseRepoFullName(repo.full_name);
+      if (parsed) clearRepoConfigCache(parsed.owner, parsed.name);
+    }
+  }
+}
+
 interface InstallationPayload {
   action: string;
   installation: {
@@ -71,18 +98,8 @@ async function handleInstallationCreated(
     repoCount: repositories?.length || 0,
   }, 'App installed');
 
-  // Log installed repositories
-  if (repositories) {
-    for (const repo of repositories) {
-      logger.info({
-        installationId: installation.id,
-        repo: repo.full_name,
-        private: repo.private,
-      }, 'Repository added to installation');
-    }
-  }
-
-  // Could send welcome message, initialize settings, etc.
+  // Log installed repositories (no cache to clear on new install)
+  processRepos(installation.id, repositories, 'added', false);
 }
 
 async function handleInstallationDeleted(
@@ -103,42 +120,12 @@ async function handleRepositoriesAdded(
   installation: InstallationPayload['installation'],
   repositories: InstallationPayload['repositories']
 ): Promise<void> {
-  if (!repositories) return;
-
-  for (const repo of repositories) {
-    logger.info({
-      installationId: installation.id,
-      repo: repo.full_name,
-    }, 'Repository added');
-
-    // Clear any cached config for this repo
-    const parts = repo.full_name.split('/');
-    const owner = parts[0] ?? '';
-    const name = parts[1] ?? '';
-    if (owner && name) {
-      clearRepoConfigCache(owner, name);
-    }
-  }
+  processRepos(installation.id, repositories, 'added', true);
 }
 
 async function handleRepositoriesRemoved(
   installation: InstallationPayload['installation'],
   repositories: InstallationPayload['repositories']
 ): Promise<void> {
-  if (!repositories) return;
-
-  for (const repo of repositories) {
-    logger.info({
-      installationId: installation.id,
-      repo: repo.full_name,
-    }, 'Repository removed');
-
-    // Clear cached config
-    const parts = repo.full_name.split('/');
-    const owner = parts[0] ?? '';
-    const name = parts[1] ?? '';
-    if (owner && name) {
-      clearRepoConfigCache(owner, name);
-    }
-  }
+  processRepos(installation.id, repositories, 'removed', true);
 }

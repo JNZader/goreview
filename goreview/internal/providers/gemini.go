@@ -1,9 +1,7 @@
 package providers
 
 import (
-	"bytes"
 	"context"
-	"encoding/json"
 	"fmt"
 	"net/http"
 	"time"
@@ -48,204 +46,69 @@ func NewGeminiProvider(cfg *config.Config) (*GeminiProvider, error) {
 func (p *GeminiProvider) Name() string { return "gemini" }
 
 func (p *GeminiProvider) Review(ctx context.Context, req *ReviewRequest) (*ReviewResponse, error) {
-	// Validate input
-	if err := ValidateReviewRequest(req); err != nil {
-		return nil, fmt.Errorf("invalid request: %w", err)
-	}
-
-	// Empty diff returns empty response
-	if len(req.Diff) == 0 {
+	if empty, err := ValidateReviewInput(req); err != nil {
+		return nil, err
+	} else if empty {
 		return &ReviewResponse{}, nil
 	}
 
 	start := time.Now()
+	geminiReq := BuildGeminiRequest(buildReviewPrompt(req), p.config.Temperature, p.config.MaxTokens, true)
 
-	geminiReq := map[string]interface{}{
-		"contents": []map[string]interface{}{
-			{
-				"parts": []map[string]string{
-					{"text": buildReviewPrompt(req)},
-				},
-			},
-		},
-		"generationConfig": map[string]interface{}{
-			"temperature":      p.config.Temperature,
-			"maxOutputTokens":  p.config.MaxTokens,
-			"responseMimeType": "application/json",
-		},
-	}
-
-	body, err := json.Marshal(geminiReq)
-	if err != nil {
-		return nil, fmt.Errorf("marshal request: %w", err)
-	}
-	url := fmt.Sprintf("%s/models/%s:generateContent?key=%s", p.baseURL, p.model, p.apiKey)
-	httpReq, err := http.NewRequestWithContext(ctx, "POST", url, bytes.NewReader(body))
-	if err != nil {
-		return nil, fmt.Errorf("create request: %w", err)
-	}
-	httpReq.Header.Set("Content-Type", "application/json")
-
-	resp, err := p.client.Do(httpReq)
-	if err != nil {
+	url := fmt.Sprintf(GeminiGenerateURL, p.baseURL, p.model, p.apiKey)
+	var result GeminiResponse
+	if err := DoJSONPost(ctx, p.client, url, geminiReq, "", &result); err != nil {
 		return nil, fmt.Errorf("gemini request failed: %w", err)
-	}
-	defer func() { _ = resp.Body.Close() }()
-
-	var result struct {
-		Candidates []struct {
-			Content struct {
-				Parts []struct {
-					Text string `json:"text"`
-				} `json:"parts"`
-			} `json:"content"`
-		} `json:"candidates"`
-		UsageMetadata struct {
-			TotalTokenCount int `json:"totalTokenCount"`
-		} `json:"usageMetadata"`
-		Error *struct {
-			Message string `json:"message"`
-			Code    int    `json:"code"`
-		} `json:"error"`
-	}
-	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
-		return nil, fmt.Errorf("failed to decode response: %w", err)
 	}
 
 	if result.Error != nil {
 		return nil, fmt.Errorf("gemini error %d: %s", result.Error.Code, result.Error.Message)
 	}
 
-	var reviewResp ReviewResponse
-	if len(result.Candidates) > 0 && len(result.Candidates[0].Content.Parts) > 0 {
-		text := result.Candidates[0].Content.Parts[0].Text
-		if err := json.Unmarshal([]byte(text), &reviewResp); err != nil {
-			reviewResp = ReviewResponse{Summary: text}
-		}
-	}
-	reviewResp.TokensUsed = result.UsageMetadata.TotalTokenCount
-	reviewResp.ProcessingTime = time.Since(start).Milliseconds()
-
-	return &reviewResp, nil
+	return ParseReviewContent(result.GetText(), result.UsageMetadata.TotalTokenCount, time.Since(start).Milliseconds()), nil
 }
 
 func (p *GeminiProvider) GenerateCommitMessage(ctx context.Context, diff string) (string, error) {
-	prompt := fmt.Sprintf(`Generate a conventional commit message for this diff.
-Format: <type>(<scope>): <description>
-Types: feat, fix, docs, style, refactor, perf, test, chore
-
-Diff:
-%s
-
-Return ONLY the commit message, nothing else.`, diff)
-
 	geminiReq := map[string]interface{}{
 		"contents": []map[string]interface{}{
-			{"parts": []map[string]string{{"text": prompt}}},
+			{"parts": []map[string]string{{"text": fmt.Sprintf(CommitMessagePrompt, diff)}}},
 		},
 	}
 
-	body, err := json.Marshal(geminiReq)
-	if err != nil {
-		return "", fmt.Errorf("marshal request: %w", err)
-	}
-	url := fmt.Sprintf("%s/models/%s:generateContent?key=%s", p.baseURL, p.model, p.apiKey)
-	httpReq, err := http.NewRequestWithContext(ctx, "POST", url, bytes.NewReader(body))
-	if err != nil {
-		return "", fmt.Errorf("create request: %w", err)
-	}
-	httpReq.Header.Set("Content-Type", "application/json")
-
-	resp, err := p.client.Do(httpReq)
-	if err != nil {
+	url := fmt.Sprintf(GeminiGenerateURL, p.baseURL, p.model, p.apiKey)
+	var result GeminiResponse
+	if err := DoJSONPost(ctx, p.client, url, geminiReq, "", &result); err != nil {
 		return "", err
 	}
-	defer func() { _ = resp.Body.Close() }()
 
-	var result struct {
-		Candidates []struct {
-			Content struct {
-				Parts []struct {
-					Text string `json:"text"`
-				} `json:"parts"`
-			} `json:"content"`
-		} `json:"candidates"`
-	}
-	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
-		return "", fmt.Errorf("decode response: %w", err)
-	}
-
-	if len(result.Candidates) > 0 && len(result.Candidates[0].Content.Parts) > 0 {
-		return result.Candidates[0].Content.Parts[0].Text, nil
+	if text := result.GetText(); text != "" {
+		return text, nil
 	}
 	return "", fmt.Errorf("no response from Gemini")
 }
 
 func (p *GeminiProvider) GenerateDocumentation(ctx context.Context, diff, docContext string) (string, error) {
-	prompt := fmt.Sprintf(`Generate documentation for these changes.
-Context: %s
-Changes:
-%s
-
-Format as Markdown.`, docContext, diff)
-
 	geminiReq := map[string]interface{}{
 		"contents": []map[string]interface{}{
-			{"parts": []map[string]string{{"text": prompt}}},
+			{"parts": []map[string]string{{"text": fmt.Sprintf(DocumentationPrompt, docContext, diff)}}},
 		},
 	}
 
-	body, err := json.Marshal(geminiReq)
-	if err != nil {
-		return "", fmt.Errorf("marshal request: %w", err)
-	}
-	url := fmt.Sprintf("%s/models/%s:generateContent?key=%s", p.baseURL, p.model, p.apiKey)
-	httpReq, err := http.NewRequestWithContext(ctx, "POST", url, bytes.NewReader(body))
-	if err != nil {
-		return "", fmt.Errorf("create request: %w", err)
-	}
-	httpReq.Header.Set("Content-Type", "application/json")
-
-	resp, err := p.client.Do(httpReq)
-	if err != nil {
+	url := fmt.Sprintf(GeminiGenerateURL, p.baseURL, p.model, p.apiKey)
+	var result GeminiResponse
+	if err := DoJSONPost(ctx, p.client, url, geminiReq, "", &result); err != nil {
 		return "", err
 	}
-	defer func() { _ = resp.Body.Close() }()
 
-	var result struct {
-		Candidates []struct {
-			Content struct {
-				Parts []struct {
-					Text string `json:"text"`
-				} `json:"parts"`
-			} `json:"content"`
-		} `json:"candidates"`
-	}
-	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
-		return "", fmt.Errorf("decode response: %w", err)
-	}
-
-	if len(result.Candidates) > 0 && len(result.Candidates[0].Content.Parts) > 0 {
-		return result.Candidates[0].Content.Parts[0].Text, nil
+	if text := result.GetText(); text != "" {
+		return text, nil
 	}
 	return "", fmt.Errorf("no response from Gemini")
 }
 
 func (p *GeminiProvider) HealthCheck(ctx context.Context) error {
 	url := fmt.Sprintf("%s/models/%s?key=%s", p.baseURL, p.model, p.apiKey)
-	req, err := http.NewRequestWithContext(ctx, "GET", url, nil)
-	if err != nil {
-		return fmt.Errorf("create request: %w", err)
-	}
-	resp, err := p.client.Do(req)
-	if err != nil {
-		return err
-	}
-	defer func() { _ = resp.Body.Close() }()
-	if resp.StatusCode != http.StatusOK {
-		return fmt.Errorf("gemini health check failed: %d", resp.StatusCode)
-	}
-	return nil
+	return DoHealthCheck(ctx, p.client, url, "", "gemini")
 }
 
 func (p *GeminiProvider) Close() error { return nil }

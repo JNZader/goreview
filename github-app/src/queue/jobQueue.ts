@@ -1,3 +1,4 @@
+import crypto from 'node:crypto';
 import { logger } from '../utils/logger.js';
 
 export interface Job {
@@ -205,30 +206,27 @@ class JobQueue {
    * Execute job based on type.
    */
   private async executeJob(job: Job): Promise<void> {
-    switch (job.type) {
-      case 'pr_review': {
-        // Dynamic import to avoid circular dependency
-        const { processReviewJob } = await import('../handlers/pullRequestHandler.js');
-        await processReviewJob(
-          job.data.installationId,
-          job.data.owner,
-          job.data.repo,
-          job.data.pullNumber,
-          job.data.headSha
-        );
-        break;
-      }
-
-      default:
-        throw new Error(`Unknown job type: ${job.type}`);
+    if (job.type === 'pr_review') {
+      // Dynamic import to avoid circular dependency
+      const { processReviewJob } = await import('../handlers/pullRequestHandler.js');
+      await processReviewJob(
+        job.data.installationId,
+        job.data.owner,
+        job.data.repo,
+        job.data.pullNumber,
+        job.data.headSha
+      );
+      return;
     }
+
+    throw new Error(`Unknown job type: ${job.type}`);
   }
 
   /**
-   * Generate unique job ID.
+   * Generate unique job ID using cryptographically secure random.
    */
   private generateId(): string {
-    return `job_${Date.now()}_${Math.random().toString(36).slice(2, 9)}`;
+    return `job_${Date.now()}_${crypto.randomBytes(6).toString('hex')}`;
   }
 
   /**

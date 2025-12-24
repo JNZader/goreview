@@ -149,56 +149,58 @@ func (s *Store) Search(ctx context.Context, query *Query) ([]*SearchResult, erro
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 
-	// Aggregate results from all tiers
-	seen := make(map[string]bool)
-	results := make([]*SearchResult, 0)
+	collector := newResultCollector()
 
-	// Search working memory
-	workingResults, err := s.working.Search(ctx, query)
-	if err != nil {
+	if err := collector.addResults(s.working.Search(ctx, query)); err != nil {
 		return nil, err
 	}
-	for _, r := range workingResults {
-		if !seen[r.Entry.ID] {
-			seen[r.Entry.ID] = true
-			results = append(results, r)
-		}
-	}
 
-	// Search session memory
 	if s.session != nil {
-		sessionResults, err := s.session.Search(ctx, query)
-		if err != nil {
+		if err := collector.addResults(s.session.Search(ctx, query)); err != nil {
 			return nil, err
-		}
-		for _, r := range sessionResults {
-			if !seen[r.Entry.ID] {
-				seen[r.Entry.ID] = true
-				results = append(results, r)
-			}
 		}
 	}
 
-	// Search long-term memory
 	if s.longTerm != nil {
-		longTermResults, err := s.longTerm.Search(ctx, query)
-		if err != nil {
+		if err := collector.addResults(s.longTerm.Search(ctx, query)); err != nil {
 			return nil, err
 		}
-		for _, r := range longTermResults {
-			if !seen[r.Entry.ID] {
-				seen[r.Entry.ID] = true
-				results = append(results, r)
-			}
+	}
+
+	return collector.getResults(query), nil
+}
+
+// resultCollector aggregates search results with deduplication
+type resultCollector struct {
+	seen    map[string]bool
+	results []*SearchResult
+}
+
+func newResultCollector() *resultCollector {
+	return &resultCollector{
+		seen:    make(map[string]bool),
+		results: make([]*SearchResult, 0),
+	}
+}
+
+func (c *resultCollector) addResults(results []*SearchResult, err error) error {
+	if err != nil {
+		return err
+	}
+	for _, r := range results {
+		if !c.seen[r.Entry.ID] {
+			c.seen[r.Entry.ID] = true
+			c.results = append(c.results, r)
 		}
 	}
+	return nil
+}
 
-	// Apply limit
-	if query != nil && query.Limit > 0 && len(results) > query.Limit {
-		results = results[:query.Limit]
+func (c *resultCollector) getResults(query *Query) []*SearchResult {
+	if query != nil && query.Limit > 0 && len(c.results) > query.Limit {
+		return c.results[:query.Limit]
 	}
-
-	return results, nil
+	return c.results
 }
 
 // SemanticSearch finds semantically similar entries.
@@ -206,43 +208,47 @@ func (s *Store) SemanticSearch(ctx context.Context, query string, limit int) ([]
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 
-	// Generate query embedding
 	queryEmbedding := s.embedder.Embed(query)
+	results := s.searchIndexResults(ctx, queryEmbedding, limit)
 
-	// Search in-memory index first
-	indexResults := s.index.SearchByEmbedding(queryEmbedding, limit)
-
-	results := make([]*SearchResult, 0, len(indexResults))
-	for _, ir := range indexResults {
-		// Get full entry
-		entry, err := s.Get(ctx, ir.ID)
-		if err != nil || entry == nil {
-			continue
-		}
-		results = append(results, &SearchResult{
-			Entry: entry,
-			Score: ir.Similarity,
-		})
-	}
-
-	// Also search long-term memory if available
 	if s.longTerm != nil {
-		ltResults, err := s.longTerm.SemanticSearch(ctx, queryEmbedding, limit)
-		if err == nil {
-			// Merge results
-			seen := make(map[string]bool)
-			for _, r := range results {
-				seen[r.Entry.ID] = true
-			}
-			for _, r := range ltResults {
-				if !seen[r.Entry.ID] {
-					results = append(results, r)
-				}
-			}
-		}
+		results = s.mergeWithLongTermResults(ctx, results, queryEmbedding, limit)
 	}
 
 	return results, nil
+}
+
+// searchIndexResults searches the in-memory semantic index
+func (s *Store) searchIndexResults(ctx context.Context, embedding []float32, limit int) []*SearchResult {
+	indexResults := s.index.SearchByEmbedding(embedding, limit)
+	results := make([]*SearchResult, 0, len(indexResults))
+
+	for _, ir := range indexResults {
+		if entry, err := s.Get(ctx, ir.ID); err == nil && entry != nil {
+			results = append(results, &SearchResult{Entry: entry, Score: ir.Similarity})
+		}
+	}
+	return results
+}
+
+// mergeWithLongTermResults merges index results with long-term memory results
+func (s *Store) mergeWithLongTermResults(ctx context.Context, results []*SearchResult, embedding []float32, limit int) []*SearchResult {
+	ltResults, err := s.longTerm.SemanticSearch(ctx, embedding, limit)
+	if err != nil {
+		return results
+	}
+
+	seen := make(map[string]bool, len(results))
+	for _, r := range results {
+		seen[r.Entry.ID] = true
+	}
+
+	for _, r := range ltResults {
+		if !seen[r.Entry.ID] {
+			results = append(results, r)
+		}
+	}
+	return results
 }
 
 // Associate strengthens the association between two entries.

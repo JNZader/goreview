@@ -306,10 +306,8 @@ func (s *SemanticIndex) Remove(id string) {
 	delete(s.entries, id)
 }
 
-// Search finds the most similar entries to the query.
-func (s *SemanticIndex) Search(query string, limit int) []SemanticResult {
-	queryEmbedding := s.embedder.Embed(query)
-
+// searchWithEmbedding is a helper that performs semantic search with a given embedding
+func (s *SemanticIndex) searchWithEmbedding(queryEmbedding []float32, limit int) []SemanticResult {
 	results := make([]SemanticResult, 0, len(s.entries))
 
 	for _, entry := range s.entries {
@@ -338,34 +336,14 @@ func (s *SemanticIndex) Search(query string, limit int) []SemanticResult {
 	return results
 }
 
+// Search finds the most similar entries to the query.
+func (s *SemanticIndex) Search(query string, limit int) []SemanticResult {
+	return s.searchWithEmbedding(s.embedder.Embed(query), limit)
+}
+
 // SearchByEmbedding finds the most similar entries to the given embedding.
 func (s *SemanticIndex) SearchByEmbedding(embedding []float32, limit int) []SemanticResult {
-	results := make([]SemanticResult, 0, len(s.entries))
-
-	for _, entry := range s.entries {
-		similarity := s.embedder.Similarity(embedding, entry.Embedding)
-		if similarity > 0 {
-			results = append(results, SemanticResult{
-				ID:         entry.ID,
-				Similarity: similarity,
-			})
-		}
-	}
-
-	// Sort by similarity (descending)
-	for i := 0; i < len(results)-1; i++ {
-		for j := i + 1; j < len(results); j++ {
-			if results[j].Similarity > results[i].Similarity {
-				results[i], results[j] = results[j], results[i]
-			}
-		}
-	}
-
-	if limit > 0 && limit < len(results) {
-		results = results[:limit]
-	}
-
-	return results
+	return s.searchWithEmbedding(embedding, limit)
 }
 
 // SemanticResult represents a semantic search result.

@@ -18,8 +18,10 @@ WORKDIR /build
 COPY go.mod go.sum ./
 RUN go mod download
 
-# Copy source code
-COPY . .
+# Copy only source code directories (explicit, no sensitive files)
+# This is safer than COPY . . as it explicitly includes only required files
+COPY cmd/ ./cmd/
+COPY internal/ ./internal/
 
 # Build arguments
 ARG VERSION=dev

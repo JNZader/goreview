@@ -8,6 +8,11 @@ import (
 	"time"
 )
 
+// UI constants (SonarQube S1192)
+const (
+	summarySeparator = "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+)
+
 // ProgressReporter handles CLI progress output.
 type ProgressReporter struct {
 	total     int
@@ -77,11 +82,11 @@ func (p *ProgressReporter) renderBar(progress float64) string {
 // PrintSummary prints a summary of the review results.
 func PrintSummary(totalIssues int, files int, duration time.Duration) {
 	_, _ = fmt.Fprintf(os.Stderr, "\n")
-	_, _ = fmt.Fprintf(os.Stderr, "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n")
+	_, _ = fmt.Fprintf(os.Stderr, "%s\n", summarySeparator)
 	_, _ = fmt.Fprintf(os.Stderr, "  Review Complete\n")
-	_, _ = fmt.Fprintf(os.Stderr, "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n")
+	_, _ = fmt.Fprintf(os.Stderr, "%s\n", summarySeparator)
 	_, _ = fmt.Fprintf(os.Stderr, "  Files reviewed: %d\n", files)
 	_, _ = fmt.Fprintf(os.Stderr, "  Issues found:   %d\n", totalIssues)
 	_, _ = fmt.Fprintf(os.Stderr, "  Duration:       %s\n", duration.Round(time.Millisecond))
-	_, _ = fmt.Fprintf(os.Stderr, "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n")
+	_, _ = fmt.Fprintf(os.Stderr, "%s\n", summarySeparator)
 }

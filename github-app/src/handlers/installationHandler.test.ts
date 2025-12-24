@@ -86,7 +86,7 @@ describe('handleInstallation', () => {
         repo: 'testuser/repo1',
         private: false,
       },
-      'Repository added to installation'
+      'Repository added'
     );
     expect(logger.info).toHaveBeenCalledWith(
       {
@@ -94,7 +94,7 @@ describe('handleInstallation', () => {
         repo: 'testuser/repo2',
         private: true,
       },
-      'Repository added to installation'
+      'Repository added'
     );
   });
 
@@ -125,6 +125,7 @@ describe('handleInstallation', () => {
       {
         installationId: 12345,
         repo: 'testuser/repo1',
+        private: false,
       },
       'Repository added'
     );
@@ -142,6 +143,7 @@ describe('handleInstallation', () => {
       {
         installationId: 12345,
         repo: 'testuser/repo1',
+        private: false,
       },
       'Repository removed'
     );

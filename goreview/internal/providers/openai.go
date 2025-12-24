@@ -1,9 +1,7 @@
 package providers
 
 import (
-	"bytes"
 	"context"
-	"encoding/json"
 	"fmt"
 	"net/http"
 	"time"
@@ -43,68 +41,21 @@ func NewOpenAIProvider(cfg *config.Config) (*OpenAIProvider, error) {
 func (p *OpenAIProvider) Name() string { return "openai" }
 
 func (p *OpenAIProvider) Review(ctx context.Context, req *ReviewRequest) (*ReviewResponse, error) {
-	// Validate input
-	if err := ValidateReviewRequest(req); err != nil {
-		return nil, fmt.Errorf("invalid request: %w", err)
-	}
-
-	// Empty diff returns empty response
-	if len(req.Diff) == 0 {
+	if empty, err := ValidateReviewInput(req); err != nil {
+		return nil, err
+	} else if empty {
 		return &ReviewResponse{}, nil
 	}
 
 	start := time.Now()
+	openaiReq := BuildChatRequest(p.model, ReviewSystemPrompt, buildReviewPrompt(req), p.config.Temperature, p.config.MaxTokens, false)
 
-	messages := []map[string]string{
-		{"role": "system", "content": "You are an expert code reviewer. Return JSON."},
-		{"role": "user", "content": buildReviewPrompt(req)},
-	}
-
-	openaiReq := map[string]interface{}{
-		"model":       p.model,
-		"messages":    messages,
-		"temperature": p.config.Temperature,
-		"max_tokens":  p.config.MaxTokens,
-	}
-
-	body, err := json.Marshal(openaiReq)
-	if err != nil {
-		return nil, fmt.Errorf("marshal request: %w", err)
-	}
-	httpReq, err := http.NewRequestWithContext(ctx, "POST", p.baseURL+"/chat/completions", bytes.NewReader(body))
-	if err != nil {
-		return nil, fmt.Errorf("create request: %w", err)
-	}
-	httpReq.Header.Set("Content-Type", "application/json")
-	httpReq.Header.Set("Authorization", "Bearer "+p.apiKey)
-
-	resp, err := p.client.Do(httpReq)
-	if err != nil {
+	var result ChatCompletionResponse
+	if err := DoJSONPost(ctx, p.client, p.baseURL+ChatCompletionsPath, openaiReq, p.apiKey, &result); err != nil {
 		return nil, err
 	}
-	defer func() { _ = resp.Body.Close() }()
 
-	var result struct {
-		Choices []struct {
-			Message struct{ Content string } `json:"message"`
-		} `json:"choices"`
-		Usage struct {
-			TotalTokens int `json:"total_tokens"`
-		} `json:"usage"`
-	}
-	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
-		return nil, fmt.Errorf("decode response: %w", err)
-	}
-
-	var reviewResp ReviewResponse
-	if len(result.Choices) > 0 {
-		// Ignore unmarshal error - fallback to empty response is acceptable
-		_ = json.Unmarshal([]byte(result.Choices[0].Message.Content), &reviewResp)
-	}
-	reviewResp.TokensUsed = result.Usage.TotalTokens
-	reviewResp.ProcessingTime = time.Since(start).Milliseconds()
-
-	return &reviewResp, nil
+	return ParseReviewContent(result.GetContent(), result.Usage.TotalTokens, time.Since(start).Milliseconds()), nil
 }
 
 func (p *OpenAIProvider) GenerateCommitMessage(ctx context.Context, diff string) (string, error) {
@@ -116,17 +67,7 @@ func (p *OpenAIProvider) GenerateDocumentation(ctx context.Context, diff, docCon
 }
 
 func (p *OpenAIProvider) HealthCheck(ctx context.Context) error {
-	req, err := http.NewRequestWithContext(ctx, "GET", p.baseURL+"/models", nil)
-	if err != nil {
-		return fmt.Errorf("create request: %w", err)
-	}
-	req.Header.Set("Authorization", "Bearer "+p.apiKey)
-	resp, err := p.client.Do(req)
-	if err != nil {
-		return err
-	}
-	defer func() { _ = resp.Body.Close() }()
-	return nil
+	return DoHealthCheck(ctx, p.client, p.baseURL+"/models", p.apiKey, "openai")
 }
 
 func (p *OpenAIProvider) Close() error { return nil }

@@ -1,11 +1,8 @@
 package providers
 
 import (
-	"bytes"
 	"context"
-	"encoding/json"
 	"fmt"
-	"io"
 	"net/http"
 	"time"
 
@@ -42,13 +39,9 @@ func NewOllamaProvider(cfg *config.Config) (*OllamaProvider, error) {
 func (p *OllamaProvider) Name() string { return "ollama" }
 
 func (p *OllamaProvider) Review(ctx context.Context, req *ReviewRequest) (*ReviewResponse, error) {
-	// Validate input
-	if err := ValidateReviewRequest(req); err != nil {
-		return nil, fmt.Errorf("invalid request: %w", err)
-	}
-
-	// Empty diff returns empty response
-	if len(req.Diff) == 0 {
+	if empty, err := ValidateReviewInput(req); err != nil {
+		return nil, err
+	} else if empty {
 		return &ReviewResponse{}, nil
 	}
 
@@ -59,147 +52,42 @@ func (p *OllamaProvider) Review(ctx context.Context, req *ReviewRequest) (*Revie
 	}
 
 	start := time.Now()
-	prompt := buildReviewPrompt(req)
+	ollamaReq := BuildOllamaRequest(p.model, buildReviewPrompt(req), p.config.Temperature, p.config.MaxTokens, true)
 
-	ollamaReq := map[string]interface{}{
-		"model":  p.model,
-		"prompt": prompt,
-		"stream": false,
-		"format": "json",
-		"options": map[string]interface{}{
-			"temperature": p.config.Temperature,
-			"num_predict": p.config.MaxTokens,
-		},
-	}
-
-	body, err := json.Marshal(ollamaReq)
-	if err != nil {
-		return nil, fmt.Errorf("marshal request: %w", err)
-	}
-	httpReq, err := http.NewRequestWithContext(ctx, "POST", p.baseURL+"/api/generate", bytes.NewReader(body))
-	if err != nil {
-		return nil, fmt.Errorf("create request: %w", err)
-	}
-	httpReq.Header.Set("Content-Type", "application/json")
-
-	resp, err := p.client.Do(httpReq)
-	if err != nil {
+	var result OllamaResponse
+	if err := DoJSONPost(ctx, p.client, p.baseURL+APIGeneratePath, ollamaReq, "", &result); err != nil {
 		return nil, fmt.Errorf("ollama request failed: %w", err)
 	}
-	defer func() { _ = resp.Body.Close() }()
 
-	if resp.StatusCode != http.StatusOK {
-		bodyBytes, _ := io.ReadAll(resp.Body) //nolint:errcheck // best effort for error message
-		return nil, fmt.Errorf("ollama error %d: %s", resp.StatusCode, bodyBytes)
-	}
-
-	var ollamaResp struct {
-		Response string `json:"response"`
-	}
-	if err := json.NewDecoder(resp.Body).Decode(&ollamaResp); err != nil {
-		return nil, err
-	}
-
-	var reviewResp ReviewResponse
-	if err := json.Unmarshal([]byte(ollamaResp.Response), &reviewResp); err != nil {
-		// Fallback for non-JSON response
-		reviewResp = ReviewResponse{Summary: ollamaResp.Response}
-	}
-	reviewResp.ProcessingTime = time.Since(start).Milliseconds()
-
-	return &reviewResp, nil
+	return ParseReviewContent(result.Response, 0, time.Since(start).Milliseconds()), nil
 }
 
 func (p *OllamaProvider) GenerateCommitMessage(ctx context.Context, diff string) (string, error) {
-	prompt := fmt.Sprintf(`Generate a conventional commit message for this diff.
-Format: <type>(<scope>): <description>
-Types: feat, fix, docs, style, refactor, perf, test, chore
-
-Diff:
-%s
-
-Return ONLY the commit message.`, diff)
-
 	ollamaReq := map[string]interface{}{
-		"model": p.model, "prompt": prompt, "stream": false,
+		"model": p.model, "prompt": fmt.Sprintf(CommitMessagePrompt, diff), "stream": false,
 	}
 
-	body, err := json.Marshal(ollamaReq)
-	if err != nil {
-		return "", fmt.Errorf("marshal request: %w", err)
-	}
-	httpReq, err := http.NewRequestWithContext(ctx, "POST", p.baseURL+"/api/generate", bytes.NewReader(body))
-	if err != nil {
-		return "", fmt.Errorf("create request: %w", err)
-	}
-	httpReq.Header.Set("Content-Type", "application/json")
-
-	resp, err := p.client.Do(httpReq)
-	if err != nil {
+	var result OllamaResponse
+	if err := DoJSONPost(ctx, p.client, p.baseURL+APIGeneratePath, ollamaReq, "", &result); err != nil {
 		return "", err
-	}
-	defer func() { _ = resp.Body.Close() }()
-
-	var result struct {
-		Response string `json:"response"`
-	}
-	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
-		return "", fmt.Errorf("decode response: %w", err)
 	}
 	return result.Response, nil
 }
 
 func (p *OllamaProvider) GenerateDocumentation(ctx context.Context, diff, docContext string) (string, error) {
-	prompt := fmt.Sprintf(`Generate documentation for these changes.
-Context: %s
-Changes:
-%s
-
-Format as Markdown.`, docContext, diff)
-
 	ollamaReq := map[string]interface{}{
-		"model": p.model, "prompt": prompt, "stream": false,
+		"model": p.model, "prompt": fmt.Sprintf(DocumentationPrompt, docContext, diff), "stream": false,
 	}
 
-	body, err := json.Marshal(ollamaReq)
-	if err != nil {
-		return "", fmt.Errorf("marshal request: %w", err)
-	}
-	httpReq, err := http.NewRequestWithContext(ctx, "POST", p.baseURL+"/api/generate", bytes.NewReader(body))
-	if err != nil {
-		return "", fmt.Errorf("create request: %w", err)
-	}
-	httpReq.Header.Set("Content-Type", "application/json")
-
-	resp, err := p.client.Do(httpReq)
-	if err != nil {
+	var result OllamaResponse
+	if err := DoJSONPost(ctx, p.client, p.baseURL+APIGeneratePath, ollamaReq, "", &result); err != nil {
 		return "", err
-	}
-	defer func() { _ = resp.Body.Close() }()
-
-	var result struct {
-		Response string `json:"response"`
-	}
-	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
-		return "", fmt.Errorf("decode response: %w", err)
 	}
 	return result.Response, nil
 }
 
 func (p *OllamaProvider) HealthCheck(ctx context.Context) error {
-	req, err := http.NewRequestWithContext(ctx, "GET", p.baseURL+"/api/tags", nil)
-	if err != nil {
-		return fmt.Errorf("create request: %w", err)
-	}
-	resp, err := p.client.Do(req)
-	if err != nil {
-		return err
-	}
-	defer func() { _ = resp.Body.Close() }()
-	if resp.StatusCode != http.StatusOK {
-		return fmt.Errorf("health check failed: %d", resp.StatusCode)
-	}
-	return nil
+	return DoHealthCheck(ctx, p.client, p.baseURL+"/api/tags", "", "ollama")
 }
 
 func (p *OllamaProvider) Close() error { return nil }

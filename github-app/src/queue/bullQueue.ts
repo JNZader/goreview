@@ -5,7 +5,6 @@
 
 import { Queue, Worker, Job as BullJob, QueueEvents, ConnectionOptions } from 'bullmq';
 import { logger } from '../utils/logger.js';
-import { config } from '../config/index.js';
 
 // Job data interface
 export interface PRReviewJobData {

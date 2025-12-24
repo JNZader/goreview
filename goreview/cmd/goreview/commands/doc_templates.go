@@ -119,6 +119,14 @@ type ChangelogData struct {
 	Removed []string
 }
 
+// sectionKeywords maps changelog section names to their detection keywords
+var sectionKeywords = map[string][]string{
+	"added":   {"added", "new"},
+	"changed": {"changed", "updated"},
+	"fixed":   {"fixed", "bug"},
+	"removed": {"removed", "deleted"},
+}
+
 // NewChangelogData creates changelog data from documentation.
 func NewChangelogData(doc string) *ChangelogData {
 	data := &ChangelogData{
@@ -134,41 +142,49 @@ func NewChangelogData(doc string) *ChangelogData {
 			continue
 		}
 
-		lower := strings.ToLower(line)
-		if strings.Contains(lower, "added") || strings.Contains(lower, "new") {
-			currentSection = "added"
-			continue
-		}
-		if strings.Contains(lower, "changed") || strings.Contains(lower, "updated") {
-			currentSection = "changed"
-			continue
-		}
-		if strings.Contains(lower, "fixed") || strings.Contains(lower, "bug") {
-			currentSection = "fixed"
-			continue
-		}
-		if strings.Contains(lower, "removed") || strings.Contains(lower, "deleted") {
-			currentSection = "removed"
+		if section := detectSection(line); section != "" {
+			currentSection = section
 			continue
 		}
 
-		// Add to current section
-		item := strings.TrimPrefix(line, "- ")
-		item = strings.TrimPrefix(item, "* ")
-
-		switch currentSection {
-		case "added":
-			data.Added = append(data.Added, item)
-		case "changed":
-			data.Changed = append(data.Changed, item)
-		case "fixed":
-			data.Fixed = append(data.Fixed, item)
-		case "removed":
-			data.Removed = append(data.Removed, item)
-		}
+		item := cleanItem(line)
+		data.addItem(currentSection, item)
 	}
 
 	return data
+}
+
+// detectSection checks if a line is a section header
+func detectSection(line string) string {
+	lower := strings.ToLower(line)
+	for section, keywords := range sectionKeywords {
+		for _, kw := range keywords {
+			if strings.Contains(lower, kw) {
+				return section
+			}
+		}
+	}
+	return ""
+}
+
+// cleanItem removes common list prefixes from an item
+func cleanItem(line string) string {
+	item := strings.TrimPrefix(line, "- ")
+	return strings.TrimPrefix(item, "* ")
+}
+
+// addItem adds an item to the appropriate changelog section
+func (d *ChangelogData) addItem(section, item string) {
+	switch section {
+	case "added":
+		d.Added = append(d.Added, item)
+	case "changed":
+		d.Changed = append(d.Changed, item)
+	case "fixed":
+		d.Fixed = append(d.Fixed, item)
+	case "removed":
+		d.Removed = append(d.Removed, item)
+	}
 }
 
 // APIFunctionData represents data for API documentation.

@@ -129,6 +129,20 @@ func (l *LongTermMem) Get(ctx context.Context, id string) (*Entry, error) {
 
 // Search finds entries matching the query.
 func (l *LongTermMem) Search(ctx context.Context, query *Query) ([]*SearchResult, error) {
+	results, err := l.collectSearchResults(query)
+	if err != nil {
+		return nil, fmt.Errorf("searching: %w", err)
+	}
+
+	sort.Slice(results, func(i, j int) bool {
+		return results[i].Score > results[j].Score
+	})
+
+	return l.applyPagination(results, query), nil
+}
+
+// collectSearchResults iterates through entries and collects matching results
+func (l *LongTermMem) collectSearchResults(query *Query) ([]*SearchResult, error) {
 	results := make([]*SearchResult, 0)
 
 	err := l.db.View(func(txn *badger.Txn) error {
@@ -139,53 +153,48 @@ func (l *LongTermMem) Search(ctx context.Context, query *Query) ([]*SearchResult
 		defer it.Close()
 
 		for it.Rewind(); it.Valid(); it.Next() {
-			item := it.Item()
-
-			var entry Entry
-			valErr := item.Value(func(val []byte) error {
-				return json.Unmarshal(val, &entry)
-			})
-			if valErr != nil {
-				continue
-			}
-
-			// Check TTL
-			if entry.TTL > 0 && time.Since(entry.CreatedAt) > entry.TTL {
-				continue
-			}
-
-			score := matchScore(&entry, query)
-			if score > 0 {
-				entryCopy := entry
-				results = append(results, &SearchResult{
-					Entry: &entryCopy,
-					Score: score,
-				})
+			if result := l.evaluateEntry(it.Item(), query); result != nil {
+				results = append(results, result)
 			}
 		}
 		return nil
 	})
 
-	if err != nil {
-		return nil, fmt.Errorf("searching: %w", err)
+	return results, err
+}
+
+// evaluateEntry unmarshals and evaluates a single entry against the query
+func (l *LongTermMem) evaluateEntry(item *badger.Item, query *Query) *SearchResult {
+	var entry Entry
+	if err := item.Value(func(val []byte) error {
+		return json.Unmarshal(val, &entry)
+	}); err != nil {
+		return nil
 	}
 
-	// Sort by score (descending)
-	sort.Slice(results, func(i, j int) bool {
-		return results[i].Score > results[j].Score
-	})
-
-	// Apply limit and offset
-	if query != nil {
-		if query.Offset > 0 && query.Offset < len(results) {
-			results = results[query.Offset:]
-		}
-		if query.Limit > 0 && query.Limit < len(results) {
-			results = results[:query.Limit]
-		}
+	if entry.TTL > 0 && time.Since(entry.CreatedAt) > entry.TTL {
+		return nil
 	}
 
-	return results, nil
+	if score := matchScore(&entry, query); score > 0 {
+		entryCopy := entry
+		return &SearchResult{Entry: &entryCopy, Score: score}
+	}
+	return nil
+}
+
+// applyPagination applies offset and limit to results
+func (l *LongTermMem) applyPagination(results []*SearchResult, query *Query) []*SearchResult {
+	if query == nil {
+		return results
+	}
+	if query.Offset > 0 && query.Offset < len(results) {
+		results = results[query.Offset:]
+	}
+	if query.Limit > 0 && query.Limit < len(results) {
+		results = results[:query.Limit]
+	}
+	return results
 }
 
 // Update modifies an existing entry.
@@ -361,67 +370,69 @@ func (l *LongTermMem) Consolidate(ctx context.Context, entries []*Entry) error {
 
 // GarbageCollect removes expired and weak entries.
 func (l *LongTermMem) GarbageCollect(ctx context.Context) (int, error) {
+	keysToDelete, err := l.findGarbageKeys()
+	if err != nil {
+		return 0, fmt.Errorf("scanning for gc: %w", err)
+	}
+
+	if len(keysToDelete) > 0 {
+		if err := l.deleteByteKeys(keysToDelete); err != nil {
+			return 0, fmt.Errorf("deleting entries: %w", err)
+		}
+	}
+
+	_ = l.db.RunValueLogGC(0.5)
+	return len(keysToDelete), nil
+}
+
+// findGarbageKeys identifies entries that should be garbage collected
+func (l *LongTermMem) findGarbageKeys() ([][]byte, error) {
 	keysToDelete := make([][]byte, 0)
 
-	// Find entries to delete
 	err := l.db.View(func(txn *badger.Txn) error {
 		opts := badger.DefaultIteratorOptions
 		it := txn.NewIterator(opts)
 		defer it.Close()
 
 		for it.Rewind(); it.Valid(); it.Next() {
-			item := it.Item()
-
-			var entry Entry
-			valErr := item.Value(func(val []byte) error {
-				return json.Unmarshal(val, &entry)
-			})
-			if valErr != nil {
-				continue
-			}
-
-			shouldDelete := false
-
-			// Check TTL expiration
-			if entry.TTL > 0 && time.Since(entry.CreatedAt) > entry.TTL {
-				shouldDelete = true
-			}
-
-			// Check weak strength (not accessed recently)
-			if entry.Strength < 0.1 && time.Since(entry.AccessedAt) > 7*24*time.Hour {
-				shouldDelete = true
-			}
-
-			if shouldDelete {
-				keysToDelete = append(keysToDelete, item.KeyCopy(nil))
+			if l.shouldGarbageCollect(it.Item()) {
+				keysToDelete = append(keysToDelete, it.Item().KeyCopy(nil))
 			}
 		}
 		return nil
 	})
 
-	if err != nil {
-		return 0, fmt.Errorf("scanning for gc: %w", err)
+	return keysToDelete, err
+}
+
+// shouldGarbageCollect determines if an entry should be deleted
+func (l *LongTermMem) shouldGarbageCollect(item *badger.Item) bool {
+	var entry Entry
+	if err := item.Value(func(val []byte) error {
+		return json.Unmarshal(val, &entry)
+	}); err != nil {
+		return false
 	}
 
-	// Delete entries
-	if len(keysToDelete) > 0 {
-		err = l.db.Update(func(txn *badger.Txn) error {
-			for _, key := range keysToDelete {
-				if delErr := txn.Delete(key); delErr != nil {
-					return delErr
-				}
+	if entry.TTL > 0 && time.Since(entry.CreatedAt) > entry.TTL {
+		return true
+	}
+	if entry.Strength < 0.1 && time.Since(entry.AccessedAt) > 7*24*time.Hour {
+		return true
+	}
+	return false
+}
+
+// deleteByteKeys deletes multiple byte keys in a single transaction
+func (l *LongTermMem) deleteByteKeys(keys [][]byte) error {
+	return l.db.Update(func(txn *badger.Txn) error {
+		for _, key := range keys {
+			if err := txn.Delete(key); err != nil {
+				return err
 			}
-			return nil
-		})
-		if err != nil {
-			return 0, fmt.Errorf("deleting entries: %w", err)
 		}
-	}
-
-	// Run BadgerDB GC
-	_ = l.db.RunValueLogGC(0.5)
-
-	return len(keysToDelete), nil
+		return nil
+	})
 }
 
 // runGC runs periodic garbage collection.

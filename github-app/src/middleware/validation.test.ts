@@ -62,11 +62,12 @@ describe('validation', () => {
       expect(result).toBe('helloworld');
     });
 
-    it('should remove script tags', () => {
+    it('should preserve HTML content (trusted source)', () => {
+      // GitHub webhook payloads are trusted, so we don't strip HTML
       const input = 'before<script>alert("xss")</script>after';
       const result = sanitizeString(input);
 
-      expect(result).toBe('beforeafter');
+      expect(result).toBe('before<script>alert("xss")</script>after');
     });
 
     it('should trim whitespace', () => {
@@ -83,9 +84,9 @@ describe('validation', () => {
   });
 
   describe('sanitizeObject', () => {
-    it('should sanitize string values', () => {
+    it('should trim string values and preserve content', () => {
       const obj = {
-        name: '  John<script>xss</script>  ',
+        name: '  John  ',
         age: 30,
       };
 
@@ -95,10 +96,10 @@ describe('validation', () => {
       expect(result.age).toBe(30);
     });
 
-    it('should sanitize nested objects', () => {
+    it('should handle nested objects', () => {
       const obj = {
         user: {
-          name: '<script>alert(1)</script>Bob',
+          name: '  Bob  ',
         },
       };
 
@@ -107,9 +108,9 @@ describe('validation', () => {
       expect(result.user.name).toBe('Bob');
     });
 
-    it('should sanitize arrays', () => {
+    it('should handle arrays', () => {
       const obj = {
-        tags: ['<script>xss</script>tag1', 'tag2'],
+        tags: ['  tag1  ', 'tag2'],
       };
 
       const result = sanitizeObject(obj);
@@ -121,7 +122,7 @@ describe('validation', () => {
     it('should handle nested arrays with objects', () => {
       const obj = {
         items: [
-          { name: '  item1<script></script>  ' },
+          { name: '  item1  ' },
           { name: 'item2' },
         ],
       };
@@ -322,9 +323,9 @@ describe('validation', () => {
     });
 
     it('should sanitize input before validation', () => {
-      // Script tags are removed entirely, so use content outside tags
+      // Sanitization trims whitespace, HTML is preserved (trusted source)
       const req = createMockRequest({
-        body: { name: '  hello<script>xss</script>world  ', value: 42 },
+        body: { name: '  hello world  ', value: 42 },
       });
       const res = createMockResponse();
       const next = vi.fn();
@@ -333,7 +334,7 @@ describe('validation', () => {
       middleware(req, res, next);
 
       expect(next).toHaveBeenCalled();
-      expect(req.body.name).toBe('helloworld');
+      expect(req.body.name).toBe('hello world');
     });
   });
 

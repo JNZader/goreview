@@ -111,7 +111,7 @@ func (idx *Index) LoadFromDirectory(dir string) error {
 
 // LoadFile loads and indexes a style guide file
 func (idx *Index) LoadFile(path string) error {
-	content, err := os.ReadFile(path)
+	content, err := os.ReadFile(path) //nolint:gosec // Path comes from trusted directory scan
 	if err != nil {
 		return err
 	}

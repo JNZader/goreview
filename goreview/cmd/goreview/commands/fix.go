@@ -368,7 +368,7 @@ func applyFixToFile(fix FixableIssue) error {
 		return err
 	}
 
-	content, err := os.ReadFile(absPath)
+	content, err := os.ReadFile(absPath) //nolint:gosec // CLI tool reads user-specified files
 	if err != nil {
 		return err
 	}

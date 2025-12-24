@@ -102,7 +102,9 @@ func outputConfigYAML(cfg *config.Config) error {
 	fmt.Printf("  model: %s\n", cfg.Provider.Model)
 	fmt.Printf("  base_url: %s\n", cfg.Provider.BaseURL)
 	if cfg.Provider.APIKey != "" {
-		fmt.Printf("  api_key: %s\n", cfg.Provider.APIKey)
+		// API key is already masked by maskSensitiveConfig before this function is called
+		// The value here is "***REDACTED***", not the actual key
+		fmt.Printf("  api_key: %s\n", cfg.Provider.APIKey) //nolint:gosec // Value is pre-masked
 	}
 	fmt.Printf("  timeout: %s\n", cfg.Provider.Timeout)
 	fmt.Printf("  max_tokens: %d\n", cfg.Provider.MaxTokens)

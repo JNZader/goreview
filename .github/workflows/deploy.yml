@@ -239,8 +239,7 @@ jobs:
           echo "token: $KOYEB_TOKEN" > ~/.koyeb.yaml
 
           # Redeploy existing service (app/service format)
-          koyeb service redeploy scientific-sofia-jnz-1e815609/scientific-sofia-jnz-1e815609 || \
-          echo "Redeploy failed, check service name in Koyeb dashboard"
+          koyeb service redeploy scientific-sofia/goreview
 
   # ---------------------------------------------------------------------------
   # Notify on completion

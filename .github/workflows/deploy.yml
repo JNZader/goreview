@@ -234,8 +234,9 @@ jobs:
         env:
           KOYEB_TOKEN: ${{ secrets.KOYEB_TOKEN }}
         run: |
-          # Redeploy using --token flag directly
-          koyeb service redeploy scientific-sofia/goreview --token "$KOYEB_TOKEN"
+          # Create minimal config and redeploy
+          echo "token: $KOYEB_TOKEN" > ~/.koyeb.yaml
+          koyeb service redeploy scientific-sofia/goreview
 
   # ---------------------------------------------------------------------------
   # Notify on completion

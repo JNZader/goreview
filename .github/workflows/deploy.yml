@@ -236,7 +236,7 @@ jobs:
         run: |
           # Create minimal config and redeploy
           echo "token: $KOYEB_TOKEN" > ~/.koyeb.yaml
-          koyeb service redeploy scientific-sofia/goreview
+          koyeb service redeploy scientific-sofia/goreview || echo "::warning::Koyeb deploy failed - check KOYEB_TOKEN secret"
 
   # ---------------------------------------------------------------------------
   # Notify on completion

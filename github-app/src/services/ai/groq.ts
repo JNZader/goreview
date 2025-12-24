@@ -129,6 +129,44 @@ Return ONLY the commit message, nothing else.`;
     throw new Error('No response from Groq');
   }
 
+  async chat(prompt: string): Promise<string> {
+    const groqReq = {
+      model: this.model,
+      messages: [
+        { role: 'system', content: 'You are a helpful code review assistant. Be concise and helpful.' },
+        { role: 'user', content: prompt },
+      ],
+      temperature: 0.7,
+      max_tokens: 2048,
+    };
+
+    const response = await fetch(`${this.baseUrl}/chat/completions`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${this.apiKey}`,
+      },
+      body: JSON.stringify(groqReq),
+      signal: AbortSignal.timeout(config.review.timeout),
+    });
+
+    if (!response.ok) {
+      throw new Error(`Groq error: ${response.status}`);
+    }
+
+    const result = (await response.json()) as {
+      choices?: Array<{
+        message?: { content?: string };
+      }>;
+    };
+
+    if (result.choices && result.choices[0]?.message?.content) {
+      return result.choices[0].message.content.trim();
+    }
+
+    throw new Error('No response from Groq');
+  }
+
   async healthCheck(): Promise<boolean> {
     try {
       const response = await fetch(`${this.baseUrl}/models`, {

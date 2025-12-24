@@ -3,15 +3,16 @@ package review
 import (
 	"context"
 	"fmt"
-	"runtime"
 	"sync"
 	"time"
 
 	"github.com/JNZader/goreview/goreview/internal/cache"
 	"github.com/JNZader/goreview/goreview/internal/config"
 	"github.com/JNZader/goreview/goreview/internal/git"
+	"github.com/JNZader/goreview/goreview/internal/logger"
 	"github.com/JNZader/goreview/goreview/internal/providers"
 	"github.com/JNZader/goreview/goreview/internal/rules"
+	"github.com/JNZader/goreview/goreview/internal/worker"
 )
 
 const DefaultMaxConcurrency = 5
@@ -23,6 +24,7 @@ type Engine struct {
 	provider providers.Provider
 	cache    cache.Cache
 	rules    []rules.Rule
+	log      *logger.Logger
 }
 
 // NewEngine creates a new review engine.
@@ -39,6 +41,7 @@ func NewEngine(
 		provider: provider,
 		cache:    c,
 		rules:    r,
+		log:      logger.Default().WithPrefix("ENGINE"),
 	}
 }
 
@@ -59,63 +62,126 @@ type FileResult struct {
 	Cached   bool                      `json:"cached"`
 }
 
-// Run executes the review process.
+// reviewTask implements worker.Task for file reviews
+type reviewTask struct {
+	id       string
+	file     git.FileDiff
+	engine   *Engine
+	result   *FileResult
+	resultMu sync.Mutex
+}
+
+func newReviewTask(file git.FileDiff, engine *Engine) *reviewTask {
+	return &reviewTask{
+		id:     fmt.Sprintf("review:%s", file.Path),
+		file:   file,
+		engine: engine,
+	}
+}
+
+func (t *reviewTask) ID() string {
+	return t.id
+}
+
+func (t *reviewTask) Execute(ctx context.Context) error {
+	result := t.engine.reviewFile(ctx, t.file)
+	t.resultMu.Lock()
+	t.result = result
+	t.resultMu.Unlock()
+	return result.Error
+}
+
+func (t *reviewTask) Result() *FileResult {
+	t.resultMu.Lock()
+	defer t.resultMu.Unlock()
+	return t.result
+}
+
+// Run executes the review process using the worker pool.
 func (e *Engine) Run(ctx context.Context) (*Result, error) {
+	start := time.Now()
+
 	// 1. Get diff based on mode
+	e.log.Debug("Getting diff in mode: %s", e.cfg.Review.Mode)
 	diff, err := e.getDiff(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get diff: %w", err)
 	}
 
 	if len(diff.Files) == 0 {
+		e.log.Info("No changes found to review")
 		return &Result{Summary: "No changes found to review."}, nil
 	}
 
 	// 2. Filter files to review
 	filesToReview := e.filterFiles(diff.Files)
 	if len(filesToReview) == 0 {
+		e.log.Info("No reviewable files in changes")
 		return &Result{Summary: "No reviewable files in changes."}, nil
 	}
 
-	// 3. Process files concurrently
-	concurrency := e.calculateOptimalConcurrency()
-	semaphore := make(chan struct{}, concurrency)
-	resultsChan := make(chan *FileResult, len(filesToReview))
+	e.log.Info("Reviewing %d files with %d workers", len(filesToReview), e.calculateOptimalConcurrency())
 
-	var wg sync.WaitGroup
-	start := time.Now()
+	// 3. Initialize worker pool
+	poolCfg := worker.Config{
+		Workers:   e.calculateOptimalConcurrency(),
+		QueueSize: len(filesToReview),
+	}
+	pool := worker.NewPool(poolCfg)
+	pool.Start()
 
+	// 4. Create and submit tasks
+	tasks := make([]*reviewTask, 0, len(filesToReview))
 	for _, file := range filesToReview {
-		wg.Add(1)
-		go func(f git.FileDiff) {
-			defer wg.Done()
-
-			// Acquire semaphore
-			semaphore <- struct{}{}
-			defer func() { <-semaphore }()
-
-			result := e.reviewFile(ctx, f)
-			resultsChan <- result
-		}(file)
-	}
-
-	// Wait and close
-	wg.Wait()
-	close(resultsChan)
-
-	// 4. Aggregate results
-	finalResult := &Result{
-		Stats:    diff.Stats,
-		Files:    make([]FileResult, 0, len(filesToReview)),
-		Duration: time.Since(start),
-	}
-
-	for result := range resultsChan {
-		finalResult.Files = append(finalResult.Files, *result)
-		if result.Response != nil {
-			finalResult.TotalIssues += len(result.Response.Issues)
+		task := newReviewTask(file, e)
+		tasks = append(tasks, task)
+		if err := pool.Submit(task); err != nil {
+			e.log.Error("Failed to submit task for %s: %v", file.Path, err)
 		}
 	}
+
+	// 5. Collect results
+	finalResult := &Result{
+		Stats: diff.Stats,
+		Files: make([]FileResult, 0, len(filesToReview)),
+	}
+
+	// Wait for all results
+	resultsCollected := 0
+	for resultsCollected < len(tasks) {
+		select {
+		case result := <-pool.Results():
+			resultsCollected++
+			// Find the corresponding task and get its result
+			for _, task := range tasks {
+				if task.ID() == result.TaskID {
+					if fileResult := task.Result(); fileResult != nil {
+						finalResult.Files = append(finalResult.Files, *fileResult)
+						if fileResult.Response != nil {
+							finalResult.TotalIssues += len(fileResult.Response.Issues)
+						}
+						if fileResult.Cached {
+							e.log.Debug("Cache hit for %s", fileResult.File)
+						}
+					}
+					break
+				}
+			}
+		case <-ctx.Done():
+			e.log.Warn("Review cancelled: %v", ctx.Err())
+			pool.Stop()
+			return nil, ctx.Err()
+		}
+	}
+
+	// 6. Stop pool gracefully
+	pool.StopWait()
+
+	finalResult.Duration = time.Since(start)
+
+	stats := pool.Stats()
+	e.log.Info("Review completed: %d files, %d issues, %d errors in %v",
+		len(finalResult.Files), finalResult.TotalIssues, stats.Errors, finalResult.Duration)
 
 	return finalResult, nil
 }
@@ -144,6 +210,7 @@ func (e *Engine) filterFiles(files []git.FileDiff) []git.FileDiff {
 		}
 		// Skip ignored patterns
 		if e.shouldIgnore(f.Path) {
+			e.log.Debug("Ignoring file: %s", f.Path)
 			continue
 		}
 		result = append(result, f)
@@ -173,17 +240,7 @@ func (e *Engine) calculateOptimalConcurrency() int {
 	if e.cfg.Review.MaxConcurrency > 0 {
 		return e.cfg.Review.MaxConcurrency
 	}
-
-	// Auto-detect based on CPU cores
-	cpus := runtime.NumCPU()
-	optimal := cpus * 2
-	if optimal > 10 {
-		optimal = 10
-	}
-	if optimal < 1 {
-		optimal = 1
-	}
-	return optimal
+	return DefaultMaxConcurrency
 }
 
 func (e *Engine) reviewFile(ctx context.Context, file git.FileDiff) *FileResult {
@@ -209,6 +266,8 @@ func (e *Engine) reviewFile(ctx context.Context, file git.FileDiff) *FileResult 
 	// Call provider
 	resp, err := e.provider.Review(ctx, req)
 	if err != nil {
+		e.log.Error("Review failed for %s (lang=%s, size=%d bytes): %v",
+			file.Path, file.Language, len(req.Diff), err)
 		return &FileResult{
 			File: file.Path,
 			Error: fmt.Errorf("review failed for %s (lang=%s, size=%d bytes): %w",

@@ -41,6 +41,9 @@ export interface AIProvider {
   /** Generate a commit message from diff */
   generateCommitMessage(diff: string): Promise<string>;
 
+  /** General chat/conversation for interactive responses */
+  chat(prompt: string): Promise<string>;
+
   /** Check if provider is available */
   healthCheck(): Promise<boolean>;
 }

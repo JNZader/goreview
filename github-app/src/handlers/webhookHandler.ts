@@ -1,6 +1,8 @@
 import { logger } from '../utils/logger.js';
 import { handlePullRequest } from './pullRequestHandler.js';
 import { handleInstallation } from './installationHandler.js';
+import { handleIssueComment, handlePullRequestReviewComment } from './commentHandler.js';
+import type { IssueCommentEvent } from '@octokit/webhooks-types';
 
 export type WebhookPayload = Record<string, unknown>;
 
@@ -20,8 +22,12 @@ export async function handleWebhook(
       await handlePullRequest(action, payload);
       break;
 
+    case 'issue_comment':
+      await handleIssueComment(payload as unknown as IssueCommentEvent);
+      break;
+
     case 'pull_request_review_comment':
-      // Handle review comments
+      await handlePullRequestReviewComment(payload as Parameters<typeof handlePullRequestReviewComment>[0]);
       break;
 
     case 'installation':

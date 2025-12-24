@@ -1,9 +1,7 @@
 package providers
 
 import (
-	"bytes"
 	"context"
-	"encoding/json"
 	"fmt"
 	"net/http"
 	"time"
@@ -48,184 +46,63 @@ func NewMistralProvider(cfg *config.Config) (*MistralProvider, error) {
 func (p *MistralProvider) Name() string { return "mistral" }
 
 func (p *MistralProvider) Review(ctx context.Context, req *ReviewRequest) (*ReviewResponse, error) {
+	if empty, err := ValidateReviewInput(req); err != nil {
+		return nil, err
+	} else if empty {
+		return &ReviewResponse{}, nil
+	}
+
 	start := time.Now()
+	mistralReq := BuildChatRequest(p.model, ReviewSystemPrompt, buildReviewPrompt(req), p.config.Temperature, p.config.MaxTokens, true)
 
-	messages := []map[string]string{
-		{"role": "system", "content": "You are an expert code reviewer specialized in finding bugs and security issues. Return valid JSON only."},
-		{"role": "user", "content": buildReviewPrompt(req)},
-	}
-
-	mistralReq := map[string]interface{}{
-		"model":           p.model,
-		"messages":        messages,
-		"temperature":     p.config.Temperature,
-		"max_tokens":      p.config.MaxTokens,
-		"response_format": map[string]string{"type": "json_object"},
-	}
-
-	body, err := json.Marshal(mistralReq)
-	if err != nil {
-		return nil, fmt.Errorf(ErrMarshalRequest, err)
-	}
-	httpReq, err := http.NewRequestWithContext(ctx, "POST", p.baseURL+ChatCompletionsPath, bytes.NewReader(body))
-	if err != nil {
-		return nil, fmt.Errorf(ErrCreateRequest, err)
-	}
-	httpReq.Header.Set("Content-Type", ContentTypeJSON)
-	httpReq.Header.Set("Authorization", "Bearer "+p.apiKey)
-
-	resp, err := p.client.Do(httpReq)
-	if err != nil {
+	var result ChatCompletionResponse
+	if err := DoJSONPost(ctx, p.client, p.baseURL+ChatCompletionsPath, mistralReq, p.apiKey, &result); err != nil {
 		return nil, fmt.Errorf("mistral request failed: %w", err)
-	}
-	defer func() { _ = resp.Body.Close() }()
-
-	var result struct {
-		Choices []struct {
-			Message struct{ Content string } `json:"message"`
-		} `json:"choices"`
-		Usage struct {
-			TotalTokens int `json:"total_tokens"`
-		} `json:"usage"`
-		Error *struct {
-			Message string `json:"message"`
-		} `json:"error"`
-	}
-	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
-		return nil, fmt.Errorf("failed to decode response: %w", err)
 	}
 
 	if result.Error != nil {
 		return nil, fmt.Errorf("mistral error: %s", result.Error.Message)
 	}
 
-	var reviewResp ReviewResponse
-	if len(result.Choices) > 0 {
-		if err := json.Unmarshal([]byte(result.Choices[0].Message.Content), &reviewResp); err != nil {
-			reviewResp = ReviewResponse{Summary: result.Choices[0].Message.Content}
-		}
-	}
-	reviewResp.TokensUsed = result.Usage.TotalTokens
-	reviewResp.ProcessingTime = time.Since(start).Milliseconds()
-
-	return &reviewResp, nil
+	return ParseReviewContent(result.GetContent(), result.Usage.TotalTokens, time.Since(start).Milliseconds()), nil
 }
 
 func (p *MistralProvider) GenerateCommitMessage(ctx context.Context, diff string) (string, error) {
-	prompt := fmt.Sprintf(`Generate a conventional commit message for this diff.
-Format: <type>(<scope>): <description>
-Types: feat, fix, docs, style, refactor, perf, test, chore
-
-Diff:
-%s
-
-Return ONLY the commit message.`, diff)
-
-	messages := []map[string]string{
-		{"role": "user", "content": prompt},
-	}
-
 	mistralReq := map[string]interface{}{
 		"model":    p.model,
-		"messages": messages,
+		"messages": []map[string]string{{"role": "user", "content": fmt.Sprintf(CommitMessagePrompt, diff)}},
 	}
 
-	body, err := json.Marshal(mistralReq)
-	if err != nil {
-		return "", fmt.Errorf(ErrMarshalRequest, err)
-	}
-	httpReq, err := http.NewRequestWithContext(ctx, "POST", p.baseURL+ChatCompletionsPath, bytes.NewReader(body))
-	if err != nil {
-		return "", fmt.Errorf(ErrCreateRequest, err)
-	}
-	httpReq.Header.Set("Content-Type", ContentTypeJSON)
-	httpReq.Header.Set("Authorization", "Bearer "+p.apiKey)
-
-	resp, err := p.client.Do(httpReq)
-	if err != nil {
+	var result ChatCompletionResponse
+	if err := DoJSONPost(ctx, p.client, p.baseURL+ChatCompletionsPath, mistralReq, p.apiKey, &result); err != nil {
 		return "", err
 	}
-	defer func() { _ = resp.Body.Close() }()
 
-	var result struct {
-		Choices []struct {
-			Message struct{ Content string } `json:"message"`
-		} `json:"choices"`
-	}
-	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
-		return "", fmt.Errorf(ErrDecodeResponse, err)
-	}
-
-	if len(result.Choices) > 0 {
-		return result.Choices[0].Message.Content, nil
+	if content := result.GetContent(); content != "" {
+		return content, nil
 	}
 	return "", fmt.Errorf("no response from Mistral")
 }
 
 func (p *MistralProvider) GenerateDocumentation(ctx context.Context, diff, docContext string) (string, error) {
-	prompt := fmt.Sprintf(`Generate documentation for these changes.
-Context: %s
-Changes:
-%s
-
-Format as Markdown.`, docContext, diff)
-
-	messages := []map[string]string{
-		{"role": "user", "content": prompt},
-	}
-
 	mistralReq := map[string]interface{}{
 		"model":    p.model,
-		"messages": messages,
+		"messages": []map[string]string{{"role": "user", "content": fmt.Sprintf(DocumentationPrompt, docContext, diff)}},
 	}
 
-	body, err := json.Marshal(mistralReq)
-	if err != nil {
-		return "", fmt.Errorf(ErrMarshalRequest, err)
-	}
-	httpReq, err := http.NewRequestWithContext(ctx, "POST", p.baseURL+ChatCompletionsPath, bytes.NewReader(body))
-	if err != nil {
-		return "", fmt.Errorf(ErrCreateRequest, err)
-	}
-	httpReq.Header.Set("Content-Type", ContentTypeJSON)
-	httpReq.Header.Set("Authorization", "Bearer "+p.apiKey)
-
-	resp, err := p.client.Do(httpReq)
-	if err != nil {
+	var result ChatCompletionResponse
+	if err := DoJSONPost(ctx, p.client, p.baseURL+ChatCompletionsPath, mistralReq, p.apiKey, &result); err != nil {
 		return "", err
 	}
-	defer func() { _ = resp.Body.Close() }()
 
-	var result struct {
-		Choices []struct {
-			Message struct{ Content string } `json:"message"`
-		} `json:"choices"`
-	}
-	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
-		return "", fmt.Errorf(ErrDecodeResponse, err)
-	}
-
-	if len(result.Choices) > 0 {
-		return result.Choices[0].Message.Content, nil
+	if content := result.GetContent(); content != "" {
+		return content, nil
 	}
 	return "", fmt.Errorf("no response from Mistral")
 }
 
 func (p *MistralProvider) HealthCheck(ctx context.Context) error {
-	req, err := http.NewRequestWithContext(ctx, "GET", p.baseURL+"/models", nil)
-	if err != nil {
-		return fmt.Errorf(ErrCreateRequest, err)
-	}
-	req.Header.Set("Authorization", "Bearer "+p.apiKey)
-	resp, err := p.client.Do(req)
-	if err != nil {
-		return err
-	}
-	defer func() { _ = resp.Body.Close() }()
-	if resp.StatusCode != http.StatusOK {
-		return fmt.Errorf("mistral health check failed: %d", resp.StatusCode)
-	}
-	return nil
+	return DoHealthCheck(ctx, p.client, p.baseURL+"/models", p.apiKey, "mistral")
 }
 
 func (p *MistralProvider) Close() error { return nil }

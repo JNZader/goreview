@@ -207,138 +207,159 @@ func parseIntSafe(s string, result *int) {
 	*result = n
 }
 
-// Go-specific parsing
-//
-//nolint:gocyclo,funlen // Complex parsing logic requires multiple branches and statements
-func (p *Parser) parseGo(lines []string, ctx *Context) {
-	packagePattern := regexp.MustCompile(`^package\s+(\w+)`)
-	importPattern := regexp.MustCompile(`^\s*(?:import\s+)?(?:(\w+)\s+)?"([^"]+)"`)
-	importBlockStart := regexp.MustCompile(`^import\s*\(`)
-	funcPattern := regexp.MustCompile(`^func\s+(?:\((\w+)\s+[^)]+\)\s+)?(\w+)\s*\(([^)]*)\)\s*(?:\(([^)]*)\)|(\w+))?\s*\{?`)
-	typePattern := regexp.MustCompile(`^type\s+(\w+)\s+(struct|interface)\s*\{?`)
-	varPattern := regexp.MustCompile(`^(?:var|const)\s+(\w+)\s+(\w+)?(?:\s*=\s*(.+))?`)
+// goParseState holds parsing state for Go files
+type goParseState struct {
+	ctx           *Context
+	inImportBlock bool
+	inTypeBlock   bool
+	currentType   string
+	typeStartLine int
+	braceCount    int
+}
 
-	inImportBlock := false
-	inTypeBlock := false
-	currentType := ""
-	typeStartLine := 0
-	braceCount := 0
+// Go parsing patterns
+var (
+	goPackagePattern    = regexp.MustCompile(`^package\s+(\w+)`)
+	goImportPattern     = regexp.MustCompile(`^\s*(?:import\s+)?(?:(\w+)\s+)?"([^"]+)"`)
+	goImportBlockStart  = regexp.MustCompile(`^import\s*\(`)
+	goFuncPattern       = regexp.MustCompile(`^func\s+(?:\((\w+)\s+[^)]+\)\s+)?(\w+)\s*\(([^)]*)\)\s*(?:\(([^)]*)\)|(\w+))?\s*\{?`)
+	goTypePattern       = regexp.MustCompile(`^type\s+(\w+)\s+(struct|interface)\s*\{?`)
+	goVarPattern        = regexp.MustCompile(`^(?:var|const)\s+(\w+)\s+(\w+)?(?:\s*=\s*(.+))?`)
+)
+
+// Go-specific parsing
+func (p *Parser) parseGo(lines []string, ctx *Context) {
+	state := &goParseState{ctx: ctx}
 
 	for i, line := range lines {
 		lineNum := i + 1
+		state.parseLine(line, lineNum, lines, i)
+	}
+}
 
-		// Package
-		if matches := packagePattern.FindStringSubmatch(line); len(matches) > 1 {
-			ctx.Package = matches[1]
-			continue
+func (s *goParseState) parseLine(line string, lineNum int, lines []string, idx int) {
+	// Package
+	if matches := goPackagePattern.FindStringSubmatch(line); len(matches) > 1 {
+		s.ctx.Package = matches[1]
+		return
+	}
+
+	// Handle import blocks
+	if s.handleImports(line) {
+		return
+	}
+
+	// Handle type blocks
+	if s.handleTypes(line, lineNum) {
+		return
+	}
+
+	// Handle functions
+	if s.handleFunction(line, lineNum, lines, idx) {
+		return
+	}
+
+	// Handle variables/constants
+	s.handleVariable(line, lineNum)
+}
+
+func (s *goParseState) handleImports(line string) bool {
+	if goImportBlockStart.MatchString(line) {
+		s.inImportBlock = true
+		return true
+	}
+
+	if s.inImportBlock {
+		if strings.TrimSpace(line) == ")" {
+			s.inImportBlock = false
+			return true
 		}
-
-		// Import block
-		if importBlockStart.MatchString(line) {
-			inImportBlock = true
-			continue
+		if matches := goImportPattern.FindStringSubmatch(line); len(matches) > 2 {
+			s.ctx.Imports = append(s.ctx.Imports, Import{Alias: matches[1], Path: matches[2]})
 		}
-		if inImportBlock {
-			if strings.TrimSpace(line) == ")" {
-				inImportBlock = false
-				continue
-			}
-			if matches := importPattern.FindStringSubmatch(line); len(matches) > 2 {
-				ctx.Imports = append(ctx.Imports, Import{
-					Alias: matches[1],
-					Path:  matches[2],
-				})
-			}
-			continue
+		return true
+	}
+
+	// Single import
+	if strings.HasPrefix(strings.TrimSpace(line), "import ") && !strings.Contains(line, "(") {
+		if matches := goImportPattern.FindStringSubmatch(line); len(matches) > 2 {
+			s.ctx.Imports = append(s.ctx.Imports, Import{Alias: matches[1], Path: matches[2]})
 		}
+		return true
+	}
 
-		// Single import
-		if strings.HasPrefix(strings.TrimSpace(line), "import ") && !strings.Contains(line, "(") {
-			if matches := importPattern.FindStringSubmatch(line); len(matches) > 2 {
-				ctx.Imports = append(ctx.Imports, Import{
-					Alias: matches[1],
-					Path:  matches[2],
-				})
-			}
-			continue
+	return false
+}
+
+func (s *goParseState) handleTypes(line string, lineNum int) bool {
+	if matches := goTypePattern.FindStringSubmatch(line); len(matches) > 2 {
+		s.inTypeBlock = true
+		s.currentType = matches[1]
+		s.typeStartLine = lineNum
+		s.braceCount = strings.Count(line, "{") - strings.Count(line, "}")
+		return true
+	}
+
+	if s.inTypeBlock {
+		s.braceCount += strings.Count(line, "{") - strings.Count(line, "}")
+		if s.braceCount <= 0 {
+			s.addTypeDefinition(lineNum)
+			s.inTypeBlock = false
+			s.currentType = ""
 		}
+		return true
+	}
 
-		// Type definitions (struct/interface)
-		if matches := typePattern.FindStringSubmatch(line); len(matches) > 2 {
-			inTypeBlock = true
-			currentType = matches[1]
-			typeStartLine = lineNum
-			braceCount = strings.Count(line, "{") - strings.Count(line, "}")
-			continue
-		}
+	return false
+}
 
-		if inTypeBlock {
-			braceCount += strings.Count(line, "{") - strings.Count(line, "}")
-			if braceCount <= 0 {
-				if strings.Contains(currentType, "interface") {
-					ctx.Interfaces = append(ctx.Interfaces, Interface{
-						Name:       currentType,
-						StartLine:  typeStartLine,
-						EndLine:    lineNum,
-						IsExported: isExported(currentType),
-					})
-				} else {
-					ctx.Classes = append(ctx.Classes, Class{
-						Name:       currentType,
-						StartLine:  typeStartLine,
-						EndLine:    lineNum,
-						IsExported: isExported(currentType),
-					})
-				}
-				inTypeBlock = false
-				currentType = ""
-			}
-			continue
-		}
+func (s *goParseState) addTypeDefinition(lineNum int) {
+	if strings.Contains(s.currentType, "interface") {
+		s.ctx.Interfaces = append(s.ctx.Interfaces, Interface{
+			Name: s.currentType, StartLine: s.typeStartLine, EndLine: lineNum, IsExported: isExported(s.currentType),
+		})
+	} else {
+		s.ctx.Classes = append(s.ctx.Classes, Class{
+			Name: s.currentType, StartLine: s.typeStartLine, EndLine: lineNum, IsExported: isExported(s.currentType),
+		})
+	}
+}
 
-		// Functions
-		if matches := funcPattern.FindStringSubmatch(line); len(matches) > 2 {
-			fn := Function{
-				Name:       matches[2],
-				Receiver:   matches[1],
-				StartLine:  lineNum,
-				IsExported: isExported(matches[2]),
-			}
+func (s *goParseState) handleFunction(line string, lineNum int, lines []string, idx int) bool {
+	matches := goFuncPattern.FindStringSubmatch(line)
+	if len(matches) <= 2 {
+		return false
+	}
 
-			// Parse parameters
-			if matches[3] != "" {
-				fn.Parameters = parseGoParams(matches[3])
-			}
+	fn := Function{
+		Name: matches[2], Receiver: matches[1], StartLine: lineNum, IsExported: isExported(matches[2]),
+	}
 
-			// Parse returns
-			if matches[4] != "" {
-				fn.Returns = parseGoReturns(matches[4])
-			} else if matches[5] != "" {
-				fn.Returns = []string{matches[5]}
-			}
+	if matches[3] != "" {
+		fn.Parameters = parseGoParams(matches[3])
+	}
+	if matches[4] != "" {
+		fn.Returns = parseGoReturns(matches[4])
+	} else if matches[5] != "" {
+		fn.Returns = []string{matches[5]}
+	}
 
-			// Find function end (simplified - count braces)
-			endLine := findFunctionEnd(lines, i)
-			fn.EndLine = endLine + 1
+	fn.EndLine = findFunctionEnd(lines, idx) + 1
+	s.ctx.Functions = append(s.ctx.Functions, fn)
+	return true
+}
 
-			ctx.Functions = append(ctx.Functions, fn)
-			continue
-		}
+func (s *goParseState) handleVariable(line string, lineNum int) {
+	matches := goVarPattern.FindStringSubmatch(line)
+	if len(matches) <= 1 {
+		return
+	}
 
-		// Variables/Constants
-		if matches := varPattern.FindStringSubmatch(line); len(matches) > 1 {
-			v := Variable{
-				Name:       matches[1],
-				Type:       matches[2],
-				Line:       lineNum,
-				IsExported: isExported(matches[1]),
-			}
-			if strings.HasPrefix(line, "const") {
-				ctx.Constants = append(ctx.Constants, v)
-			} else {
-				ctx.Variables = append(ctx.Variables, v)
-			}
-		}
+	v := Variable{Name: matches[1], Type: matches[2], Line: lineNum, IsExported: isExported(matches[1])}
+	if strings.HasPrefix(line, "const") {
+		s.ctx.Constants = append(s.ctx.Constants, v)
+	} else {
+		s.ctx.Variables = append(s.ctx.Variables, v)
 	}
 }
 

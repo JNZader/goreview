@@ -1,3 +1,4 @@
+import crypto from 'node:crypto';
 import { logger } from '../utils/logger.js';
 
 export interface Job {
@@ -222,10 +223,10 @@ class JobQueue {
   }
 
   /**
-   * Generate unique job ID.
+   * Generate unique job ID using cryptographically secure random.
    */
   private generateId(): string {
-    return `job_${Date.now()}_${Math.random().toString(36).slice(2, 9)}`;
+    return `job_${Date.now()}_${crypto.randomBytes(6).toString('hex')}`;
   }
 
   /**

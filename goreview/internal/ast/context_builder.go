@@ -5,6 +5,11 @@ import (
 	"strings"
 )
 
+// Format strings for consistent output (SonarQube S1192)
+const (
+	lineRangeFormat = " [lines %d-%d]\n"
+)
+
 // ContextBuilder builds enhanced context for LLM prompts
 type ContextBuilder struct {
 	maxContextLength int
@@ -21,85 +26,94 @@ func NewContextBuilder(maxLength int) *ContextBuilder {
 }
 
 // BuildPromptContext creates a structured context string for LLM prompts
-//
-//nolint:gocyclo // Building context requires checking multiple optional fields
 func (cb *ContextBuilder) BuildPromptContext(ctx *Context, dc *DiffContext) string {
 	var sb strings.Builder
 
-	// File location context
+	cb.writeFileHeader(&sb, ctx)
+	cb.writeImports(&sb, ctx.Imports)
+
+	if dc != nil {
+		cb.writeDiffContext(&sb, dc)
+	} else {
+		cb.writeFullContext(&sb, ctx)
+	}
+
+	return cb.truncateIfNeeded(sb.String())
+}
+
+func (cb *ContextBuilder) writeFileHeader(sb *strings.Builder, ctx *Context) {
 	sb.WriteString(fmt.Sprintf("## File: %s\n", ctx.FilePath))
 	sb.WriteString(fmt.Sprintf("Language: %s\n", ctx.Language))
-
 	if ctx.Package != "" {
 		sb.WriteString(fmt.Sprintf("Package: %s\n", ctx.Package))
 	}
-
 	sb.WriteString("\n")
+}
 
-	// Import context (abbreviated)
-	if len(ctx.Imports) > 0 {
-		sb.WriteString("### Dependencies:\n")
-		for i, imp := range ctx.Imports {
-			if i >= 10 {
-				sb.WriteString(fmt.Sprintf("... and %d more imports\n", len(ctx.Imports)-10))
-				break
-			}
-			if imp.Alias != "" {
-				sb.WriteString(fmt.Sprintf("- %s as %s\n", imp.Path, imp.Alias))
-			} else {
-				sb.WriteString(fmt.Sprintf("- %s\n", imp.Path))
-			}
+func (cb *ContextBuilder) writeImports(sb *strings.Builder, imports []Import) {
+	if len(imports) == 0 {
+		return
+	}
+
+	sb.WriteString("### Dependencies:\n")
+	for i, imp := range imports {
+		if i >= 10 {
+			sb.WriteString(fmt.Sprintf("... and %d more imports\n", len(imports)-10))
+			break
+		}
+		if imp.Alias != "" {
+			sb.WriteString(fmt.Sprintf("- %s as %s\n", imp.Path, imp.Alias))
+		} else {
+			sb.WriteString(fmt.Sprintf("- %s\n", imp.Path))
+		}
+	}
+	sb.WriteString("\n")
+}
+
+func (cb *ContextBuilder) writeDiffContext(sb *strings.Builder, dc *DiffContext) {
+	sb.WriteString("### Changed Functions:\n")
+	for _, fn := range dc.ChangedFunctions {
+		sb.WriteString(cb.formatFunction(fn))
+	}
+
+	if len(dc.ChangedClasses) > 0 {
+		sb.WriteString("\n### Changed Classes/Structs:\n")
+		for _, cls := range dc.ChangedClasses {
+			sb.WriteString(cb.formatClass(cls))
+		}
+	}
+}
+
+func (cb *ContextBuilder) writeFullContext(sb *strings.Builder, ctx *Context) {
+	if len(ctx.Functions) > 0 {
+		sb.WriteString("### Functions:\n")
+		for _, fn := range ctx.Functions {
+			sb.WriteString(cb.formatFunction(fn))
 		}
 		sb.WriteString("\n")
 	}
 
-	// If we have diff context, focus on changed elements
-	if dc != nil {
-		sb.WriteString("### Changed Functions:\n")
-		for _, fn := range dc.ChangedFunctions {
-			sb.WriteString(cb.formatFunction(fn))
+	if len(ctx.Classes) > 0 {
+		sb.WriteString("### Classes/Structs:\n")
+		for _, cls := range ctx.Classes {
+			sb.WriteString(cb.formatClass(cls))
 		}
-
-		if len(dc.ChangedClasses) > 0 {
-			sb.WriteString("\n### Changed Classes/Structs:\n")
-			for _, cls := range dc.ChangedClasses {
-				sb.WriteString(cb.formatClass(cls))
-			}
-		}
-	} else {
-		// Full file context
-		if len(ctx.Functions) > 0 {
-			sb.WriteString("### Functions:\n")
-			for _, fn := range ctx.Functions {
-				sb.WriteString(cb.formatFunction(fn))
-			}
-			sb.WriteString("\n")
-		}
-
-		if len(ctx.Classes) > 0 {
-			sb.WriteString("### Classes/Structs:\n")
-			for _, cls := range ctx.Classes {
-				sb.WriteString(cb.formatClass(cls))
-			}
-			sb.WriteString("\n")
-		}
-
-		if len(ctx.Interfaces) > 0 {
-			sb.WriteString("### Interfaces:\n")
-			for _, iface := range ctx.Interfaces {
-				sb.WriteString(cb.formatInterface(iface))
-			}
-			sb.WriteString("\n")
-		}
+		sb.WriteString("\n")
 	}
 
-	result := sb.String()
+	if len(ctx.Interfaces) > 0 {
+		sb.WriteString("### Interfaces:\n")
+		for _, iface := range ctx.Interfaces {
+			sb.WriteString(cb.formatInterface(iface))
+		}
+		sb.WriteString("\n")
+	}
+}
 
-	// Truncate if too long
+func (cb *ContextBuilder) truncateIfNeeded(result string) string {
 	if len(result) > cb.maxContextLength {
-		result = result[:cb.maxContextLength] + "\n... (truncated)"
+		return result[:cb.maxContextLength] + "\n... (truncated)"
 	}
-
 	return result
 }
 
@@ -136,7 +150,7 @@ func (cb *ContextBuilder) formatFunction(fn Function) string {
 		sb.WriteString(strings.Join(fn.Returns, ", "))
 	}
 
-	sb.WriteString(fmt.Sprintf(" [lines %d-%d]\n", fn.StartLine, fn.EndLine))
+	sb.WriteString(fmt.Sprintf(lineRangeFormat, fn.StartLine, fn.EndLine))
 
 	return sb.String()
 }
@@ -159,7 +173,7 @@ func (cb *ContextBuilder) formatClass(cls Class) string {
 		sb.WriteString(fmt.Sprintf(" implements %s", strings.Join(cls.Implements, ", ")))
 	}
 
-	sb.WriteString(fmt.Sprintf(" [lines %d-%d]\n", cls.StartLine, cls.EndLine))
+	sb.WriteString(fmt.Sprintf(lineRangeFormat, cls.StartLine, cls.EndLine))
 
 	// Fields summary
 	if len(cls.Fields) > 0 {
@@ -183,7 +197,7 @@ func (cb *ContextBuilder) formatInterface(iface Interface) string {
 	}
 
 	sb.WriteString(fmt.Sprintf("- (%s) %s", visibility, iface.Name))
-	sb.WriteString(fmt.Sprintf(" [lines %d-%d]\n", iface.StartLine, iface.EndLine))
+	sb.WriteString(fmt.Sprintf(lineRangeFormat, iface.StartLine, iface.EndLine))
 
 	if len(iface.Methods) > 0 {
 		sb.WriteString(fmt.Sprintf("  Methods: %s\n", strings.Join(iface.Methods, ", ")))

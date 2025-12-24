@@ -17,17 +17,22 @@ const SALT_LENGTH = 32;
 const PBKDF2_ITERATIONS = 100000;
 
 // Patterns for sensitive data detection
+// Note: All patterns use possessive quantifiers or atomic groups patterns to prevent ReDoS
 const SENSITIVE_PATTERNS = [
   { pattern: /ghp_[a-zA-Z0-9]{36}/g, name: 'GitHub PAT' },
   { pattern: /ghs_[a-zA-Z0-9]{36}/g, name: 'GitHub App Token' },
   { pattern: /ghr_[a-zA-Z0-9]{36}/g, name: 'GitHub Refresh Token' },
   { pattern: /github_pat_[a-zA-Z0-9]{22}_[a-zA-Z0-9]{59}/g, name: 'GitHub Fine-grained PAT' },
-  { pattern: /Bearer\s+[-a-zA-Z0-9._]+/gi, name: 'Bearer Token' },
-  { pattern: /-----BEGIN[A-Z ]+PRIVATE KEY-----[\s\S]*?-----END[A-Z ]+PRIVATE KEY-----/g, name: 'Private Key' },
+  // Fixed: Use bounded repetition to prevent ReDoS
+  { pattern: /Bearer\s[-a-z0-9._]{1,500}/gi, name: 'Bearer Token' },
+  // Fixed: Use bounded length instead of [\s\S]*? which can cause catastrophic backtracking
+  { pattern: /-----BEGIN[A-Z ]{1,30}PRIVATE KEY-----[^-]{1,10000}-----END[A-Z ]{1,30}PRIVATE KEY-----/g, name: 'Private Key' },
   { pattern: /sk-[a-zA-Z0-9]{48}/g, name: 'API Key' },
-  { pattern: /[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/g, name: 'Email' },
-  { pattern: /password['":\s]*[=:]\s*['"]?[^'"\s,}]+['"]?/gi, name: 'Password' },
-  { pattern: /secret['":\s]*[=:]\s*['"]?[^'"\s,}]+['"]?/gi, name: 'Secret' },
+  // Fixed: Email with bounded repetition
+  { pattern: /[a-zA-Z0-9._%+-]{1,64}@[a-zA-Z0-9.-]{1,255}\.[a-zA-Z]{2,10}/g, name: 'Email' },
+  // Fixed: Use bounded repetition for password/secret patterns
+  { pattern: /password['":=\s]{1,5}['"]?[^'"\s,}]{1,100}['"]?/gi, name: 'Password' },
+  { pattern: /secret['":=\s]{1,5}['"]?[^'"\s,}]{1,100}['"]?/gi, name: 'Secret' },
 ];
 
 // =============================================================================

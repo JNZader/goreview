@@ -101,8 +101,6 @@ func (t *reviewTask) Result() *FileResult {
 func (e *Engine) Run(ctx context.Context) (*Result, error) {
 	start := time.Now()
 
-	// 1. Get diff based on mode
-	e.log.Debug("Getting diff in mode: %s", e.cfg.Review.Mode)
 	diff, err := e.getDiff(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get diff: %w", err)
@@ -113,77 +111,89 @@ func (e *Engine) Run(ctx context.Context) (*Result, error) {
 		return &Result{Summary: "No changes found to review."}, nil
 	}
 
-	// 2. Filter files to review
 	filesToReview := e.filterFiles(diff.Files)
 	if len(filesToReview) == 0 {
 		e.log.Info("No reviewable files in changes")
 		return &Result{Summary: "No reviewable files in changes."}, nil
 	}
 
-	e.log.Info("Reviewing %d files with %d workers", len(filesToReview), e.calculateOptimalConcurrency())
+	pool, tasks := e.startReviewPool(filesToReview)
 
-	// 3. Initialize worker pool
+	finalResult := &Result{
+		Stats: diff.Stats,
+		Files: make([]FileResult, 0, len(filesToReview)),
+	}
+
+	if err := e.collectResults(ctx, pool, tasks, finalResult); err != nil {
+		return nil, err
+	}
+
+	pool.StopWait()
+	finalResult.Duration = time.Since(start)
+
+	e.log.Info("Review completed: %d files, %d issues, %d errors in %v",
+		len(finalResult.Files), finalResult.TotalIssues, pool.Stats().Errors, finalResult.Duration)
+
+	return finalResult, nil
+}
+
+// startReviewPool initializes the worker pool and submits all review tasks
+func (e *Engine) startReviewPool(files []git.FileDiff) (*worker.Pool, []*reviewTask) {
+	e.log.Info("Reviewing %d files with %d workers", len(files), e.calculateOptimalConcurrency())
+
 	poolCfg := worker.Config{
 		Workers:   e.calculateOptimalConcurrency(),
-		QueueSize: len(filesToReview),
+		QueueSize: len(files),
 	}
 	pool := worker.NewPool(poolCfg)
 	pool.Start()
 
-	// 4. Create and submit tasks
-	tasks := make([]*reviewTask, 0, len(filesToReview))
-	for _, file := range filesToReview {
+	tasks := make([]*reviewTask, 0, len(files))
+	for _, file := range files {
 		task := newReviewTask(file, e)
 		tasks = append(tasks, task)
 		if err := pool.Submit(task); err != nil {
 			e.log.Error("Failed to submit task for %s: %v", file.Path, err)
 		}
 	}
+	return pool, tasks
+}
 
-	// 5. Collect results
-	finalResult := &Result{
-		Stats: diff.Stats,
-		Files: make([]FileResult, 0, len(filesToReview)),
-	}
-
-	// Wait for all results
-	resultsCollected := 0
-	for resultsCollected < len(tasks) {
+// collectResults gathers results from all review tasks
+func (e *Engine) collectResults(ctx context.Context, pool *worker.Pool, tasks []*reviewTask, result *Result) error {
+	for collected := 0; collected < len(tasks); {
 		select {
-		case result := <-pool.Results():
-			resultsCollected++
-			// Find the corresponding task and get its result
-			for _, task := range tasks {
-				if task.ID() == result.TaskID {
-					if fileResult := task.Result(); fileResult != nil {
-						finalResult.Files = append(finalResult.Files, *fileResult)
-						if fileResult.Response != nil {
-							finalResult.TotalIssues += len(fileResult.Response.Issues)
-						}
-						if fileResult.Cached {
-							e.log.Debug("Cache hit for %s", fileResult.File)
-						}
-					}
-					break
-				}
-			}
+		case poolResult := <-pool.Results():
+			collected++
+			e.processTaskResult(tasks, poolResult.TaskID, result)
 		case <-ctx.Done():
 			e.log.Warn("Review cancelled: %v", ctx.Err())
 			pool.Stop()
-			return nil, ctx.Err()
+			return ctx.Err()
 		}
 	}
+	return nil
+}
 
-	// 6. Stop pool gracefully
-	pool.StopWait()
-
-	finalResult.Duration = time.Since(start)
-
-	stats := pool.Stats()
-	e.log.Info("Review completed: %d files, %d issues, %d errors in %v",
-		len(finalResult.Files), finalResult.TotalIssues, stats.Errors, finalResult.Duration)
-
-	return finalResult, nil
+// processTaskResult finds and processes the result for a completed task
+func (e *Engine) processTaskResult(tasks []*reviewTask, taskID string, result *Result) {
+	for _, task := range tasks {
+		if task.ID() != taskID {
+			continue
+		}
+		fileResult := task.Result()
+		if fileResult == nil {
+			break
+		}
+		result.Files = append(result.Files, *fileResult)
+		if fileResult.Response != nil {
+			result.TotalIssues += len(fileResult.Response.Issues)
+		}
+		if fileResult.Cached {
+			e.log.Debug("Cache hit for %s", fileResult.File)
+		}
+		break
+	}
 }
 
 func (e *Engine) getDiff(ctx context.Context) (*git.Diff, error) {

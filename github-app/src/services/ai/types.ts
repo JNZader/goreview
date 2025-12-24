@@ -3,6 +3,21 @@
  * Ported from goreview/internal/providers/types.go
  */
 
+// Shared prompt templates (avoid duplication across providers)
+export const COMMIT_MESSAGE_PROMPT = `Generate a conventional commit message for this diff.
+Format: <type>(<scope>): <description>
+Types: feat, fix, docs, style, refactor, perf, test, chore
+
+Diff:
+%DIFF%
+
+Return ONLY the commit message, nothing else.`;
+
+/** Build commit message prompt with diff */
+export function buildCommitPrompt(diff: string): string {
+  return COMMIT_MESSAGE_PROMPT.replace('%DIFF%', diff);
+}
+
 export interface ReviewRequest {
   diff: string;
   language: string;

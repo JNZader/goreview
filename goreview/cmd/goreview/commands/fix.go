@@ -206,66 +206,76 @@ func executeFixReview(ctx context.Context, cfg *config.Config) (*review.Result, 
 }
 
 func collectFixableIssues(cmd *cobra.Command, result *review.Result) []FixableIssue {
-	typeFilter, _ := cmd.Flags().GetStringSlice("types")
-	severityFilter, _ := cmd.Flags().GetStringSlice("severity")
-
-	typeSet := make(map[string]bool)
-	for _, t := range typeFilter {
-		typeSet[strings.ToLower(t)] = true
-	}
-
-	severitySet := make(map[string]bool)
-	for _, s := range severityFilter {
-		severitySet[strings.ToLower(s)] = true
-	}
+	typeSet := buildFilterSet(cmd, "types")
+	severitySet := buildFilterSet(cmd, "severity")
 
 	var fixable []FixableIssue
-
 	for _, fileResult := range result.Files {
 		if fileResult.Response == nil {
 			continue
 		}
+		issues := collectFromFileResult(fileResult, typeSet, severitySet)
+		fixable = append(fixable, issues...)
+	}
+	return fixable
+}
 
-		for _, issue := range fileResult.Response.Issues {
-			// Skip if no fix available
-			if issue.FixedCode == "" && issue.Suggestion == "" {
-				continue
-			}
+func buildFilterSet(cmd *cobra.Command, flagName string) map[string]bool {
+	values, _ := cmd.Flags().GetStringSlice(flagName)
+	set := make(map[string]bool)
+	for _, v := range values {
+		set[strings.ToLower(v)] = true
+	}
+	return set
+}
 
-			// Apply type filter
-			if len(typeSet) > 0 && !typeSet[strings.ToLower(string(issue.Type))] {
-				continue
-			}
+func collectFromFileResult(fileResult review.FileResult, typeSet, severitySet map[string]bool) []FixableIssue {
+	var fixable []FixableIssue
 
-			// Apply severity filter
-			if len(severitySet) > 0 && !severitySet[strings.ToLower(string(issue.Severity))] {
-				continue
-			}
-
-			startLine := 0
-			endLine := 0
-			if issue.Location != nil {
-				startLine = issue.Location.StartLine
-				endLine = issue.Location.EndLine
-			}
-
-			fixedCode := issue.FixedCode
-			if fixedCode == "" {
-				// Use suggestion as a hint (may need manual review)
-				fixedCode = "// TODO: " + issue.Suggestion
-			}
-
-			fixable = append(fixable, FixableIssue{
-				FilePath:  fileResult.File,
-				Issue:     issue,
-				FixedCode: fixedCode,
-				StartLine: startLine,
-				EndLine:   endLine,
-			})
+	for _, issue := range fileResult.Response.Issues {
+		if !isFixableIssue(issue, typeSet, severitySet) {
+			continue
 		}
+		fixable = append(fixable, createFixableIssue(fileResult.File, issue))
+	}
+	return fixable
+}
+
+func isFixableIssue(issue providers.Issue, typeSet, severitySet map[string]bool) bool {
+	// Skip if no fix available
+	if issue.FixedCode == "" && issue.Suggestion == "" {
+		return false
+	}
+	// Apply type filter
+	if len(typeSet) > 0 && !typeSet[strings.ToLower(string(issue.Type))] {
+		return false
+	}
+	// Apply severity filter
+	if len(severitySet) > 0 && !severitySet[strings.ToLower(string(issue.Severity))] {
+		return false
+	}
+	return true
+}
+
+func createFixableIssue(filePath string, issue providers.Issue) FixableIssue {
+	startLine, endLine := 0, 0
+	if issue.Location != nil {
+		startLine = issue.Location.StartLine
+		endLine = issue.Location.EndLine
 	}
 
-	return fixable
+	fixedCode := issue.FixedCode
+	if fixedCode == "" {
+		fixedCode = "// TODO: " + issue.Suggestion
+	}
+
+	return FixableIssue{
+		FilePath:  filePath,
+		Issue:     issue,
+		FixedCode: fixedCode,
+		StartLine: startLine,
+		EndLine:   endLine,
+	}
 }
 
 func showDryRun(issues []FixableIssue) {
@@ -293,72 +303,98 @@ func showDryRun(issues []FixableIssue) {
 func applyFixes(issues []FixableIssue, autoFix bool) {
 	applied := 0
 	skipped := 0
-
 	reader := bufio.NewReader(os.Stdin)
 
 	for _, fix := range issues {
-		fmt.Printf("\n[%s] %s\n", fix.Issue.Severity, fix.Issue.Message)
-		fmt.Printf("File: %s", fix.FilePath)
-		if fix.StartLine > 0 {
-			fmt.Printf(" (lines %d-%d)", fix.StartLine, fix.EndLine)
-		}
-		fmt.Println()
+		displayFixDetails(fix)
 
-		if fix.Issue.Suggestion != "" {
-			fmt.Printf("Suggestion: %s\n", fix.Issue.Suggestion)
+		shouldApply, quit := determineApplyAction(autoFix, reader)
+		if quit {
+			fmt.Printf("\nApplied %d fixes, skipped %d\n", applied, skipped)
+			return
 		}
 
-		if fix.Issue.FixedCode != "" {
-			fmt.Println("Proposed fix:")
-			fmt.Println(strings.Repeat("-", 40))
-			// Show first few lines of fix
-			lines := strings.Split(fix.Issue.FixedCode, "\n")
-			maxLines := 10
-			if len(lines) <= maxLines {
-				fmt.Println(fix.Issue.FixedCode)
-			} else {
-				for i := 0; i < maxLines; i++ {
-					fmt.Println(lines[i])
-				}
-				fmt.Printf("... (%d more lines)\n", len(lines)-maxLines)
-			}
-			fmt.Println(strings.Repeat("-", 40))
-		}
-
-		shouldApply := autoFix
-		if !autoFix {
-			fmt.Print("Apply this fix? [y/n/q] ")
-			input, _ := reader.ReadString('\n')
-			input = strings.TrimSpace(strings.ToLower(input))
-
-			switch input {
-			case "y", "yes":
-				shouldApply = true
-			case "q", "quit":
-				fmt.Printf("\nApplied %d fixes, skipped %d\n", applied, skipped)
-				return
-			default:
-				shouldApply = false
-			}
-		}
-
-		if shouldApply && fix.Issue.FixedCode != "" && fix.StartLine > 0 {
-			if err := applyFixToFile(fix); err != nil {
-				fmt.Printf("Error applying fix: %v\n", err)
-				skipped++
-			} else {
-				fmt.Println("Fix applied!")
-				applied++
-			}
-		} else if shouldApply {
-			fmt.Println("Cannot auto-apply: no line information or fixed code")
-			skipped++
+		wasApplied := tryApplyFix(fix, shouldApply)
+		if wasApplied {
+			applied++
 		} else {
 			skipped++
 		}
 	}
 
 	fmt.Printf("\nSummary: Applied %d fixes, skipped %d\n", applied, skipped)
+}
+
+func displayFixDetails(fix FixableIssue) {
+	fmt.Printf("\n[%s] %s\n", fix.Issue.Severity, fix.Issue.Message)
+	fmt.Printf("File: %s", fix.FilePath)
+	if fix.StartLine > 0 {
+		fmt.Printf(" (lines %d-%d)", fix.StartLine, fix.EndLine)
+	}
+	fmt.Println()
+
+	if fix.Issue.Suggestion != "" {
+		fmt.Printf("Suggestion: %s\n", fix.Issue.Suggestion)
+	}
+
+	if fix.Issue.FixedCode != "" {
+		showProposedFix(fix.Issue.FixedCode)
+	}
+}
+
+func showProposedFix(fixedCode string) {
+	fmt.Println("Proposed fix:")
+	fmt.Println(strings.Repeat("-", 40))
+
+	lines := strings.Split(fixedCode, "\n")
+	maxLines := 10
+	if len(lines) <= maxLines {
+		fmt.Println(fixedCode)
+	} else {
+		for i := 0; i < maxLines; i++ {
+			fmt.Println(lines[i])
+		}
+		fmt.Printf("... (%d more lines)\n", len(lines)-maxLines)
+	}
+	fmt.Println(strings.Repeat("-", 40))
+}
+
+func determineApplyAction(autoFix bool, reader *bufio.Reader) (shouldApply, quit bool) {
+	if autoFix {
+		return true, false
+	}
+
+	fmt.Print("Apply this fix? [y/n/q] ")
+	input, _ := reader.ReadString('\n')
+	input = strings.TrimSpace(strings.ToLower(input))
+
+	switch input {
+	case "y", "yes":
+		return true, false
+	case "q", "quit":
+		return false, true
+	default:
+		return false, false
+	}
+}
+
+func tryApplyFix(fix FixableIssue, shouldApply bool) bool {
+	if !shouldApply {
+		return false
+	}
+
+	if fix.Issue.FixedCode == "" || fix.StartLine <= 0 {
+		fmt.Println("Cannot auto-apply: no line information or fixed code")
+		return false
+	}
+
+	if err := applyFixToFile(fix); err != nil {
+		fmt.Printf("Error applying fix: %v\n", err)
+		return false
+	}
+
+	fmt.Println("Fix applied!")
+	return true
 }
 
 func applyFixToFile(fix FixableIssue) error {

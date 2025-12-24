@@ -10,6 +10,7 @@ import {
   ReviewRequest,
   ReviewResponse,
   buildReviewPrompt,
+  buildCommitPrompt,
   parseReviewResponse,
 } from './types.js';
 
@@ -65,14 +66,7 @@ export class OllamaProvider implements AIProvider {
   }
 
   async generateCommitMessage(diff: string): Promise<string> {
-    const prompt = `Generate a conventional commit message for this diff.
-Format: <type>(<scope>): <description>
-Types: feat, fix, docs, style, refactor, perf, test, chore
-
-Diff:
-${diff}
-
-Return ONLY the commit message, nothing else.`;
+    const prompt = buildCommitPrompt(diff);
 
     const ollamaReq = {
       model: this.model,

@@ -17,6 +17,12 @@ const (
 	MaxContextLength = 10000
 )
 
+// Error message formats (SonarQube S1192)
+const (
+	errTooLongChars = "too long: %d chars (max %d)"
+	errTooLargeBytes = "too large: %d bytes (max %d)"
+)
+
 // ValidationError represents a validation error
 type ValidationError struct {
 	Field   string
@@ -42,7 +48,7 @@ func ValidateReviewRequest(req *ReviewRequest) error {
 	if len(req.Diff) > MaxDiffSize {
 		return &ValidationError{
 			Field:   "diff",
-			Message: fmt.Sprintf("too large: %d bytes (max %d)", len(req.Diff), MaxDiffSize),
+			Message: fmt.Sprintf(errTooLargeBytes, len(req.Diff), MaxDiffSize),
 		}
 	}
 
@@ -51,7 +57,7 @@ func ValidateReviewRequest(req *ReviewRequest) error {
 		if len(req.FilePath) > MaxFilePathLength {
 			return &ValidationError{
 				Field:   "file_path",
-				Message: fmt.Sprintf("too long: %d chars (max %d)", len(req.FilePath), MaxFilePathLength),
+				Message: fmt.Sprintf(errTooLongChars, len(req.FilePath), MaxFilePathLength),
 			}
 		}
 		if strings.Contains(req.FilePath, "..") {
@@ -66,7 +72,7 @@ func ValidateReviewRequest(req *ReviewRequest) error {
 	if len(req.Language) > MaxLanguageLength {
 		return &ValidationError{
 			Field:   "language",
-			Message: fmt.Sprintf("too long: %d chars (max %d)", len(req.Language), MaxLanguageLength),
+			Message: fmt.Sprintf(errTooLongChars, len(req.Language), MaxLanguageLength),
 		}
 	}
 
@@ -74,7 +80,7 @@ func ValidateReviewRequest(req *ReviewRequest) error {
 	if len(req.Context) > MaxContextLength {
 		return &ValidationError{
 			Field:   "context",
-			Message: fmt.Sprintf("too long: %d chars (max %d)", len(req.Context), MaxContextLength),
+			Message: fmt.Sprintf(errTooLongChars, len(req.Context), MaxContextLength),
 		}
 	}
 
@@ -89,7 +95,7 @@ func ValidateDiff(diff string) error {
 	if len(diff) > MaxDiffSize {
 		return &ValidationError{
 			Field:   "diff",
-			Message: fmt.Sprintf("too large: %d bytes (max %d)", len(diff), MaxDiffSize),
+			Message: fmt.Sprintf(errTooLargeBytes, len(diff), MaxDiffSize),
 		}
 	}
 	return nil

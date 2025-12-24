@@ -65,8 +65,28 @@ var DefaultStyleGuidePatterns = []string{
 	".github/STYLE_GUIDE.md",
 }
 
+// skipDirs contains directories to skip during style guide search
+var skipDirs = map[string]bool{
+	"node_modules": true,
+	"vendor":       true,
+	".git":         true,
+}
+
+// styleKeywords contains keywords indicating a style guide file
+var styleKeywords = []string{"style", "standard", "convention", "guideline"}
+
 // LoadFromDirectory loads style guides from a directory
 func (idx *Index) LoadFromDirectory(dir string) error {
+	if err := idx.loadFromPatterns(dir); err != nil {
+		return err
+	}
+
+	_ = filepath.Walk(dir, idx.walkStyleGuides)
+	return nil
+}
+
+// loadFromPatterns loads style guides from default patterns
+func (idx *Index) loadFromPatterns(dir string) error {
 	for _, pattern := range DefaultStyleGuidePatterns {
 		path := filepath.Join(dir, pattern)
 		if _, err := os.Stat(path); err == nil {
@@ -75,38 +95,41 @@ func (idx *Index) LoadFromDirectory(dir string) error {
 			}
 		}
 	}
-
-	// Also look for any .md files with "style" or "standard" in the name
-	_ = filepath.Walk(dir, func(path string, info os.FileInfo, err error) error {
-		if err != nil {
-			return nil
-		}
-
-		if info.IsDir() {
-			// Skip common non-relevant directories
-			name := info.Name()
-			if name == "node_modules" || name == "vendor" || name == ".git" {
-				return filepath.SkipDir
-			}
-			return nil
-		}
-
-		if !strings.HasSuffix(path, ".md") {
-			return nil
-		}
-
-		lowerName := strings.ToLower(info.Name())
-		if strings.Contains(lowerName, "style") ||
-			strings.Contains(lowerName, "standard") ||
-			strings.Contains(lowerName, "convention") ||
-			strings.Contains(lowerName, "guideline") {
-			_ = idx.LoadFile(path)
-		}
-
-		return nil
-	})
-
 	return nil
+}
+
+// walkStyleGuides is the walk function for finding style guide files
+func (idx *Index) walkStyleGuides(path string, info os.FileInfo, err error) error {
+	if err != nil {
+		return nil
+	}
+
+	if info.IsDir() {
+		if skipDirs[info.Name()] {
+			return filepath.SkipDir
+		}
+		return nil
+	}
+
+	if !strings.HasSuffix(path, ".md") {
+		return nil
+	}
+
+	if idx.isStyleGuideFile(info.Name()) {
+		_ = idx.LoadFile(path)
+	}
+	return nil
+}
+
+// isStyleGuideFile checks if a filename indicates a style guide
+func (idx *Index) isStyleGuideFile(name string) bool {
+	lowerName := strings.ToLower(name)
+	for _, kw := range styleKeywords {
+		if strings.Contains(lowerName, kw) {
+			return true
+		}
+	}
+	return false
 }
 
 // LoadFile loads and indexes a style guide file
@@ -332,9 +355,13 @@ type RetrievalResult struct {
 	Source  string      `json:"source"` // File path
 }
 
+// scoredSection holds a section index with its relevance score
+type scoredSection struct {
+	index int
+	score float64
+}
+
 // Retrieve retrieves relevant rule sections for a query
-//
-//nolint:gocyclo // Scoring algorithm requires multiple query field checks
 func (idx *Index) Retrieve(query RetrievalQuery, limit int) []RetrievalResult {
 	idx.mu.RLock()
 	defer idx.mu.RUnlock()
@@ -344,70 +371,69 @@ func (idx *Index) Retrieve(query RetrievalQuery, limit int) []RetrievalResult {
 	}
 
 	scores := make(map[int]float64)
+	idx.scoreByLanguage(scores, query.Language)
+	idx.scoreByTags(scores, query.Tags)
+	idx.scoreByCodeContext(scores, query.CodeContext)
+	idx.scoreByWords(scores, query.FilePath, query.FunctionName)
+	idx.addBasePriorityScores(scores)
 
-	// Score by language match
-	if query.Language != "" {
-		langLower := strings.ToLower(query.Language)
-		if indices, ok := idx.tagIndex[langLower]; ok {
-			for _, i := range indices {
-				scores[i] += 5.0
-			}
-		}
+	return idx.buildResults(scores, limit)
+}
+
+// scoreByLanguage adds score for language tag matches
+func (idx *Index) scoreByLanguage(scores map[int]float64, language string) {
+	if language == "" {
+		return
 	}
+	langLower := strings.ToLower(language)
+	for _, i := range idx.tagIndex[langLower] {
+		scores[i] += 5.0
+	}
+}
 
-	// Score by explicit tags
-	for _, tag := range query.Tags {
+// scoreByTags adds score for explicit tag matches
+func (idx *Index) scoreByTags(scores map[int]float64, tags []string) {
+	for _, tag := range tags {
 		tagLower := strings.ToLower(tag)
-		if indices, ok := idx.tagIndex[tagLower]; ok {
-			for _, i := range indices {
-				scores[i] += 3.0
-			}
+		for _, i := range idx.tagIndex[tagLower] {
+			scores[i] += 3.0
 		}
 	}
+}
 
-	// Score by code context keywords
-	if query.CodeContext != "" {
-		words := tokenize(query.CodeContext)
-		wordSet := make(map[string]bool)
-		for _, w := range words {
-			wordSet[w] = true
-		}
-
-		// Check relevant tags based on code
-		codeContextTags := inferTagsFromCode(query.CodeContext)
-		for _, tag := range codeContextTags {
-			if indices, ok := idx.tagIndex[tag]; ok {
-				for _, i := range indices {
-					scores[i] += 2.0
-				}
-			}
+// scoreByCodeContext adds score based on inferred code context tags
+func (idx *Index) scoreByCodeContext(scores map[int]float64, codeContext string) {
+	if codeContext == "" {
+		return
+	}
+	for _, tag := range inferTagsFromCode(codeContext) {
+		for _, i := range idx.tagIndex[tag] {
+			scores[i] += 2.0
 		}
 	}
+}
 
-	// Score by word matches in title
-	queryWords := tokenize(query.FilePath + " " + query.FunctionName)
-	for _, word := range queryWords {
+// scoreByWords adds score for word matches in title
+func (idx *Index) scoreByWords(scores map[int]float64, filePath, functionName string) {
+	for _, word := range tokenize(filePath + " " + functionName) {
 		if len(word) >= 3 {
-			if indices, ok := idx.wordIndex[word]; ok {
-				for _, i := range indices {
-					scores[i] += 1.0
-				}
+			for _, i := range idx.wordIndex[word] {
+				scores[i] += 1.0
 			}
 		}
 	}
+}
 
-	// Add base score from section priority
+// addBasePriorityScores adds base score from section priority
+func (idx *Index) addBasePriorityScores(scores map[int]float64) {
 	for i := range idx.sections {
 		scores[i] += float64(idx.sections[i].section.Priority) * 0.1
 	}
+}
 
-	// Sort by score
-	type scoredSection struct {
-		index int
-		score float64
-	}
-
-	var scored []scoredSection
+// buildResults creates sorted results from scores
+func (idx *Index) buildResults(scores map[int]float64, limit int) []RetrievalResult {
+	scored := make([]scoredSection, 0, len(scores))
 	for i, score := range scores {
 		if score > 0 {
 			scored = append(scored, scoredSection{i, score})
@@ -418,8 +444,7 @@ func (idx *Index) Retrieve(query RetrievalQuery, limit int) []RetrievalResult {
 		return scored[i].score > scored[j].score
 	})
 
-	// Build results
-	var results []RetrievalResult
+	results := make([]RetrievalResult, 0, min(len(scored), limit))
 	for i := 0; i < len(scored) && i < limit; i++ {
 		s := idx.sections[scored[i].index]
 		results = append(results, RetrievalResult{
@@ -428,7 +453,6 @@ func (idx *Index) Retrieve(query RetrievalQuery, limit int) []RetrievalResult {
 			Source:  idx.getSourcePath(s.guideHash),
 		})
 	}
-
 	return results
 }
 

@@ -30,3 +30,24 @@ examples/
 
 # CI
 .github/
+
+# Security: Exclude sensitive and configuration files
+.env
+.env.*
+*.pem
+*.key
+*.crt
+secrets/
+credentials/
+config.local.*
+
+# Docker files (prevent recursive copy issues)
+Dockerfile*
+docker-compose*.yml
+.dockerignore
+
+# Temporary files
+tmp/
+temp/
+*.tmp
+*.log

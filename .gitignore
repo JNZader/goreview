@@ -101,3 +101,9 @@ temp/
 coverage/
 .nyc_output/
 *.lcov
+
+# ===================
+# SonarQube
+# ===================
+
+.scannerwork/

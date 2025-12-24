@@ -9,6 +9,11 @@ import (
 	"github.com/spf13/viper"
 )
 
+// Config file constants (SonarQube S1192)
+const (
+	configFileName = ".goreview.yaml"
+)
+
 // Loader handles configuration loading from multiple sources.
 type Loader struct {
 	v          *viper.Viper
@@ -154,23 +159,24 @@ func MustLoad() *Config {
 // Returns empty string if no config file is found.
 func FindConfigFile() string {
 	// Check current directory
-	if _, err := os.Stat(".goreview.yaml"); err == nil {
-		if abs, err := filepath.Abs(".goreview.yaml"); err == nil {
+	if _, err := os.Stat(configFileName); err == nil {
+		if abs, err := filepath.Abs(configFileName); err == nil {
 			return abs
 		}
 	}
 
 	// Check home directory
 	if home, err := os.UserHomeDir(); err == nil {
-		path := filepath.Join(home, ".goreview.yaml")
+		path := filepath.Join(home, configFileName)
 		if _, err := os.Stat(path); err == nil {
 			return path
 		}
 	}
 
 	// Check /etc
-	if _, err := os.Stat("/etc/goreview/.goreview.yaml"); err == nil {
-		return "/etc/goreview/.goreview.yaml"
+	etcPath := "/etc/goreview/" + configFileName
+	if _, err := os.Stat(etcPath); err == nil {
+		return etcPath
 	}
 
 	return ""

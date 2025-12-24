@@ -94,82 +94,97 @@ func (c *Chunker) ChunkDiff(diff string) []Chunk {
 	return chunks
 }
 
+// chunkState tracks state during function-based chunking
+type chunkState struct {
+	chunks       []Chunk
+	currentChunk strings.Builder
+	currentName  string
+	currentStart int
+	braceCount   int
+	inFunction   bool
+	lastType     ChunkType
+}
+
 // splitByFunctions attempts to split code at function boundaries
 func (c *Chunker) splitByFunctions(lines []string) []Chunk {
 	patterns := c.getFunctionPatterns()
-
-	var chunks []Chunk
-	var currentChunk strings.Builder
-	var currentName string
-	currentStart := 0
-	braceCount := 0
-	inFunction := false
+	state := &chunkState{}
 
 	for i, line := range lines {
-		// Check for function start
-		for _, p := range patterns {
-			if matches := p.pattern.FindStringSubmatch(line); len(matches) > 0 {
-				// Save previous chunk if exists
-				if currentChunk.Len() > 0 && inFunction {
-					chunks = append(chunks, Chunk{
-						Content:   currentChunk.String(),
-						StartLine: currentStart,
-						EndLine:   i - 1,
-						Type:      p.chunkType,
-						Name:      currentName,
-					})
-					currentChunk.Reset()
-				}
-
-				// Start new function chunk
-				inFunction = true
-				currentStart = i
-				if len(matches) > 1 {
-					currentName = matches[1]
-				} else {
-					currentName = ""
-				}
-			}
-		}
-
-		// Track brace balance for function end detection
-		braceCount += strings.Count(line, "{") - strings.Count(line, "}")
-
-		// Add line to current chunk
-		currentChunk.WriteString(line)
-		currentChunk.WriteString("\n")
-
-		// Check if function ended (brace balanced and we were in a function)
-		if inFunction && braceCount == 0 && strings.Contains(line, "}") {
-			chunks = append(chunks, Chunk{
-				Content:   currentChunk.String(),
-				StartLine: currentStart,
-				EndLine:   i,
-				Type:      ChunkTypeFunction,
-				Name:      currentName,
-			})
-			currentChunk.Reset()
-			inFunction = false
-			currentName = ""
-		}
+		state.checkFunctionStart(patterns, line, i)
+		state.updateBraceCount(line)
+		state.currentChunk.WriteString(line)
+		state.currentChunk.WriteString("\n")
+		state.checkFunctionEnd(line, i)
 	}
 
-	// Don't forget remaining content
-	if currentChunk.Len() > 0 {
-		chunkType := ChunkTypeRaw
-		if inFunction {
-			chunkType = ChunkTypeFunction
-		}
-		chunks = append(chunks, Chunk{
-			Content:   currentChunk.String(),
-			StartLine: currentStart,
-			EndLine:   len(lines) - 1,
-			Type:      chunkType,
-			Name:      currentName,
-		})
-	}
+	state.finalizeRemaining(len(lines))
+	return state.chunks
+}
 
-	return chunks
+// checkFunctionStart checks if a line starts a new function and saves previous chunk
+func (s *chunkState) checkFunctionStart(patterns []functionPattern, line string, lineNum int) {
+	for _, p := range patterns {
+		matches := p.pattern.FindStringSubmatch(line)
+		if len(matches) == 0 {
+			continue
+		}
+		if s.currentChunk.Len() > 0 && s.inFunction {
+			s.saveCurrentChunk(lineNum-1, s.lastType)
+		}
+		s.inFunction = true
+		s.currentStart = lineNum
+		s.lastType = p.chunkType
+		s.currentName = ""
+		if len(matches) > 1 {
+			s.currentName = matches[1]
+		}
+		break
+	}
+}
+
+// updateBraceCount tracks brace balance for function end detection
+func (s *chunkState) updateBraceCount(line string) {
+	s.braceCount += strings.Count(line, "{") - strings.Count(line, "}")
+}
+
+// checkFunctionEnd checks if a function ended and saves the chunk
+func (s *chunkState) checkFunctionEnd(line string, lineNum int) {
+	if s.inFunction && s.braceCount == 0 && strings.Contains(line, "}") {
+		s.saveCurrentChunk(lineNum, ChunkTypeFunction)
+		s.inFunction = false
+		s.currentName = ""
+	}
+}
+
+// saveCurrentChunk saves the current chunk and resets the builder
+func (s *chunkState) saveCurrentChunk(endLine int, chunkType ChunkType) {
+	s.chunks = append(s.chunks, Chunk{
+		Content:   s.currentChunk.String(),
+		StartLine: s.currentStart,
+		EndLine:   endLine,
+		Type:      chunkType,
+		Name:      s.currentName,
+	})
+	s.currentChunk.Reset()
+}
+
+// finalizeRemaining saves any remaining content as a chunk
+func (s *chunkState) finalizeRemaining(totalLines int) {
+	if s.currentChunk.Len() == 0 {
+		return
+	}
+	chunkType := ChunkTypeRaw
+	if s.inFunction {
+		chunkType = ChunkTypeFunction
+	}
+	s.chunks = append(s.chunks, Chunk{
+		Content:   s.currentChunk.String(),
+		StartLine: s.currentStart,
+		EndLine:   totalLines - 1,
+		Type:      chunkType,
+		Name:      s.currentName,
+	})
 }
 
 type functionPattern struct {

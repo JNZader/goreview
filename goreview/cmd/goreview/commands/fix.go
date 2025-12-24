@@ -230,7 +230,7 @@ func buildFilterSet(cmd *cobra.Command, flagName string) map[string]bool {
 }
 
 func collectFromFileResult(fileResult review.FileResult, typeSet, severitySet map[string]bool) []FixableIssue {
-	var fixable []FixableIssue
+	fixable := make([]FixableIssue, 0, len(fileResult.Response.Issues))
 
 	for _, issue := range fileResult.Response.Issues {
 		if !isFixableIssue(issue, typeSet, severitySet) {

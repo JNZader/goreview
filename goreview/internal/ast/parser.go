@@ -219,12 +219,12 @@ type goParseState struct {
 
 // Go parsing patterns
 var (
-	goPackagePattern    = regexp.MustCompile(`^package\s+(\w+)`)
-	goImportPattern     = regexp.MustCompile(`^\s*(?:import\s+)?(?:(\w+)\s+)?"([^"]+)"`)
-	goImportBlockStart  = regexp.MustCompile(`^import\s*\(`)
-	goFuncPattern       = regexp.MustCompile(`^func\s+(?:\((\w+)\s+[^)]+\)\s+)?(\w+)\s*\(([^)]*)\)\s*(?:\(([^)]*)\)|(\w+))?\s*\{?`)
-	goTypePattern       = regexp.MustCompile(`^type\s+(\w+)\s+(struct|interface)\s*\{?`)
-	goVarPattern        = regexp.MustCompile(`^(?:var|const)\s+(\w+)\s+(\w+)?(?:\s*=\s*(.+))?`)
+	goPackagePattern   = regexp.MustCompile(`^package\s+(\w+)`)
+	goImportPattern    = regexp.MustCompile(`^\s*(?:import\s+)?(?:(\w+)\s+)?"([^"]+)"`)
+	goImportBlockStart = regexp.MustCompile(`^import\s*\(`)
+	goFuncPattern      = regexp.MustCompile(`^func\s+(?:\((\w+)\s+[^)]+\)\s+)?(\w+)\s*\(([^)]*)\)\s*(?:\(([^)]*)\)|(\w+))?\s*\{?`)
+	goTypePattern      = regexp.MustCompile(`^type\s+(\w+)\s+(struct|interface)\s*\{?`)
+	goVarPattern       = regexp.MustCompile(`^(?:var|const)\s+(\w+)\s+(\w+)?(?:\s*=\s*(.+))?`)
 )
 
 // Go-specific parsing

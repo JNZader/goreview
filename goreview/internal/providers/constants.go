@@ -179,7 +179,9 @@ func BuildGeminiRequest(text string, temp float64, maxTokens int, jsonMode bool)
 		},
 	}
 	if jsonMode {
-		req["generationConfig"].(map[string]interface{})["responseMimeType"] = "application/json"
+		if genConfig, ok := req["generationConfig"].(map[string]interface{}); ok {
+			genConfig["responseMimeType"] = "application/json"
+		}
 	}
 	return req
 }

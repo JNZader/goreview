@@ -19,7 +19,7 @@ const (
 
 // Error message formats (SonarQube S1192)
 const (
-	errTooLongChars = "too long: %d chars (max %d)"
+	errTooLongChars  = "too long: %d chars (max %d)"
 	errTooLargeBytes = "too large: %d bytes (max %d)"
 )
 

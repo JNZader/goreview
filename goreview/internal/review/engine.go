@@ -210,8 +210,9 @@ func (e *Engine) reviewFile(ctx context.Context, file git.FileDiff) *FileResult 
 	resp, err := e.provider.Review(ctx, req)
 	if err != nil {
 		return &FileResult{
-			File:  file.Path,
-			Error: err,
+			File: file.Path,
+			Error: fmt.Errorf("review failed for %s (lang=%s, size=%d bytes): %w",
+				file.Path, file.Language, len(req.Diff), err),
 		}
 	}
 

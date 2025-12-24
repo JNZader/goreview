@@ -48,6 +48,16 @@ func NewGeminiProvider(cfg *config.Config) (*GeminiProvider, error) {
 func (p *GeminiProvider) Name() string { return "gemini" }
 
 func (p *GeminiProvider) Review(ctx context.Context, req *ReviewRequest) (*ReviewResponse, error) {
+	// Validate input
+	if err := ValidateReviewRequest(req); err != nil {
+		return nil, fmt.Errorf("invalid request: %w", err)
+	}
+
+	// Empty diff returns empty response
+	if len(req.Diff) == 0 {
+		return &ReviewResponse{}, nil
+	}
+
 	start := time.Now()
 
 	geminiReq := map[string]interface{}{

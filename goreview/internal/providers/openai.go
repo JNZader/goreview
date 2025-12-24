@@ -43,6 +43,16 @@ func NewOpenAIProvider(cfg *config.Config) (*OpenAIProvider, error) {
 func (p *OpenAIProvider) Name() string { return "openai" }
 
 func (p *OpenAIProvider) Review(ctx context.Context, req *ReviewRequest) (*ReviewResponse, error) {
+	// Validate input
+	if err := ValidateReviewRequest(req); err != nil {
+		return nil, fmt.Errorf("invalid request: %w", err)
+	}
+
+	// Empty diff returns empty response
+	if len(req.Diff) == 0 {
+		return &ReviewResponse{}, nil
+	}
+
 	start := time.Now()
 
 	messages := []map[string]string{

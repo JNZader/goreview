@@ -1,4 +1,4 @@
-import { describe, it, expect, vi } from 'vitest';
+import { describe, it, expect, vi, beforeEach } from 'vitest';
 import express from 'express';
 import request from 'supertest';
 import { healthRouter } from './health.js';
@@ -17,9 +17,30 @@ vi.mock('../config/index.js', () => ({
   },
 }));
 
+// Mock the AI provider
+const mockHealthCheck = vi.fn();
+vi.mock('../services/ai/index.js', () => ({
+  getProvider: () => ({
+    healthCheck: mockHealthCheck,
+  }),
+}));
+
+// Mock the logger
+vi.mock('../utils/logger.js', () => ({
+  logger: {
+    warn: vi.fn(),
+    error: vi.fn(),
+    info: vi.fn(),
+  },
+}));
+
 describe('Health Routes', () => {
   const app = express();
   app.use('/health', healthRouter);
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
 
   describe('GET /health', () => {
     it('should return 200 with status ok and metadata', async () => {
@@ -40,14 +61,37 @@ describe('Health Routes', () => {
   });
 
   describe('GET /health/ready', () => {
-    it('should return 200 when service is ready', async () => {
+    it('should return 200 when all services are healthy', async () => {
+      mockHealthCheck.mockResolvedValue(true);
+
       const response = await request(app).get('/health/ready');
 
       expect(response.status).toBe(200);
       expect(response.body).toHaveProperty('status', 'ready');
       expect(response.body).toHaveProperty('checks');
-      expect(response.body.checks).toHaveProperty('github', true);
-      expect(response.body.checks).toHaveProperty('ollama', true);
+      expect(response.body.checks).toHaveProperty('server', true);
+      expect(response.body.checks).toHaveProperty('ai_provider', true);
+    });
+
+    it('should return 503 when AI provider is unhealthy', async () => {
+      mockHealthCheck.mockResolvedValue(false);
+
+      const response = await request(app).get('/health/ready');
+
+      expect(response.status).toBe(503);
+      expect(response.body).toHaveProperty('status', 'degraded');
+      expect(response.body.checks).toHaveProperty('server', true);
+      expect(response.body.checks).toHaveProperty('ai_provider', false);
+    });
+
+    it('should return 503 when AI provider throws error', async () => {
+      mockHealthCheck.mockRejectedValue(new Error('Connection failed'));
+
+      const response = await request(app).get('/health/ready');
+
+      expect(response.status).toBe(503);
+      expect(response.body).toHaveProperty('status', 'degraded');
+      expect(response.body.checks).toHaveProperty('ai_provider', false);
     });
   });
 });

@@ -12,7 +12,14 @@
     "test:coverage": "vitest run --coverage",
     "lint": "eslint src --ext .ts",
     "lint:fix": "eslint src --ext .ts --fix",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "prepare": "cd .. && husky github-app/.husky || true"
+  },
+  "lint-staged": {
+    "*.ts": [
+      "eslint --fix",
+      "vitest related --run"
+    ]
   },
   "dependencies": {
     "@octokit/auth-app": "^6.0.3",
@@ -35,6 +42,8 @@
     "@typescript-eslint/parser": "^6.17.0",
     "@vitest/coverage-v8": "^1.1.3",
     "eslint": "^8.56.0",
+    "husky": "^9.0.0",
+    "lint-staged": "^15.2.0",
     "supertest": "^6.3.3",
     "tsx": "^4.7.0",
     "typescript": "^5.3.3",

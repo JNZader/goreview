@@ -31,6 +31,28 @@ func DefaultRetryConfig() RetryConfig {
 	}
 }
 
+// retryablePatterns contains error patterns that should be retried
+var retryablePatterns = []string{
+	"connection refused",
+	"connection reset",
+	"timeout",
+	"temporary failure",
+	"no such host",
+	"429", // Too Many Requests
+	"500", // Internal Server Error
+	"502", // Bad Gateway
+	"503", // Service Unavailable
+	"504", // Gateway Timeout
+}
+
+// nonRetryablePatterns contains error patterns that should NOT be retried
+var nonRetryablePatterns = []string{
+	"400", // Bad Request
+	"401", // Unauthorized
+	"403", // Forbidden
+	"404", // Not Found
+}
+
 // IsRetryableError determines if an error should be retried
 func IsRetryableError(err error) bool {
 	if err == nil {
@@ -39,30 +61,18 @@ func IsRetryableError(err error) bool {
 
 	errStr := err.Error()
 
-	// Network errors (retryable)
-	if strings.Contains(errStr, "connection refused") ||
-		strings.Contains(errStr, "connection reset") ||
-		strings.Contains(errStr, "timeout") ||
-		strings.Contains(errStr, "temporary failure") ||
-		strings.Contains(errStr, "no such host") {
-		return true
+	// Check non-retryable patterns first
+	for _, pattern := range nonRetryablePatterns {
+		if strings.Contains(errStr, pattern) {
+			return false
+		}
 	}
 
-	// HTTP status codes in error message (retryable: 429, 500, 502, 503, 504)
-	if strings.Contains(errStr, "429") ||
-		strings.Contains(errStr, "500") ||
-		strings.Contains(errStr, "502") ||
-		strings.Contains(errStr, "503") ||
-		strings.Contains(errStr, "504") {
-		return true
-	}
-
-	// Client errors (not retryable: 400, 401, 403, 404)
-	if strings.Contains(errStr, "400") ||
-		strings.Contains(errStr, "401") ||
-		strings.Contains(errStr, "403") ||
-		strings.Contains(errStr, "404") {
-		return false
+	// Check retryable patterns
+	for _, pattern := range retryablePatterns {
+		if strings.Contains(errStr, pattern) {
+			return true
+		}
 	}
 
 	return false

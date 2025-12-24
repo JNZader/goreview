@@ -21,6 +21,8 @@ func NewContextBuilder(maxLength int) *ContextBuilder {
 }
 
 // BuildPromptContext creates a structured context string for LLM prompts
+//
+//nolint:gocyclo // Building context requires checking multiple optional fields
 func (cb *ContextBuilder) BuildPromptContext(ctx *Context, dc *DiffContext) string {
 	var sb strings.Builder
 

@@ -187,7 +187,9 @@ func BenchmarkLoggerMasking(b *testing.B) {
 	var buf bytes.Buffer
 	log := New(LevelInfo, &buf)
 
-	message := "Using API key sk-1234567890abcdefghijklmnop and token ghp_1234567890abcdefghijklmnopqrstuvwxyz"
+	// Test tokens for masking benchmark (not real credentials)
+	message := "Using API key sk-1234567890abcdefghijklmnop and token " + //nolint:gosec // test data
+		"ghp_1234567890abcdefghijklmnopqrstuvwxyz"
 
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {

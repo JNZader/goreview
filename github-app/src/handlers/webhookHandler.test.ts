@@ -1,5 +1,22 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { handleWebhook } from './webhookHandler.js';
+
+// Mock the config FIRST to prevent process.exit
+vi.mock('../config/index.js', () => ({
+  config: {
+    github: {
+      appId: '123456',
+      privateKey: 'test-key',
+      webhookSecret: 'test-secret',
+    },
+    ai: {
+      provider: 'gemini',
+      model: 'gemini-2.0-flash',
+    },
+    server: {
+      port: 3000,
+    },
+  },
+}));
 
 // Mock the logger
 vi.mock('../utils/logger.js', () => ({
@@ -19,6 +36,14 @@ vi.mock('./pullRequestHandler.js', () => ({
 vi.mock('./installationHandler.js', () => ({
   handleInstallation: vi.fn(),
 }));
+
+// Mock comment handlers to avoid github service initialization
+vi.mock('./commentHandler.js', () => ({
+  handleIssueComment: vi.fn(),
+  handlePullRequestReviewComment: vi.fn(),
+}));
+
+import { handleWebhook } from './webhookHandler.js';
 
 import { handlePullRequest } from './pullRequestHandler.js';
 import { handleInstallation } from './installationHandler.js';

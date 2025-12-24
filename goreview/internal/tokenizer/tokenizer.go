@@ -9,15 +9,15 @@ import (
 // Model token limits (approximate)
 const (
 	// Context window sizes
-	GPT4TurboMaxTokens    = 128000
-	GPT4MaxTokens         = 8192
-	GPT35TurboMaxTokens   = 16384
-	ClaudeMaxTokens       = 200000
-	GeminiProMaxTokens    = 32768
-	GeminiFlashMaxTokens  = 1048576
-	LlamaMaxTokens        = 8192
-	MistralMaxTokens      = 32768
-	QwenMaxTokens         = 32768
+	GPT4TurboMaxTokens   = 128000
+	GPT4MaxTokens        = 8192
+	GPT35TurboMaxTokens  = 16384
+	ClaudeMaxTokens      = 200000
+	GeminiProMaxTokens   = 32768
+	GeminiFlashMaxTokens = 1048576
+	LlamaMaxTokens       = 8192
+	MistralMaxTokens     = 32768
+	QwenMaxTokens        = 32768
 
 	// Default budget (conservative)
 	DefaultMaxTokens = 8000

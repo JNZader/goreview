@@ -51,42 +51,42 @@ type MaskFunc func(string) string
 // Default secret patterns to mask
 var defaultSecretPatterns = []*regexp.Regexp{
 	// API Keys
-	regexp.MustCompile(`(?i)(sk-[a-zA-Z0-9]{20,})`),                                      // OpenAI
-	regexp.MustCompile(`(?i)(AIza[a-zA-Z0-9_-]{35})`),                                    // Google API
-	regexp.MustCompile(`(?i)(gsk_[a-zA-Z0-9]{20,})`),                                     // Groq
-	regexp.MustCompile(`(?i)(ghp_[a-zA-Z0-9]{36})`),                                      // GitHub PAT
-	regexp.MustCompile(`(?i)(gho_[a-zA-Z0-9]{36})`),                                      // GitHub OAuth
-	regexp.MustCompile(`(?i)(ghs_[a-zA-Z0-9]{36})`),                                      // GitHub App
-	regexp.MustCompile(`(?i)(ghr_[a-zA-Z0-9]{36})`),                                      // GitHub Refresh
-	regexp.MustCompile(`(?i)(github_pat_[a-zA-Z0-9]{22}_[a-zA-Z0-9]{59})`),               // GitHub Fine-grained
-	regexp.MustCompile(`(?i)(xoxb-[a-zA-Z0-9-]+)`),                                       // Slack Bot
-	regexp.MustCompile(`(?i)(xoxp-[a-zA-Z0-9-]+)`),                                       // Slack User
-	regexp.MustCompile(`(?i)(AKIA[A-Z0-9]{16})`),                                         // AWS Access Key
-	regexp.MustCompile(`(?i)([a-zA-Z0-9/+]{40})`),                                        // AWS Secret (40 chars base64-like)
-	regexp.MustCompile(`(?i)(Bearer\s+[a-zA-Z0-9._-]+)`),                                 // Bearer tokens
-	regexp.MustCompile(`(?i)(api[_-]?key[=:]\s*["']?[a-zA-Z0-9_-]{16,}["']?)`),           // Generic API key
-	regexp.MustCompile(`(?i)(secret[=:]\s*["']?[a-zA-Z0-9_-]{16,}["']?)`),                // Generic secret
-	regexp.MustCompile(`(?i)(password[=:]\s*["']?[^\s"']{8,}["']?)`),                     // Passwords
-	regexp.MustCompile(`(?i)(token[=:]\s*["']?[a-zA-Z0-9._-]{20,}["']?)`),                // Generic tokens
+	regexp.MustCompile(`(?i)(sk-[a-zA-Z0-9]{20,})`),                                                    // OpenAI
+	regexp.MustCompile(`(?i)(AIza[a-zA-Z0-9_-]{35})`),                                                  // Google API
+	regexp.MustCompile(`(?i)(gsk_[a-zA-Z0-9]{20,})`),                                                   // Groq
+	regexp.MustCompile(`(?i)(ghp_[a-zA-Z0-9]{36})`),                                                    // GitHub PAT
+	regexp.MustCompile(`(?i)(gho_[a-zA-Z0-9]{36})`),                                                    // GitHub OAuth
+	regexp.MustCompile(`(?i)(ghs_[a-zA-Z0-9]{36})`),                                                    // GitHub App
+	regexp.MustCompile(`(?i)(ghr_[a-zA-Z0-9]{36})`),                                                    // GitHub Refresh
+	regexp.MustCompile(`(?i)(github_pat_[a-zA-Z0-9]{22}_[a-zA-Z0-9]{59})`),                             // GitHub Fine-grained
+	regexp.MustCompile(`(?i)(xoxb-[a-zA-Z0-9-]+)`),                                                     // Slack Bot
+	regexp.MustCompile(`(?i)(xoxp-[a-zA-Z0-9-]+)`),                                                     // Slack User
+	regexp.MustCompile(`(?i)(AKIA[A-Z0-9]{16})`),                                                       // AWS Access Key
+	regexp.MustCompile(`(?i)([a-zA-Z0-9/+]{40})`),                                                      // AWS Secret (40 chars base64-like)
+	regexp.MustCompile(`(?i)(Bearer\s+[a-zA-Z0-9._-]+)`),                                               // Bearer tokens
+	regexp.MustCompile(`(?i)(api[_-]?key[=:]\s*["']?[a-zA-Z0-9_-]{16,}["']?)`),                         // Generic API key
+	regexp.MustCompile(`(?i)(secret[=:]\s*["']?[a-zA-Z0-9_-]{16,}["']?)`),                              // Generic secret
+	regexp.MustCompile(`(?i)(password[=:]\s*["']?[^\s"']{8,}["']?)`),                                   // Passwords
+	regexp.MustCompile(`(?i)(token[=:]\s*["']?[a-zA-Z0-9._-]{20,}["']?)`),                              // Generic tokens
 	regexp.MustCompile(`-----BEGIN [A-Z ]+ PRIVATE KEY-----[\s\S]*?-----END [A-Z ]+ PRIVATE KEY-----`), // Private keys
 }
 
 // Sensitive field names that should be masked in structured logging
 var sensitiveFieldNames = map[string]bool{
-	"password":     true,
-	"secret":       true,
-	"token":        true,
-	"api_key":      true,
-	"apikey":       true,
-	"api-key":      true,
-	"private_key":  true,
-	"privatekey":   true,
-	"access_token": true,
-	"accesstoken":  true,
-	"auth":         true,
+	"password":      true,
+	"secret":        true,
+	"token":         true,
+	"api_key":       true,
+	"apikey":        true,
+	"api-key":       true,
+	"private_key":   true,
+	"privatekey":    true,
+	"access_token":  true,
+	"accesstoken":   true,
+	"auth":          true,
 	"authorization": true,
-	"credential":   true,
-	"credentials":  true,
+	"credential":    true,
+	"credentials":   true,
 }
 
 var defaultLogger *Logger
@@ -211,7 +211,7 @@ func (l *Logger) formatFields() string {
 	if len(l.fields) == 0 {
 		return ""
 	}
-	var parts []string
+	parts := make([]string, 0, len(l.fields))
 	for k, v := range l.fields {
 		maskedValue := l.maskValue(k, v)
 		parts = append(parts, fmt.Sprintf("%s=%v", k, maskedValue))

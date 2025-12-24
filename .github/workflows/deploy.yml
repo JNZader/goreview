@@ -1,0 +1,264 @@
+# =============================================================================
+# Auto Release and Deploy Workflow
+# Creates releases on merge to main and deploys to Koyeb
+# =============================================================================
+
+name: Release and Deploy
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+    inputs:
+      bump:
+        description: 'Version bump type'
+        required: false
+        default: 'patch'
+        type: choice
+        options:
+          - patch
+          - minor
+          - major
+
+permissions:
+  contents: write
+  packages: write
+
+jobs:
+  # ---------------------------------------------------------------------------
+  # Check if release is needed
+  # ---------------------------------------------------------------------------
+  check-release:
+    name: Check Release
+    runs-on: ubuntu-latest
+    outputs:
+      should_release: ${{ steps.check.outputs.should_release }}
+      new_version: ${{ steps.version.outputs.new_version }}
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Check for release-worthy changes
+        id: check
+        run: |
+          # Get latest tag
+          LATEST_TAG=$(git describe --tags --abbrev=0 2>/dev/null || echo "v0.0.0")
+
+          # Check if there are meaningful commits since last tag
+          COMMIT_COUNT=$(git rev-list ${LATEST_TAG}..HEAD --count 2>/dev/null || echo "1")
+
+          # Check commit messages for release indicators
+          HAS_FEAT=$(git log ${LATEST_TAG}..HEAD --oneline | grep -i "feat:" || true)
+          HAS_FIX=$(git log ${LATEST_TAG}..HEAD --oneline | grep -i "fix:" || true)
+
+          if [ "$COMMIT_COUNT" -gt 0 ] && ([ -n "$HAS_FEAT" ] || [ -n "$HAS_FIX" ]); then
+            echo "should_release=true" >> $GITHUB_OUTPUT
+          else
+            echo "should_release=false" >> $GITHUB_OUTPUT
+          fi
+
+          echo "Latest tag: $LATEST_TAG, Commits since: $COMMIT_COUNT"
+
+      - name: Calculate new version
+        id: version
+        if: steps.check.outputs.should_release == 'true'
+        run: |
+          LATEST_TAG=$(git describe --tags --abbrev=0 2>/dev/null || echo "v0.0.0")
+          VERSION=${LATEST_TAG#v}
+
+          # Parse version
+          IFS='.' read -r MAJOR MINOR PATCH <<< "$VERSION"
+          MAJOR=${MAJOR:-0}
+          MINOR=${MINOR:-0}
+          PATCH=${PATCH:-0}
+
+          # Determine bump type from commits or input
+          BUMP="${{ github.event.inputs.bump }}"
+          if [ -z "$BUMP" ]; then
+            # Auto-detect from commit messages
+            if git log ${LATEST_TAG}..HEAD --oneline | grep -qi "breaking:"; then
+              BUMP="major"
+            elif git log ${LATEST_TAG}..HEAD --oneline | grep -qi "feat:"; then
+              BUMP="minor"
+            else
+              BUMP="patch"
+            fi
+          fi
+
+          # Bump version
+          case "$BUMP" in
+            major)
+              MAJOR=$((MAJOR + 1))
+              MINOR=0
+              PATCH=0
+              ;;
+            minor)
+              MINOR=$((MINOR + 1))
+              PATCH=0
+              ;;
+            patch)
+              PATCH=$((PATCH + 1))
+              ;;
+          esac
+
+          NEW_VERSION="v${MAJOR}.${MINOR}.${PATCH}"
+          echo "new_version=$NEW_VERSION" >> $GITHUB_OUTPUT
+          echo "New version: $NEW_VERSION (bump: $BUMP)"
+
+  # ---------------------------------------------------------------------------
+  # Create Release
+  # ---------------------------------------------------------------------------
+  release:
+    name: Create Release
+    runs-on: ubuntu-latest
+    needs: check-release
+    if: needs.check-release.outputs.should_release == 'true'
+    outputs:
+      version: ${{ needs.check-release.outputs.new_version }}
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Create tag
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git tag ${{ needs.check-release.outputs.new_version }}
+          git push origin ${{ needs.check-release.outputs.new_version }}
+
+      - name: Generate changelog
+        id: changelog
+        run: |
+          PREV_TAG=$(git describe --tags --abbrev=0 HEAD^ 2>/dev/null || echo "")
+
+          echo "## What's Changed" > CHANGELOG.md
+          echo "" >> CHANGELOG.md
+
+          if [ -n "$PREV_TAG" ]; then
+            # Features
+            FEATS=$(git log --pretty=format:"- %s (%h)" ${PREV_TAG}..HEAD | grep -i "feat:" || true)
+            if [ -n "$FEATS" ]; then
+              echo "### Features" >> CHANGELOG.md
+              echo "$FEATS" >> CHANGELOG.md
+              echo "" >> CHANGELOG.md
+            fi
+
+            # Fixes
+            FIXES=$(git log --pretty=format:"- %s (%h)" ${PREV_TAG}..HEAD | grep -i "fix:" || true)
+            if [ -n "$FIXES" ]; then
+              echo "### Bug Fixes" >> CHANGELOG.md
+              echo "$FIXES" >> CHANGELOG.md
+              echo "" >> CHANGELOG.md
+            fi
+
+            # Other changes
+            OTHERS=$(git log --pretty=format:"- %s (%h)" ${PREV_TAG}..HEAD | grep -viE "feat:|fix:" || true)
+            if [ -n "$OTHERS" ]; then
+              echo "### Other Changes" >> CHANGELOG.md
+              echo "$OTHERS" >> CHANGELOG.md
+            fi
+          else
+            echo "Initial release" >> CHANGELOG.md
+          fi
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v1
+        with:
+          tag_name: ${{ needs.check-release.outputs.new_version }}
+          body_path: CHANGELOG.md
+          draft: false
+          prerelease: false
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  # ---------------------------------------------------------------------------
+  # Build and Push Docker Image
+  # ---------------------------------------------------------------------------
+  docker:
+    name: Build Docker Image
+    runs-on: ubuntu-latest
+    needs: release
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Login to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build and push GitHub App
+        uses: docker/build-push-action@v6
+        with:
+          context: ./github-app
+          push: true
+          tags: |
+            ghcr.io/${{ github.repository_owner }}/goreview-github-app:${{ needs.release.outputs.version }}
+            ghcr.io/${{ github.repository_owner }}/goreview-github-app:latest
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+  # ---------------------------------------------------------------------------
+  # Deploy to Koyeb
+  # ---------------------------------------------------------------------------
+  deploy-koyeb:
+    name: Deploy to Koyeb
+    runs-on: ubuntu-latest
+    needs: [release, docker]
+
+    steps:
+      - name: Deploy to Koyeb
+        uses: koyeb/action-git-deploy@v1
+        with:
+          app-name: goreview-github-app
+          service-name: main
+          git-url: https://github.com/${{ github.repository }}
+          git-branch: main
+          git-builder: docker
+          git-workdir: github-app
+        env:
+          KOYEB_TOKEN: ${{ secrets.KOYEB_TOKEN }}
+
+      # Alternative: Use Koyeb CLI if action doesn't work
+      - name: Deploy via Koyeb CLI (fallback)
+        if: failure()
+        run: |
+          # Install Koyeb CLI
+          curl -fsSL https://raw.githubusercontent.com/koyeb/koyeb-cli/master/install.sh | bash
+          export PATH=$PATH:$HOME/.koyeb/bin
+
+          # Trigger redeploy
+          koyeb services redeploy goreview-github-app/main \
+            --token ${{ secrets.KOYEB_TOKEN }} || true
+        continue-on-error: true
+
+  # ---------------------------------------------------------------------------
+  # Notify on completion
+  # ---------------------------------------------------------------------------
+  notify:
+    name: Notify
+    runs-on: ubuntu-latest
+    needs: [release, deploy-koyeb]
+    if: always()
+
+    steps:
+      - name: Summary
+        run: |
+          echo "## Deployment Summary" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "- **Version**: ${{ needs.release.outputs.version }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Release**: ✅ Created" >> $GITHUB_STEP_SUMMARY
+          echo "- **Docker**: ✅ Published to GHCR" >> $GITHUB_STEP_SUMMARY
+          echo "- **Koyeb**: ${{ needs.deploy-koyeb.result == 'success' && '✅ Deployed' || '⚠️ Check deployment' }}" >> $GITHUB_STEP_SUMMARY

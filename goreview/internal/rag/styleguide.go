@@ -30,11 +30,11 @@ type RuleSection struct {
 
 // Index stores indexed style guides for retrieval
 type Index struct {
-	mu         sync.RWMutex
-	guides     map[string]*StyleGuide
-	sections   []indexedSection
-	tagIndex   map[string][]int // tag -> section indices
-	wordIndex  map[string][]int // word -> section indices
+	mu        sync.RWMutex
+	guides    map[string]*StyleGuide
+	sections  []indexedSection
+	tagIndex  map[string][]int // tag -> section indices
+	wordIndex map[string][]int // word -> section indices
 }
 
 type indexedSection struct {
@@ -154,8 +154,6 @@ func (idx *Index) LoadContent(path, content string) error {
 
 // parseMarkdownSections parses markdown into logical sections
 func parseMarkdownSections(content string) []RuleSection {
-	var sections []RuleSection
-
 	// Split by headers
 	headerPattern := regexp.MustCompile(`(?m)^(#{1,6})\s+(.+)$`)
 	codeBlockPattern := regexp.MustCompile("```[\\s\\S]*?```")
@@ -171,6 +169,7 @@ func parseMarkdownSections(content string) []RuleSection {
 	})
 
 	matches := headerPattern.FindAllStringSubmatchIndex(contentClean, -1)
+	sections := make([]RuleSection, 0, len(matches))
 
 	for i, match := range matches {
 		if len(match) < 6 {
@@ -334,6 +333,8 @@ type RetrievalResult struct {
 }
 
 // Retrieve retrieves relevant rule sections for a query
+//
+//nolint:gocyclo // Scoring algorithm requires multiple query field checks
 func (idx *Index) Retrieve(query RetrievalQuery, limit int) []RetrievalResult {
 	idx.mu.RLock()
 	defer idx.mu.RUnlock()

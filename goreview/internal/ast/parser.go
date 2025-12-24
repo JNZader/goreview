@@ -189,16 +189,15 @@ func extractChangedLines(diff string) []int {
 		if matches := linePattern.FindStringSubmatch(line); len(matches) > 1 {
 			// Parse the starting line number
 			var startLine int
-			if err := parseIntSafe(matches[1], &startLine); err == nil {
-				lines = append(lines, startLine)
-			}
+			parseIntSafe(matches[1], &startLine)
+			lines = append(lines, startLine)
 		}
 	}
 
 	return lines
 }
 
-func parseIntSafe(s string, result *int) error {
+func parseIntSafe(s string, result *int) {
 	n := 0
 	for _, c := range s {
 		if c >= '0' && c <= '9' {
@@ -206,10 +205,11 @@ func parseIntSafe(s string, result *int) error {
 		}
 	}
 	*result = n
-	return nil
 }
 
 // Go-specific parsing
+//
+//nolint:gocyclo // Complex parsing logic requires multiple branches
 func (p *Parser) parseGo(lines []string, ctx *Context) {
 	packagePattern := regexp.MustCompile(`^package\s+(\w+)`)
 	importPattern := regexp.MustCompile(`^\s*(?:import\s+)?(?:(\w+)\s+)?"([^"]+)"`)
@@ -407,14 +407,14 @@ func findFunctionEnd(lines []string, startIdx int) int {
 
 // JavaScript/TypeScript parsing
 func (p *Parser) parseJavaScript(lines []string, ctx *Context) {
-	p.parseJSTS(lines, ctx, false)
+	p.parseJSTS(lines, ctx)
 }
 
 func (p *Parser) parseTypeScript(lines []string, ctx *Context) {
-	p.parseJSTS(lines, ctx, true)
+	p.parseJSTS(lines, ctx)
 }
 
-func (p *Parser) parseJSTS(lines []string, ctx *Context, isTS bool) {
+func (p *Parser) parseJSTS(lines []string, ctx *Context) {
 	importPattern := regexp.MustCompile(`^import\s+(?:{[^}]+}|[\w,\s]+)\s+from\s+['"]([^'"]+)['"]`)
 	funcPattern := regexp.MustCompile(`^(?:export\s+)?(?:async\s+)?function\s+(\w+)`)
 	arrowPattern := regexp.MustCompile(`^(?:export\s+)?(?:const|let|var)\s+(\w+)\s*=\s*(?:async\s+)?\([^)]*\)\s*(?::\s*\w+)?\s*=>`)

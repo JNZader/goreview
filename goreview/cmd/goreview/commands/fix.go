@@ -103,12 +103,14 @@ func runFix(cmd *cobra.Command, args []string) error {
 	// Check for dry-run
 	dryRun, _ := cmd.Flags().GetBool("dry-run")
 	if dryRun {
-		return showDryRun(fixableIssues)
+		showDryRun(fixableIssues)
+		return nil
 	}
 
 	// Apply fixes
 	autoFix, _ := cmd.Flags().GetBool("auto")
-	return applyFixes(fixableIssues, autoFix)
+	applyFixes(fixableIssues, autoFix)
+	return nil
 }
 
 func validateFixFlags(cmd *cobra.Command, args []string) error {
@@ -146,11 +148,17 @@ func applyFixFlagOverrides(cmd *cobra.Command, cfg *config.Config, args []string
 
 	switch mode {
 	case "commit":
-		cfg.Review.Commit = value.(string)
+		if v, ok := value.(string); ok {
+			cfg.Review.Commit = v
+		}
 	case "branch":
-		cfg.Git.BaseBranch = value.(string)
+		if v, ok := value.(string); ok {
+			cfg.Git.BaseBranch = v
+		}
 	case "files":
-		cfg.Review.Files = value.([]string)
+		if v, ok := value.([]string); ok {
+			cfg.Review.Files = v
+		}
 	}
 
 	if provider, _ := cmd.Flags().GetString("provider"); provider != "" {
@@ -260,7 +268,7 @@ func collectFixableIssues(cmd *cobra.Command, result *review.Result) []FixableIs
 	return fixable
 }
 
-func showDryRun(issues []FixableIssue) error {
+func showDryRun(issues []FixableIssue) {
 	fmt.Printf("\nFound %d fixable issues:\n\n", len(issues))
 
 	for i, fix := range issues {
@@ -280,10 +288,9 @@ func showDryRun(issues []FixableIssue) error {
 	}
 
 	fmt.Println("Run without --dry-run to apply fixes.")
-	return nil
 }
 
-func applyFixes(issues []FixableIssue, autoFix bool) error {
+func applyFixes(issues []FixableIssue, autoFix bool) {
 	applied := 0
 	skipped := 0
 
@@ -329,7 +336,7 @@ func applyFixes(issues []FixableIssue, autoFix bool) error {
 				shouldApply = true
 			case "q", "quit":
 				fmt.Printf("\nApplied %d fixes, skipped %d\n", applied, skipped)
-				return nil
+				return
 			default:
 				shouldApply = false
 			}
@@ -352,7 +359,6 @@ func applyFixes(issues []FixableIssue, autoFix bool) error {
 	}
 
 	fmt.Printf("\nSummary: Applied %d fixes, skipped %d\n", applied, skipped)
-	return nil
 }
 
 func applyFixToFile(fix FixableIssue) error {
@@ -387,5 +393,5 @@ func applyFixToFile(fix FixableIssue) error {
 
 	// Write back
 	newContent := strings.Join(newLines, "\n")
-	return os.WriteFile(absPath, []byte(newContent), 0644)
+	return os.WriteFile(absPath, []byte(newContent), 0600)
 }

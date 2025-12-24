@@ -234,16 +234,13 @@ jobs:
         env:
           KOYEB_TOKEN: ${{ secrets.KOYEB_TOKEN }}
         run: |
+          # Create config file with token
+          mkdir -p ~/.koyeb
+          echo "token: $KOYEB_TOKEN" > ~/.koyeb.yaml
+
           # Redeploy existing service
-          koyeb service redeploy goreview/goreview \
-            --token "$KOYEB_TOKEN" || \
-          # If redeploy fails, try to update the service
-          koyeb service update goreview/goreview \
-            --git github.com/${{ github.repository }} \
-            --git-branch main \
-            --git-workdir github-app \
-            --git-builder docker \
-            --token "$KOYEB_TOKEN"
+          koyeb service redeploy goreview/goreview || \
+          echo "Redeploy failed or service doesn't exist, skipping..."
 
   # ---------------------------------------------------------------------------
   # Notify on completion

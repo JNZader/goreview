@@ -112,7 +112,7 @@ func (p *ProjectInfo) scanForLanguages(dir string) {
 
 func (p *ProjectInfo) detectFrameworks(dir string) {
 	// Check package.json for JS frameworks
-	if data, err := os.ReadFile(filepath.Join(dir, "package.json")); err == nil {
+	if data, err := os.ReadFile(filepath.Join(dir, "package.json")); err == nil { //nolint:gosec // Reads from detected project directory
 		content := string(data)
 		frameworks := []string{"react", "vue", "angular", "express", "next", "nest"}
 		for _, fw := range frameworks {
@@ -123,7 +123,7 @@ func (p *ProjectInfo) detectFrameworks(dir string) {
 	}
 
 	// Check go.mod for Go frameworks
-	if data, err := os.ReadFile(filepath.Join(dir, "go.mod")); err == nil {
+	if data, err := os.ReadFile(filepath.Join(dir, "go.mod")); err == nil { //nolint:gosec // Reads from detected project directory
 		content := string(data)
 		if strings.Contains(content, "gin-gonic") {
 			p.Frameworks = append(p.Frameworks, "gin")

@@ -102,7 +102,7 @@ func LoadTemplate(nameOrPath string) (*template.Template, error) {
 	}
 
 	// Try to load from file
-	content, err := os.ReadFile(nameOrPath)
+	content, err := os.ReadFile(nameOrPath) //nolint:gosec // CLI tool loads user-specified template files
 	if err != nil {
 		return nil, err
 	}

@@ -26,8 +26,8 @@ const verifySignature = (req: Request, _res: Response, next: NextFunction) => {
   next();
 };
 
-// Main webhook endpoint
-webhookRouter.post('/', verifySignature, async (req: Request, res: Response) => {
+// Main webhook endpoint (rate limiter applied via router.use above)
+webhookRouter.post('/', webhookRateLimiter, verifySignature, async (req: Request, res: Response) => {
   const event = req.headers['x-github-event'] as string;
   const deliveryId = req.headers['x-github-delivery'] as string;
   const payload = JSON.parse((req.body as Buffer).toString());

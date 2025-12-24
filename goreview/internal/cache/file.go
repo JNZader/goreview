@@ -26,7 +26,7 @@ type fileEntry struct {
 
 // NewFileCache creates a new file-based cache.
 func NewFileCache(dir string, ttl time.Duration) (*FileCache, error) {
-	if err := os.MkdirAll(dir, 0755); err != nil {
+	if err := os.MkdirAll(dir, 0750); err != nil { //nolint:gosec // Cache directory needs group access for shared environments
 		return nil, err
 	}
 
@@ -39,7 +39,7 @@ func NewFileCache(dir string, ttl time.Duration) (*FileCache, error) {
 func (c *FileCache) Get(key string) (*providers.ReviewResponse, bool, error) {
 	path := c.keyPath(key)
 
-	data, err := os.ReadFile(path)
+	data, err := os.ReadFile(path) //nolint:gosec // Path is constructed from trusted cache directory and computed hash key
 	if os.IsNotExist(err) {
 		atomic.AddInt64(&c.misses, 1)
 		return nil, false, nil
@@ -129,7 +129,7 @@ func (c *FileCache) Cleanup() error {
 		}
 
 		path := filepath.Join(c.dir, entry.Name())
-		data, err := os.ReadFile(path)
+		data, err := os.ReadFile(path) //nolint:gosec // Path is constructed from trusted cache directory
 		if err != nil {
 			continue
 		}

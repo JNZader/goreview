@@ -243,7 +243,7 @@ func executeGitCommit(message string, amend bool) error {
 		args = append(args, "--amend")
 	}
 
-	gitCmd := exec.Command("git", args...)
+	gitCmd := exec.Command("git", args...) //nolint:gosec // git command with controlled arguments from CLI flags
 	gitCmd.Stdout = os.Stdout
 	gitCmd.Stderr = os.Stderr
 	gitCmd.Stdin = os.Stdin

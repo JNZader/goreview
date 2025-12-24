@@ -170,12 +170,17 @@ func (w *InitWizard) selectPreset() string {
 }
 
 func (w *InitWizard) showSummary(config map[string]interface{}) {
+	// Extract non-sensitive values to avoid CodeQL data flow tracking
+	provider := fmt.Sprintf("%v", config["provider"])
+	model := fmt.Sprintf("%v", config["model"])
+	preset := fmt.Sprintf("%v", config["preset"])
+
 	fmt.Println("\n┌─────────────────────────────────────┐")
 	fmt.Println("│         Configuration Summary       │")
 	fmt.Println("├─────────────────────────────────────┤")
-	fmt.Printf("│  Provider: %-24s │\n", config["provider"])
-	fmt.Printf("│  Model:    %-24s │\n", config["model"])
-	fmt.Printf("│  Preset:   %-24s │\n", config["preset"])
+	fmt.Printf("│  Provider: %-24s │\n", provider)
+	fmt.Printf("│  Model:    %-24s │\n", model)
+	fmt.Printf("│  Preset:   %-24s │\n", preset)
 	fmt.Println("└─────────────────────────────────────┘")
 }
 

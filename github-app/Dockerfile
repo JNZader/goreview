@@ -40,6 +40,9 @@ RUN npm prune --production
 # -----------------------------------------------------------------------------
 FROM node:20-alpine AS runtime
 
+# Upgrade all packages to get security patches (BusyBox CVE-2024-58251, CVE-2025-46394)
+RUN apk upgrade --no-cache
+
 # Install dumb-init for proper signal handling
 RUN apk add --no-cache dumb-init
 

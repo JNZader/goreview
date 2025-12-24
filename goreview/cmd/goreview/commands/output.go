@@ -17,7 +17,7 @@ func WriteOutput(content, outputPath string) error {
 	// Create parent directories
 	dir := filepath.Dir(outputPath)
 	if dir != "." && dir != "" {
-		if err := os.MkdirAll(dir, 0755); err != nil {
+		if err := os.MkdirAll(dir, 0750); err != nil { //nolint:gosec // Output directory needs group access for shared environments
 			return fmt.Errorf("creating output directory: %w", err)
 		}
 	}

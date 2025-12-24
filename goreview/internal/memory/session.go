@@ -228,7 +228,7 @@ func (s *SessionMem) LoadSession(ctx context.Context, sessionID string) error {
 	defer s.mu.Unlock()
 
 	sessionFile := filepath.Join(s.dir, sessionID+".json")
-	data, err := os.ReadFile(sessionFile)
+	data, err := os.ReadFile(sessionFile) //nolint:gosec // Path is constructed from trusted session directory and UUID
 	if err != nil {
 		if os.IsNotExist(err) {
 			return fmt.Errorf("session not found: %s", sessionID)

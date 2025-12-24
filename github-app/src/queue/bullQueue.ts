@@ -26,18 +26,26 @@ export interface JobResult {
 // Queue names
 const QUEUE_NAME = 'pr-reviews';
 
-// Redis connection config
+// Redis connection config (supports Upstash Redis and standard Redis)
 function getRedisConfig(): ConnectionOptions {
   const redisUrl = process.env.REDIS_URL || 'redis://localhost:6379';
 
   try {
     const url = new URL(redisUrl);
+    const useTLS = url.protocol === 'rediss:';
+
     return {
       host: url.hostname,
       port: parseInt(url.port) || 6379,
       password: url.password || undefined,
       username: url.username || undefined,
-      tls: url.protocol === 'rediss:' ? {} : undefined,
+      // Upstash Redis requires TLS with specific options
+      tls: useTLS ? {
+        rejectUnauthorized: true,
+      } : undefined,
+      // Upstash compatibility: enable offline queue for serverless
+      enableOfflineQueue: true,
+      maxRetriesPerRequest: null, // Required for BullMQ with Upstash
     };
   } catch {
     // Fallback for simple host:port format

@@ -196,12 +196,20 @@ AI_MODEL=qwen2.5-coder:14b
 ### Redis (Cola Persistente)
 
 ```bash
-# Con Redis (recomendado para produccion)
+# Con Redis local
 REDIS_URL=redis://localhost:6379
 
-# Sin Redis usa cola in-memory (desarrollo)
+# Con Upstash Redis (recomendado para serverless/Koyeb)
+REDIS_URL=rediss://default:<password>@<endpoint>.upstash.io:6379
+
+# Sin Redis usa cola in-memory (solo desarrollo)
 # No definir REDIS_URL
 ```
+
+**Upstash Redis** (https://upstash.com):
+- Plan gratuito: 10,000 comandos/dia
+- Ideal para serverless (Koyeb, Vercel, etc.)
+- TLS habilitado por defecto (usar `rediss://`)
 
 ### Rate Limiting
 

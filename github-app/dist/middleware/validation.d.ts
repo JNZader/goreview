@@ -1244,13 +1244,13 @@ export declare const PingPayloadSchema: z.ZodObject<{
     }, "strip", z.ZodTypeAny, {
         type: string;
         id: number;
-        events: string[];
         active: boolean;
+        events: string[];
     }, {
         type: string;
         id: number;
-        events: string[];
         active: boolean;
+        events: string[];
     }>>;
     repository: z.ZodOptional<z.ZodObject<{
         id: z.ZodNumber;
@@ -1358,8 +1358,8 @@ export declare const PingPayloadSchema: z.ZodObject<{
     hook?: {
         type: string;
         id: number;
-        events: string[];
         active: boolean;
+        events: string[];
     } | undefined;
 }, {
     zen: string;
@@ -1390,8 +1390,8 @@ export declare const PingPayloadSchema: z.ZodObject<{
     hook?: {
         type: string;
         id: number;
-        events: string[];
         active: boolean;
+        events: string[];
     } | undefined;
 }>;
 /**
@@ -2715,13 +2715,13 @@ export declare const validation: {
             }, "strip", z.ZodTypeAny, {
                 type: string;
                 id: number;
-                events: string[];
                 active: boolean;
+                events: string[];
             }, {
                 type: string;
                 id: number;
-                events: string[];
                 active: boolean;
+                events: string[];
             }>>;
             repository: z.ZodOptional<z.ZodObject<{
                 id: z.ZodNumber;
@@ -2829,8 +2829,8 @@ export declare const validation: {
             hook?: {
                 type: string;
                 id: number;
-                events: string[];
                 active: boolean;
+                events: string[];
             } | undefined;
         }, {
             zen: string;
@@ -2861,8 +2861,8 @@ export declare const validation: {
             hook?: {
                 type: string;
                 id: number;
-                events: string[];
                 active: boolean;
+                events: string[];
             } | undefined;
         }>;
         JobQuerySchema: z.ZodObject<{

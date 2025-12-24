@@ -238,9 +238,9 @@ jobs:
           mkdir -p ~/.koyeb
           echo "token: $KOYEB_TOKEN" > ~/.koyeb.yaml
 
-          # Redeploy existing service
-          koyeb service redeploy goreview/goreview || \
-          echo "Redeploy failed or service doesn't exist, skipping..."
+          # Redeploy existing service (app/service format)
+          koyeb service redeploy scientific-sofia-jnz-1e815609/scientific-sofia-jnz-1e815609 || \
+          echo "Redeploy failed, check service name in Koyeb dashboard"
 
   # ---------------------------------------------------------------------------
   # Notify on completion

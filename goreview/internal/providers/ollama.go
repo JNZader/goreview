@@ -94,10 +94,11 @@ func (p *OllamaProvider) Close() error { return nil }
 
 func buildReviewPrompt(req *ReviewRequest) string {
 	personalityPrompt := GetPersonalityPrompt(req.Personality)
+	modePrompt := CombineModePrompts(req.Modes)
 
 	return fmt.Sprintf(`%s
 
-Analyze this code and identify issues.
+%s
 
 File: %s
 Language: %s
@@ -110,7 +111,5 @@ Return a JSON object:
   "issues": [{"id": "1", "type": "bug|security|performance|style", "severity": "info|warning|error|critical", "message": "description", "suggestion": "how to fix"}],
   "summary": "brief summary",
   "score": 85
-}
-
-Only report real issues, not nitpicks.`, personalityPrompt, req.FilePath, req.Language, req.Diff)
+}`, personalityPrompt, modePrompt, req.FilePath, req.Language, req.Diff)
 }

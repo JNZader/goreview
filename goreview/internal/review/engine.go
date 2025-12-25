@@ -260,6 +260,7 @@ func (e *Engine) reviewFile(ctx context.Context, file git.FileDiff) *FileResult 
 		Language:    file.Language,
 		FilePath:    file.Path,
 		Personality: e.cfg.Review.Personality,
+		Modes:       providers.ParseModes(e.cfg.Review.Modes),
 	}
 
 	// Check cache

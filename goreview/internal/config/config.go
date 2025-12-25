@@ -101,6 +101,10 @@ type ReviewConfig struct {
 
 	// Personality is the reviewer personality style: "default", "senior", "strict", "friendly", "security-expert"
 	Personality string `mapstructure:"personality" yaml:"personality"`
+
+	// Modes specifies specialized review focus areas: "security", "perf", "clean", "docs", "tests"
+	// Multiple modes can be combined with commas: "security,perf"
+	Modes string `mapstructure:"modes" yaml:"modes"`
 }
 
 // OutputConfig configures output formatting.

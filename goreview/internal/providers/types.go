@@ -25,13 +25,14 @@ type Provider interface {
 
 // ReviewRequest contains the input for a code review.
 type ReviewRequest struct {
-	Diff        string   `json:"diff"`
-	Language    string   `json:"language"`
-	FilePath    string   `json:"file_path"`
-	FileContent string   `json:"file_content,omitempty"`
-	Context     string   `json:"context,omitempty"`
-	Rules       []string `json:"rules,omitempty"`
-	Personality string   `json:"personality,omitempty"`
+	Diff        string       `json:"diff"`
+	Language    string       `json:"language"`
+	FilePath    string       `json:"file_path"`
+	FileContent string       `json:"file_content,omitempty"`
+	Context     string       `json:"context,omitempty"`
+	Rules       []string     `json:"rules,omitempty"`
+	Personality string       `json:"personality,omitempty"`
+	Modes       []ReviewMode `json:"modes,omitempty"`
 }
 
 // ReviewResponse contains the review results.

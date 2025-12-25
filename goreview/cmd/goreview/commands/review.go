@@ -70,6 +70,7 @@ func init() {
 	reviewCmd.Flags().Bool("no-cache", false, "Disable caching")
 	reviewCmd.Flags().String("preset", "standard", "Rule preset (minimal, standard, strict)")
 	reviewCmd.Flags().String("personality", "default", "Reviewer personality (default, senior, strict, friendly, security-expert)")
+	reviewCmd.Flags().String("mode", "default", "Review focus mode (default, security, perf, clean, docs, tests). Combine with commas: security,perf")
 
 	// Profiling flags
 	reviewCmd.Flags().String("cpuprofile", "", "Write CPU profile to file")
@@ -338,6 +339,9 @@ func applyFlagOverrides(cmd *cobra.Command, cfg *config.Config, args []string) {
 	}
 	if personality, _ := cmd.Flags().GetString("personality"); personality != "" {
 		cfg.Review.Personality = personality
+	}
+	if mode, _ := cmd.Flags().GetString("mode"); mode != "" {
+		cfg.Review.Modes = mode
 	}
 
 	// Include/exclude patterns

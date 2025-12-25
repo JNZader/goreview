@@ -196,6 +196,15 @@ type RulesConfig struct {
 
 	// Disabled is the list of disabled rule IDs
 	Disabled []string `mapstructure:"disabled" yaml:"disabled"`
+
+	// InheritFrom specifies sources to inherit rules from (URLs or local paths)
+	// Rules are merged with later sources taking precedence
+	// Example: ["https://company.com/rules.yaml", "./team-rules.yaml"]
+	InheritFrom []string `mapstructure:"inherit_from" yaml:"inherit_from"`
+
+	// Override contains rule property overrides for this project
+	// Example: {"SEC-001": {"severity": "critical"}}
+	Override map[string]interface{} `mapstructure:"override" yaml:"override"`
 }
 
 // MemoryConfig configures the cognitive memory system.

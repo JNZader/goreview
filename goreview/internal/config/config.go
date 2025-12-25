@@ -34,6 +34,40 @@ type Config struct {
 
 	// Memory configures the cognitive memory system
 	Memory MemoryConfig `mapstructure:"memory" yaml:"memory"`
+
+	// RAG configures Retrieval-Augmented Generation with external docs
+	RAG RAGConfig `mapstructure:"rag" yaml:"rag"`
+}
+
+// RAGConfig configures the RAG system for external documentation.
+type RAGConfig struct {
+	// Enabled enables/disables RAG
+	Enabled bool `mapstructure:"enabled" yaml:"enabled"`
+
+	// CacheDir is the directory for cached documentation
+	CacheDir string `mapstructure:"cache_dir" yaml:"cache_dir"`
+
+	// DefaultCacheTTL is the default cache duration
+	DefaultCacheTTL string `mapstructure:"default_cache_ttl" yaml:"default_cache_ttl"`
+
+	// MaxCacheSize is the maximum cache size in bytes
+	MaxCacheSize int64 `mapstructure:"max_cache_size" yaml:"max_cache_size"`
+
+	// AutoDetect enables automatic framework detection
+	AutoDetect bool `mapstructure:"auto_detect" yaml:"auto_detect"`
+
+	// Sources is the list of external documentation sources
+	Sources []RAGSource `mapstructure:"sources" yaml:"sources"`
+}
+
+// RAGSource represents an external documentation source.
+type RAGSource struct {
+	URL      string `mapstructure:"url" yaml:"url"`
+	Type     string `mapstructure:"type" yaml:"type"`
+	Name     string `mapstructure:"name" yaml:"name"`
+	Language string `mapstructure:"language,omitempty" yaml:"language,omitempty"`
+	CacheTTL string `mapstructure:"cache_ttl,omitempty" yaml:"cache_ttl,omitempty"`
+	Enabled  bool   `mapstructure:"enabled" yaml:"enabled"`
 }
 
 // ProviderConfig configures the AI provider.

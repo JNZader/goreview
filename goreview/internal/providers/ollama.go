@@ -93,7 +93,11 @@ func (p *OllamaProvider) HealthCheck(ctx context.Context) error {
 func (p *OllamaProvider) Close() error { return nil }
 
 func buildReviewPrompt(req *ReviewRequest) string {
-	return fmt.Sprintf(`You are an expert code reviewer. Analyze this code and identify issues.
+	personalityPrompt := GetPersonalityPrompt(req.Personality)
+
+	return fmt.Sprintf(`%s
+
+Analyze this code and identify issues.
 
 File: %s
 Language: %s
@@ -108,5 +112,5 @@ Return a JSON object:
   "score": 85
 }
 
-Only report real issues, not nitpicks.`, req.FilePath, req.Language, req.Diff)
+Only report real issues, not nitpicks.`, personalityPrompt, req.FilePath, req.Language, req.Diff)
 }

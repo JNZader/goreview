@@ -98,6 +98,9 @@ type ReviewConfig struct {
 
 	// Context is additional context to include in prompts
 	Context string `mapstructure:"context" yaml:"context"`
+
+	// Personality is the reviewer personality style: "default", "senior", "strict", "friendly", "security-expert"
+	Personality string `mapstructure:"personality" yaml:"personality"`
 }
 
 // OutputConfig configures output formatting.

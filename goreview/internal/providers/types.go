@@ -31,6 +31,7 @@ type ReviewRequest struct {
 	FileContent string   `json:"file_content,omitempty"`
 	Context     string   `json:"context,omitempty"`
 	Rules       []string `json:"rules,omitempty"`
+	Personality string   `json:"personality,omitempty"`
 }
 
 // ReviewResponse contains the review results.

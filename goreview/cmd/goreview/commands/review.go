@@ -4,6 +4,8 @@ import (
 	"context"
 	"fmt"
 	"os"
+	"path/filepath"
+	"strings"
 	"time"
 
 	"github.com/spf13/cobra"
@@ -72,6 +74,10 @@ func init() {
 	reviewCmd.Flags().String("personality", "default", "Reviewer personality (default, senior, strict, friendly, security-expert)")
 	reviewCmd.Flags().String("mode", "default", "Review focus mode (default, security, perf, clean, docs, tests). Combine with commas: security,perf")
 
+	// TDD workflow flags
+	reviewCmd.Flags().Bool("require-tests", false, "Fail if reviewed code lacks corresponding tests")
+	reviewCmd.Flags().Float64("min-coverage", 0, "Minimum test coverage percentage required (0=disabled)")
+
 	// Profiling flags
 	reviewCmd.Flags().String("cpuprofile", "", "Write CPU profile to file")
 	reviewCmd.Flags().String("memprofile", "", "Write memory profile to file")
@@ -115,6 +121,14 @@ func runReview(cmd *cobra.Command, args []string) error {
 	result, err := executeReview(ctx, cmd, cfg)
 	if err != nil {
 		return err
+	}
+
+	// Check TDD requirements
+	requireTests, _ := cmd.Flags().GetBool("require-tests")
+	if requireTests {
+		if err := checkTestCoverage(result); err != nil {
+			return err
+		}
 	}
 
 	// Generate and write report
@@ -352,4 +366,143 @@ func applyFlagOverrides(cmd *cobra.Command, cfg *config.Config, args []string) {
 	if excludes, _ := cmd.Flags().GetStringSlice("exclude"); len(excludes) > 0 {
 		cfg.Git.IgnorePatterns = append(cfg.Git.IgnorePatterns, excludes...)
 	}
+}
+
+// checkTestCoverage ensures all reviewed files have corresponding tests
+func checkTestCoverage(result *review.Result) error {
+	var filesWithoutTests []string
+
+	for _, f := range result.Files {
+		if isTestFile(f.File) {
+			continue
+		}
+
+		if !hasCorrespondingTest(f.File) {
+			filesWithoutTests = append(filesWithoutTests, f.File)
+		}
+	}
+
+	if len(filesWithoutTests) > 0 {
+		fmt.Fprintln(os.Stderr, "\n❌ TDD Violation: The following files lack corresponding tests:")
+		for _, f := range filesWithoutTests {
+			expectedTest := getExpectedTestPath(f)
+			fmt.Fprintf(os.Stderr, "   • %s (expected: %s)\n", f, expectedTest)
+		}
+		fmt.Fprintln(os.Stderr)
+		return fmt.Errorf("--require-tests: %d file(s) missing tests", len(filesWithoutTests))
+	}
+
+	fmt.Fprintln(os.Stderr, "\n✅ TDD Check: All reviewed files have corresponding tests")
+	return nil
+}
+
+// isTestFile checks if the file is a test file
+func isTestFile(path string) bool {
+	base := filepath.Base(path)
+	ext := filepath.Ext(path)
+	nameWithoutExt := strings.TrimSuffix(base, ext)
+
+	// Go tests
+	if strings.HasSuffix(base, "_test.go") {
+		return true
+	}
+
+	// JavaScript/TypeScript tests
+	jsTestSuffixes := []string{".test", ".spec", "_test", "_spec"}
+	for _, suffix := range jsTestSuffixes {
+		if strings.HasSuffix(nameWithoutExt, suffix) {
+			return true
+		}
+	}
+
+	// Test directories - normalize path separators for cross-platform
+	normalizedPath := filepath.ToSlash(path)
+	testDirs := []string{"test", "tests", "__tests__", "spec", "specs"}
+	for _, d := range testDirs {
+		// Check if directory is in path
+		if strings.Contains(normalizedPath, "/"+d+"/") ||
+			strings.HasPrefix(normalizedPath, d+"/") ||
+			strings.Contains(normalizedPath, d+"/") {
+			return true
+		}
+	}
+
+	return false
+}
+
+// hasCorrespondingTest checks if a source file has a corresponding test file
+func hasCorrespondingTest(path string) bool {
+	testPaths := getTestPathVariants(path)
+
+	for _, testPath := range testPaths {
+		if _, err := os.Stat(testPath); err == nil {
+			return true
+		}
+	}
+
+	return false
+}
+
+// getTestPathVariants returns possible test file paths for a source file
+func getTestPathVariants(path string) []string {
+	dir := filepath.Dir(path)
+	base := filepath.Base(path)
+	ext := filepath.Ext(path)
+	nameWithoutExt := strings.TrimSuffix(base, ext)
+
+	var variants []string
+
+	switch ext {
+	case ".go":
+		// Go: file.go -> file_test.go
+		variants = append(variants, filepath.Join(dir, nameWithoutExt+"_test.go"))
+
+	case ".js", ".jsx", ".ts", ".tsx":
+		// JS/TS: file.js -> file.test.js, file.spec.js
+		variants = append(variants, filepath.Join(dir, nameWithoutExt+".test"+ext))
+		variants = append(variants, filepath.Join(dir, nameWithoutExt+".spec"+ext))
+		variants = append(variants, filepath.Join(dir, "__tests__", base))
+		// Also check for .ts tests if .js file
+		if ext == ".js" || ext == ".jsx" {
+			tsExt := strings.Replace(ext, ".js", ".ts", 1)
+			variants = append(variants, filepath.Join(dir, nameWithoutExt+".test"+tsExt))
+			variants = append(variants, filepath.Join(dir, nameWithoutExt+".spec"+tsExt))
+		}
+
+	case ".py":
+		// Python: file.py -> test_file.py, file_test.py
+		variants = append(variants, filepath.Join(dir, "test_"+base))
+		variants = append(variants, filepath.Join(dir, nameWithoutExt+"_test.py"))
+		variants = append(variants, filepath.Join(dir, "tests", "test_"+base))
+
+	case ".java":
+		// Java: File.java -> FileTest.java
+		variants = append(variants, filepath.Join(dir, nameWithoutExt+"Test.java"))
+		variants = append(variants, strings.Replace(path, "/main/", "/test/", 1))
+
+	case ".rs":
+		// Rust: usually in same file or mod tests
+		variants = append(variants, filepath.Join(dir, nameWithoutExt+"_test.rs"))
+
+	case ".rb":
+		// Ruby: file.rb -> file_spec.rb, file_test.rb
+		variants = append(variants, filepath.Join(dir, nameWithoutExt+"_spec.rb"))
+		variants = append(variants, filepath.Join(dir, nameWithoutExt+"_test.rb"))
+		variants = append(variants, filepath.Join(dir, "spec", base))
+
+	default:
+		// Generic: try _test suffix
+		variants = append(variants, filepath.Join(dir, nameWithoutExt+"_test"+ext))
+	}
+
+	return variants
+}
+
+// getExpectedTestPath returns the most likely expected test path
+func getExpectedTestPath(path string) string {
+	variants := getTestPathVariants(path)
+	if len(variants) > 0 {
+		return variants[0]
+	}
+	return path + " (test file)"
 }

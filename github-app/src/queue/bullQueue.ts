@@ -59,11 +59,11 @@ function getRedisConfig(): ConnectionOptions {
  * BullMQ Queue Manager for PR Reviews
  */
 export class BullQueueManager {
-  private queue: Queue<PRReviewJobData, JobResult>;
+  private readonly queue: Queue<PRReviewJobData, JobResult>;
   private worker: Worker<PRReviewJobData, JobResult> | null = null;
   private queueEvents: QueueEvents | null = null;
   private isInitialized = false;
-  private connection: ConnectionOptions;
+  private readonly connection: ConnectionOptions;
 
   constructor() {
     this.connection = getRedisConfig();

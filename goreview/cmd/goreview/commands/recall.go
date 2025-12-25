@@ -140,7 +140,7 @@ func listAnalyzedCommits(store *history.CommitStore) error {
 			issueStr = fmt.Sprintf(" (%s)", strings.Join(badges, ", "))
 		}
 
-		date := s.AnalyzedAt.Format("2006-01-02 15:04")
+		date := s.AnalyzedAt.Format(dateTimeFormat)
 		msg := truncate(s.Message, 45)
 
 		fmt.Printf("%s  %s  %s%s\n", s.Hash[:7], date, msg, issueStr)
@@ -261,7 +261,7 @@ func viewFileHistory(store *history.CommitStore, filePath string) error {
 	fmt.Println("Commits")
 	fmt.Println(strings.Repeat("-", 50))
 	for _, c := range history.Commits {
-		date := c.AnalyzedAt.Format("2006-01-02")
+		date := c.AnalyzedAt.Format(dateFormat)
 		msg := truncate(c.Message, 35)
 		fmt.Printf("%s  %s  %s  (%d issues)\n", c.Hash[:7], date, msg, c.IssueCount)
 	}
@@ -279,13 +279,13 @@ func searchAnalyses(store *history.CommitStore, query string) error {
 	}
 
 	if recallSince != "" {
-		t, err := time.Parse("2006-01-02", recallSince)
+		t, err := time.Parse(dateFormat, recallSince)
 		if err == nil {
 			opts.Since = t
 		}
 	}
 	if recallUntil != "" {
-		t, err := time.Parse("2006-01-02", recallUntil)
+		t, err := time.Parse(dateFormat, recallUntil)
 		if err == nil {
 			opts.Until = t
 		}
@@ -314,7 +314,7 @@ func searchAnalyses(store *history.CommitStore, query string) error {
 	fmt.Println()
 
 	for _, r := range results {
-		date := r.AnalyzedAt.Format("2006-01-02")
+		date := r.AnalyzedAt.Format(dateFormat)
 		matchIcon := getMatchIcon(r.MatchType)
 
 		fmt.Printf("%s %s  %s  @%s\n", matchIcon, r.CommitHash[:7], date, r.Author)

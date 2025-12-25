@@ -16,8 +16,8 @@ import {
 
 export class OllamaProvider implements AIProvider {
   readonly name = 'ollama';
-  private baseUrl: string;
-  private model: string;
+  private readonly baseUrl: string;
+  private readonly model: string;
 
   constructor() {
     this.baseUrl = config.ai.ollamaBaseUrl;

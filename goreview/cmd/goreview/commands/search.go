@@ -93,14 +93,14 @@ func runSearch(cmd *cobra.Command, args []string) error {
 	}
 
 	if since, _ := cmd.Flags().GetString("since"); since != "" {
-		sinceTime, parseErr := time.Parse("2006-01-02", since)
+		sinceTime, parseErr := time.Parse(dateFormat, since)
 		if parseErr != nil {
 			return fmt.Errorf("invalid since date: %w", parseErr)
 		}
 		query.Since = sinceTime
 	}
 	if until, _ := cmd.Flags().GetString("until"); until != "" {
-		untilTime, parseErr := time.Parse("2006-01-02", until)
+		untilTime, parseErr := time.Parse(dateFormat, until)
 		if parseErr != nil {
 			return fmt.Errorf("invalid until date: %w", parseErr)
 		}

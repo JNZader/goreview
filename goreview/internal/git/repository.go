@@ -12,6 +12,8 @@ import (
 // Git command constants (SonarQube S1192)
 const (
 	unifiedContextFlag = "--unified=3"
+	formatFlag         = "--format="
+	noMergesFlag       = "--no-merges"
 )
 
 // Repo implements Repository using git commands.
@@ -72,7 +74,7 @@ func (r *Repo) GetStagedDiff(ctx context.Context) (*Diff, error) {
 }
 
 func (r *Repo) GetCommitDiff(ctx context.Context, sha string) (*Diff, error) {
-	output, err := r.runGit(ctx, "show", sha, unifiedContextFlag, "--format=")
+	output, err := r.runGit(ctx, "show", sha, unifiedContextFlag, formatFlag)
 	if err != nil {
 		return nil, err
 	}
@@ -136,15 +138,16 @@ func (r *Repo) GetCommits(ctx context.Context, from, to string) ([]Commit, error
 	format := "%H|%h|%s|%b|%an|%ae|%aI"
 	separator := "---COMMIT_SEPARATOR---"
 
+	formatStr := formatFlag + format + separator
 	var args []string
 	if from != "" && to != "" {
-		args = []string{"log", from + ".." + to, "--format=" + format + separator, "--no-merges"}
+		args = []string{"log", from + ".." + to, formatStr, noMergesFlag}
 	} else if from != "" {
-		args = []string{"log", from + "..HEAD", "--format=" + format + separator, "--no-merges"}
+		args = []string{"log", from + "..HEAD", formatStr, noMergesFlag}
 	} else if to != "" {
-		args = []string{"log", to, "--format=" + format + separator, "--no-merges"}
+		args = []string{"log", to, formatStr, noMergesFlag}
 	} else {
-		args = []string{"log", "--format=" + format + separator, "--no-merges"}
+		args = []string{"log", formatStr, noMergesFlag}
 	}
 
 	output, err := r.runGit(ctx, args...)
@@ -159,7 +162,7 @@ func (r *Repo) GetCommits(ctx context.Context, from, to string) ([]Commit, error
 func (r *Repo) GetTags(ctx context.Context) ([]Tag, error) {
 	// Format: refname|hash|date|tagger
 	format := "%(refname:short)|%(objectname:short)|%(creatordate:iso-strict)|%(taggername)"
-	output, err := r.runGit(ctx, "tag", "--list", "--sort=-creatordate", "--format="+format)
+	output, err := r.runGit(ctx, "tag", "--list", "--sort=-creatordate", formatFlag+format)
 	if err != nil {
 		return nil, err
 	}

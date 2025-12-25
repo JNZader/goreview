@@ -11,6 +11,9 @@ import (
 	"time"
 )
 
+// File names for commit analysis storage.
+const analysisFileName = "analysis.json"
+
 // CommitStore handles file-based storage of commit analyses.
 // Analyses are stored in .git/goreview/commits/<hash>/
 type CommitStore struct {
@@ -51,7 +54,7 @@ func (cs *CommitStore) Store(analysis *CommitAnalysis) error {
 	}
 
 	// Store full analysis as JSON
-	analysisPath := filepath.Join(commitDir, "analysis.json")
+	analysisPath := filepath.Join(commitDir, analysisFileName)
 	data, err := json.MarshalIndent(analysis, "", "  ")
 	if err != nil {
 		return fmt.Errorf("marshaling analysis: %w", err)
@@ -89,7 +92,7 @@ func (cs *CommitStore) Load(commitHash string) (*CommitAnalysis, error) {
 		shortHash = shortHash[:7]
 	}
 
-	analysisPath := filepath.Join(cs.baseDir, shortHash, "analysis.json")
+	analysisPath := filepath.Join(cs.baseDir, shortHash, analysisFileName)
 	data, err := os.ReadFile(analysisPath)
 	if err != nil {
 		return nil, fmt.Errorf("reading analysis: %w", err)
@@ -109,7 +112,7 @@ func (cs *CommitStore) Exists(commitHash string) bool {
 	if len(shortHash) > 7 {
 		shortHash = shortHash[:7]
 	}
-	_, err := os.Stat(filepath.Join(cs.baseDir, shortHash, "analysis.json"))
+	_, err := os.Stat(filepath.Join(cs.baseDir, shortHash, analysisFileName))
 	return err == nil
 }
 

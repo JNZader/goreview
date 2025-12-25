@@ -13,6 +13,13 @@ import (
 	"github.com/JNZader/goreview/goreview/internal/history"
 )
 
+// Table border constants for dashboard output.
+const (
+	tableTop    = "┌─────────────────────────────────────────────────────┐"
+	tableMid    = "├─────────────────────────────────────────────────────┤"
+	tableBottom = "└─────────────────────────────────────────────────────┘"
+)
+
 var statsCmd = &cobra.Command{
 	Use:   "stats",
 	Short: "Show review statistics dashboard",
@@ -99,13 +106,13 @@ func outputStatsDashboard(stats *history.Stats) error {
 	}
 	pending := stats.TotalIssues - stats.ResolvedIssues
 
-	fmt.Println("┌─────────────────────────────────────────────────────┐")
+	fmt.Println(tableTop)
 	fmt.Println("│                     📈 SUMMARY                      │")
-	fmt.Println("├─────────────────────────────────────────────────────┤")
+	fmt.Println(tableMid)
 	fmt.Printf("│  Total Issues:     %-6d                            │\n", stats.TotalIssues)
 	fmt.Printf("│  Resolved:         %-6d (%.1f%%)                     │\n", stats.ResolvedIssues, resolutionRate)
 	fmt.Printf("│  Pending:          %-6d                            │\n", pending)
-	fmt.Println("└─────────────────────────────────────────────────────┘")
+	fmt.Println(tableBottom)
 	fmt.Println()
 
 	// Resolution Progress Bar
@@ -116,9 +123,9 @@ func outputStatsDashboard(stats *history.Stats) error {
 
 	// By Severity
 	if len(stats.BySeverity) > 0 {
-		fmt.Println("┌─────────────────────────────────────────────────────┐")
+		fmt.Println(tableTop)
 		fmt.Println("│                  🎯 BY SEVERITY                     │")
-		fmt.Println("├─────────────────────────────────────────────────────┤")
+		fmt.Println(tableMid)
 
 		severityOrder := []string{"critical", "error", "warning", "info"}
 		for _, sev := range severityOrder {
@@ -129,15 +136,15 @@ func outputStatsDashboard(stats *history.Stats) error {
 				fmt.Printf("│  %s %-10s %s %-4d (%.0f%%)    │\n", emoji, sev, innerBar, count, percent)
 			}
 		}
-		fmt.Println("└─────────────────────────────────────────────────────┘")
+		fmt.Println(tableBottom)
 		fmt.Println()
 	}
 
 	// By Type
 	if len(stats.ByType) > 0 {
-		fmt.Println("┌─────────────────────────────────────────────────────┐")
+		fmt.Println(tableTop)
 		fmt.Println("│                    🏷️  BY TYPE                      │")
-		fmt.Println("├─────────────────────────────────────────────────────┤")
+		fmt.Println(tableMid)
 
 		// Sort by count descending
 		type typeCount struct {
@@ -157,15 +164,15 @@ func outputStatsDashboard(stats *history.Stats) error {
 			innerBar := makeProgressBar(int(tc.count), int(stats.TotalIssues), 20)
 			fmt.Printf("│  %-12s %s %-4d (%.0f%%)        │\n", tc.typ, innerBar, tc.count, percent)
 		}
-		fmt.Println("└─────────────────────────────────────────────────────┘")
+		fmt.Println(tableBottom)
 		fmt.Println()
 	}
 
 	// Top Files
 	if len(stats.ByFile) > 0 {
-		fmt.Println("┌─────────────────────────────────────────────────────┐")
+		fmt.Println(tableTop)
 		fmt.Println("│                   📁 TOP FILES                      │")
-		fmt.Println("├─────────────────────────────────────────────────────┤")
+		fmt.Println(tableMid)
 
 		// Sort by count descending
 		type fileCount struct {
@@ -194,7 +201,7 @@ func outputStatsDashboard(stats *history.Stats) error {
 			}
 			fmt.Printf("│  %-35s %4d issues    │\n", displayPath, fc.count)
 		}
-		fmt.Println("└─────────────────────────────────────────────────────┘")
+		fmt.Println(tableBottom)
 		fmt.Println()
 	}
 

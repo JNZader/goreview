@@ -16,9 +16,9 @@ import {
 
 export class GeminiProvider implements AIProvider {
   readonly name = 'gemini';
-  private baseUrl: string;
-  private model: string;
-  private apiKey: string;
+  private readonly baseUrl: string;
+  private readonly model: string;
+  private readonly apiKey: string;
 
   constructor() {
     this.apiKey = config.ai.geminiApiKey || '';

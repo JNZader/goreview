@@ -39,9 +39,9 @@ export interface RelatedContext {
  * RelatedPRsService finds PRs and issues related to the current PR
  */
 export class RelatedPRsService {
-  private octokit: Octokit;
-  private owner: string;
-  private repo: string;
+  private readonly octokit: Octokit;
+  private readonly owner: string;
+  private readonly repo: string;
 
   constructor(octokit: Octokit, owner: string, repo: string) {
     this.octokit = octokit;

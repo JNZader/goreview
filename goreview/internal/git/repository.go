@@ -129,3 +129,112 @@ func (r *Repo) IsClean(ctx context.Context) (bool, error) {
 	}
 	return strings.TrimSpace(output) == "", nil
 }
+
+// GetCommits returns commits between two refs (or all commits if from is empty).
+func (r *Repo) GetCommits(ctx context.Context, from, to string) ([]Commit, error) {
+	// Format: hash|short_hash|subject|body|author|email|date
+	format := "%H|%h|%s|%b|%an|%ae|%aI"
+	separator := "---COMMIT_SEPARATOR---"
+
+	var args []string
+	if from != "" && to != "" {
+		args = []string{"log", from + ".." + to, "--format=" + format + separator, "--no-merges"}
+	} else if from != "" {
+		args = []string{"log", from + "..HEAD", "--format=" + format + separator, "--no-merges"}
+	} else if to != "" {
+		args = []string{"log", to, "--format=" + format + separator, "--no-merges"}
+	} else {
+		args = []string{"log", "--format=" + format + separator, "--no-merges"}
+	}
+
+	output, err := r.runGit(ctx, args...)
+	if err != nil {
+		return nil, err
+	}
+
+	return parseCommits(output, separator)
+}
+
+// GetTags returns all tags sorted by date (newest first).
+func (r *Repo) GetTags(ctx context.Context) ([]Tag, error) {
+	// Format: refname|hash|date|tagger
+	format := "%(refname:short)|%(objectname:short)|%(creatordate:iso-strict)|%(taggername)"
+	output, err := r.runGit(ctx, "tag", "--list", "--sort=-creatordate", "--format="+format)
+	if err != nil {
+		return nil, err
+	}
+
+	return parseTags(output)
+}
+
+// GetLatestTag returns the most recent tag.
+func (r *Repo) GetLatestTag(ctx context.Context) (*Tag, error) {
+	tags, err := r.GetTags(ctx)
+	if err != nil {
+		return nil, err
+	}
+	if len(tags) == 0 {
+		return nil, nil
+	}
+	return &tags[0], nil
+}
+
+// parseCommits parses the git log output into Commit structs.
+func parseCommits(output, separator string) ([]Commit, error) {
+	var commits []Commit
+	entries := strings.Split(output, separator)
+
+	for _, entry := range entries {
+		entry = strings.TrimSpace(entry)
+		if entry == "" {
+			continue
+		}
+
+		parts := strings.SplitN(entry, "|", 7)
+		if len(parts) < 7 {
+			continue
+		}
+
+		commits = append(commits, Commit{
+			Hash:        parts[0],
+			ShortHash:   parts[1],
+			Subject:     parts[2],
+			Body:        strings.TrimSpace(parts[3]),
+			Author:      parts[4],
+			AuthorEmail: parts[5],
+			Date:        parts[6],
+		})
+	}
+
+	return commits, nil
+}
+
+// parseTags parses the git tag output into Tag structs.
+func parseTags(output string) ([]Tag, error) {
+	var tags []Tag
+	lines := strings.Split(output, "\n")
+
+	for _, line := range lines {
+		line = strings.TrimSpace(line)
+		if line == "" {
+			continue
+		}
+
+		parts := strings.SplitN(line, "|", 4)
+		if len(parts) < 3 {
+			continue
+		}
+
+		tag := Tag{
+			Name: parts[0],
+			Hash: parts[1],
+			Date: parts[2],
+		}
+		if len(parts) > 3 {
+			tag.Tagger = parts[3]
+		}
+		tags = append(tags, tag)
+	}
+
+	return tags, nil
+}

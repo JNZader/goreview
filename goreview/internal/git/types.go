@@ -101,3 +101,36 @@ func (d *Diff) CalculateStats() {
 		d.Stats.Deletions += f.Deletions
 	}
 }
+
+// Commit represents a git commit for changelog generation.
+type Commit struct {
+	Hash        string `json:"hash"`
+	ShortHash   string `json:"short_hash"`
+	Subject     string `json:"subject"`
+	Body        string `json:"body,omitempty"`
+	Author      string `json:"author"`
+	AuthorEmail string `json:"author_email"`
+	Date        string `json:"date"`
+}
+
+// Tag represents a git tag.
+type Tag struct {
+	Name   string `json:"name"`
+	Hash   string `json:"hash"`
+	Date   string `json:"date"`
+	Tagger string `json:"tagger,omitempty"`
+}
+
+// ConventionalCommit represents a parsed conventional commit.
+type ConventionalCommit struct {
+	Type        string `json:"type"`
+	Scope       string `json:"scope,omitempty"`
+	Breaking    bool   `json:"breaking"`
+	Description string `json:"description"`
+	Body        string `json:"body,omitempty"`
+	Footer      string `json:"footer,omitempty"`
+	Hash        string `json:"hash"`
+	ShortHash   string `json:"short_hash"`
+	Author      string `json:"author"`
+	Date        string `json:"date"`
+}

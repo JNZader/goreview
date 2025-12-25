@@ -105,6 +105,9 @@ type ReviewConfig struct {
 	// Modes specifies specialized review focus areas: "security", "perf", "clean", "docs", "tests"
 	// Multiple modes can be combined with commas: "security,perf"
 	Modes string `mapstructure:"modes" yaml:"modes"`
+
+	// RootCauseTracing enables root cause analysis for each issue
+	RootCauseTracing bool `mapstructure:"root_cause_tracing" yaml:"root_cause_tracing"`
 }
 
 // OutputConfig configures output formatting.

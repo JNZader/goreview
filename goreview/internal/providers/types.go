@@ -25,14 +25,15 @@ type Provider interface {
 
 // ReviewRequest contains the input for a code review.
 type ReviewRequest struct {
-	Diff        string       `json:"diff"`
-	Language    string       `json:"language"`
-	FilePath    string       `json:"file_path"`
-	FileContent string       `json:"file_content,omitempty"`
-	Context     string       `json:"context,omitempty"`
-	Rules       []string     `json:"rules,omitempty"`
-	Personality string       `json:"personality,omitempty"`
-	Modes       []ReviewMode `json:"modes,omitempty"`
+	Diff             string       `json:"diff"`
+	Language         string       `json:"language"`
+	FilePath         string       `json:"file_path"`
+	FileContent      string       `json:"file_content,omitempty"`
+	Context          string       `json:"context,omitempty"`
+	Rules            []string     `json:"rules,omitempty"`
+	Personality      string       `json:"personality,omitempty"`
+	Modes            []ReviewMode `json:"modes,omitempty"`
+	RootCauseTracing bool         `json:"root_cause_tracing,omitempty"`
 }
 
 // ReviewResponse contains the review results.
@@ -54,6 +55,17 @@ type Issue struct {
 	Location   *Location `json:"location,omitempty"`
 	RuleID     string    `json:"rule_id,omitempty"`
 	FixedCode  string    `json:"fixed_code,omitempty"`
+	RootCause  *RootCause `json:"root_cause,omitempty"`
+}
+
+// RootCause contains root cause analysis for an issue.
+type RootCause struct {
+	Description    string   `json:"description"`
+	OriginFile     string   `json:"origin_file,omitempty"`
+	OriginLine     int      `json:"origin_line,omitempty"`
+	PropagationPath []string `json:"propagation_path,omitempty"`
+	RelatedIssues  []string `json:"related_issues,omitempty"`
+	Recommendation string   `json:"recommendation,omitempty"`
 }
 
 // Location represents a position in code.

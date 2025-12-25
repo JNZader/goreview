@@ -53,6 +53,7 @@ func init() {
 	searchCmd.Flags().StringP("format", "f", "table", "Output format (table, json)")
 }
 
+//nolint:gocyclo // CLI command with multiple flag handling paths
 func runSearch(cmd *cobra.Command, args []string) error {
 	cfg, err := config.LoadDefault()
 	if err != nil {
@@ -130,6 +131,7 @@ func runSearch(cmd *cobra.Command, args []string) error {
 	return outputSearchResults(result, format)
 }
 
+//nolint:unparam // error return kept for consistency with other output functions
 func outputSearchResults(result *history.SearchResult, format string) error {
 	if len(result.Records) == 0 {
 		fmt.Println("No results found.")

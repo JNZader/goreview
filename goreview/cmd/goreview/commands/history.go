@@ -40,6 +40,7 @@ func init() {
 	historyCmd.Flags().Int("limit", 20, "Number of issues to show in detailed mode")
 }
 
+//nolint:gocyclo // CLI command with multiple display modes
 func runHistory(cmd *cobra.Command, args []string) error {
 	path := "."
 	if len(args) > 0 {

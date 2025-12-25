@@ -149,6 +149,7 @@ func listAnalyzedCommits(store *history.CommitStore) error {
 	return nil
 }
 
+//nolint:funlen // Display function with structured output sections
 func viewCommitAnalysis(store *history.CommitStore, commitHash string) error {
 	analysis, err := store.Load(commitHash)
 	if err != nil {

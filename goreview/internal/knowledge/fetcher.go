@@ -348,6 +348,8 @@ func (f *Fetcher) fetchFromGitHub(ctx context.Context, source Source, query stri
 }
 
 // Search searches across all configured knowledge sources.
+//
+//nolint:gocyclo // CLI search function with multiple filter conditions
 func (f *Fetcher) Search(ctx context.Context, query SearchQuery) ([]SearchResult, error) {
 	docs, err := f.FetchContext(ctx, query.Text)
 	if err != nil {

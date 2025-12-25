@@ -181,8 +181,8 @@ func (r *Repo) GetLatestTag(ctx context.Context) (*Tag, error) {
 
 // parseCommits parses the git log output into Commit structs.
 func parseCommits(output, separator string) ([]Commit, error) {
-	var commits []Commit
 	entries := strings.Split(output, separator)
+	commits := make([]Commit, 0, len(entries))
 
 	for _, entry := range entries {
 		entry = strings.TrimSpace(entry)
@@ -211,8 +211,8 @@ func parseCommits(output, separator string) ([]Commit, error) {
 
 // parseTags parses the git tag output into Tag structs.
 func parseTags(output string) ([]Tag, error) {
-	var tags []Tag
 	lines := strings.Split(output, "\n")
+	tags := make([]Tag, 0, len(lines))
 
 	for _, line := range lines {
 		line = strings.TrimSpace(line)

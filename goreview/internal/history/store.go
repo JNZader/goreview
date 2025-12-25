@@ -368,7 +368,7 @@ func (s *Store) GetFileHistory(ctx context.Context, path string) (*FileHistory, 
 	for rows.Next() {
 		var sev string
 		var count int
-		if err := rows.Scan(&sev, &count); err != nil {
+		if scanErr := rows.Scan(&sev, &count); scanErr != nil {
 			continue
 		}
 		bySeverity[sev] = count
@@ -391,7 +391,7 @@ func (s *Store) GetFileHistory(ctx context.Context, path string) (*FileHistory, 
 	for rows.Next() {
 		var typ string
 		var count int
-		if err := rows.Scan(&typ, &count); err != nil {
+		if scanErr := rows.Scan(&typ, &count); scanErr != nil {
 			continue
 		}
 		byType[typ] = count

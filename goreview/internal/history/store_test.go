@@ -137,9 +137,9 @@ func TestSearchFilters(t *testing.T) {
 
 	// Test severity filter
 	t.Run("filter by severity", func(t *testing.T) {
-		result, err := store.Search(ctx, SearchQuery{Severity: "critical"})
-		if err != nil {
-			t.Fatalf("Search failed: %v", err)
+		result, searchErr := store.Search(ctx, SearchQuery{Severity: "critical"})
+		if searchErr != nil {
+			t.Fatalf("Search failed: %v", searchErr)
 		}
 		if result.TotalCount != 1 {
 			t.Errorf("Expected 1 critical issue, got %d", result.TotalCount)
@@ -148,9 +148,9 @@ func TestSearchFilters(t *testing.T) {
 
 	// Test author filter
 	t.Run("filter by author", func(t *testing.T) {
-		result, err := store.Search(ctx, SearchQuery{Author: "john"})
-		if err != nil {
-			t.Fatalf("Search failed: %v", err)
+		result, searchErr := store.Search(ctx, SearchQuery{Author: "john"})
+		if searchErr != nil {
+			t.Fatalf("Search failed: %v", searchErr)
 		}
 		if result.TotalCount != 2 {
 			t.Errorf("Expected 2 issues by john, got %d", result.TotalCount)
@@ -159,9 +159,9 @@ func TestSearchFilters(t *testing.T) {
 
 	// Test file pattern filter
 	t.Run("filter by file pattern", func(t *testing.T) {
-		result, err := store.Search(ctx, SearchQuery{File: "src/auth/*"})
-		if err != nil {
-			t.Fatalf("Search failed: %v", err)
+		result, searchErr := store.Search(ctx, SearchQuery{File: "src/auth/*"})
+		if searchErr != nil {
+			t.Fatalf("Search failed: %v", searchErr)
 		}
 		if result.TotalCount != 2 {
 			t.Errorf("Expected 2 issues in auth dir, got %d", result.TotalCount)
@@ -171,9 +171,9 @@ func TestSearchFilters(t *testing.T) {
 	// Test resolved filter
 	t.Run("filter by resolved", func(t *testing.T) {
 		resolved := true
-		result, err := store.Search(ctx, SearchQuery{Resolved: &resolved})
-		if err != nil {
-			t.Fatalf("Search failed: %v", err)
+		result, searchErr := store.Search(ctx, SearchQuery{Resolved: &resolved})
+		if searchErr != nil {
+			t.Fatalf("Search failed: %v", searchErr)
 		}
 		if result.TotalCount != 1 {
 			t.Errorf("Expected 1 resolved issue, got %d", result.TotalCount)
@@ -182,9 +182,9 @@ func TestSearchFilters(t *testing.T) {
 
 	// Test type filter
 	t.Run("filter by type", func(t *testing.T) {
-		result, err := store.Search(ctx, SearchQuery{Type: "security"})
-		if err != nil {
-			t.Fatalf("Search failed: %v", err)
+		result, searchErr := store.Search(ctx, SearchQuery{Type: "security"})
+		if searchErr != nil {
+			t.Fatalf("Search failed: %v", searchErr)
 		}
 		if result.TotalCount != 1 {
 			t.Errorf("Expected 1 security issue, got %d", result.TotalCount)

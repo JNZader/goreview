@@ -64,7 +64,8 @@ func DefaultConfig() *Config {
 			Mode:           "staged",
 			MinSeverity:    "warning",
 			MaxIssues:      50,
-			MaxConcurrency: 0, // Auto-detect based on CPU
+			MaxConcurrency: 0,         // Auto-detect based on CPU
+			Personality:    "default", // Balanced reviewer style
 		},
 
 		Output: OutputConfig{

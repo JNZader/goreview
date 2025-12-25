@@ -69,6 +69,7 @@ func init() {
 	reviewCmd.Flags().Int("concurrency", 0, "Max concurrent file reviews (0=auto)")
 	reviewCmd.Flags().Bool("no-cache", false, "Disable caching")
 	reviewCmd.Flags().String("preset", "standard", "Rule preset (minimal, standard, strict)")
+	reviewCmd.Flags().String("personality", "default", "Reviewer personality (default, senior, strict, friendly, security-expert)")
 
 	// Profiling flags
 	reviewCmd.Flags().String("cpuprofile", "", "Write CPU profile to file")
@@ -334,6 +335,9 @@ func applyFlagOverrides(cmd *cobra.Command, cfg *config.Config, args []string) {
 	}
 	if concurrency, _ := cmd.Flags().GetInt("concurrency"); concurrency > 0 {
 		cfg.Review.MaxConcurrency = concurrency
+	}
+	if personality, _ := cmd.Flags().GetString("personality"); personality != "" {
+		cfg.Review.Personality = personality
 	}
 
 	// Include/exclude patterns

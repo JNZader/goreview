@@ -138,7 +138,7 @@ func (s *Store) StoreBatch(ctx context.Context, records []*ReviewRecord) error {
 	if err != nil {
 		return fmt.Errorf("starting transaction: %w", err)
 	}
-	defer tx.Rollback()
+	defer func() { _ = tx.Rollback() }()
 
 	stmt, err := tx.PrepareContext(ctx, `INSERT INTO reviews (
 		commit_hash, file_path, issue_type, severity, message, suggestion,
@@ -230,7 +230,7 @@ func (s *Store) Search(ctx context.Context, q SearchQuery) (*SearchResult, error
 	}
 
 	// Count total
-	countQuery := fmt.Sprintf("SELECT COUNT(*) FROM reviews r %s", whereClause)
+	countQuery := "SELECT COUNT(*) FROM reviews r " + whereClause //nolint:gosec // Query built with parameterized args
 	var totalCount int64
 	if err := s.db.QueryRowContext(ctx, countQuery, args...).Scan(&totalCount); err != nil {
 		return nil, fmt.Errorf("counting results: %w", err)
@@ -243,14 +243,15 @@ func (s *Store) Search(ctx context.Context, q SearchQuery) (*SearchResult, error
 	}
 	offset := q.Offset
 
-	selectQuery := fmt.Sprintf(`
+	//nolint:gosec // Query built with parameterized args, whereClause uses placeholders
+	selectQuery := `
 		SELECT id, commit_hash, file_path, issue_type, severity, message, suggestion,
 		       line, author, branch, created_at, resolved, resolved_at, review_round
 		FROM reviews r
-		%s
+		` + whereClause + `
 		ORDER BY created_at DESC
 		LIMIT ? OFFSET ?
-	`, whereClause)
+	`
 
 	args = append(args, limit, offset)
 
@@ -429,8 +430,9 @@ func (s *Store) GetStats(ctx context.Context) (*Stats, error) {
 	for rows.Next() {
 		var sev string
 		var count int64
-		rows.Scan(&sev, &count)
-		bySeverity[sev] = count
+		if err := rows.Scan(&sev, &count); err == nil {
+			bySeverity[sev] = count
+		}
 	}
 	rows.Close()
 
@@ -440,8 +442,9 @@ func (s *Store) GetStats(ctx context.Context) (*Stats, error) {
 	for rows.Next() {
 		var typ string
 		var count int64
-		rows.Scan(&typ, &count)
-		byType[typ] = count
+		if err := rows.Scan(&typ, &count); err == nil {
+			byType[typ] = count
+		}
 	}
 	rows.Close()
 
@@ -457,8 +460,9 @@ func (s *Store) GetStats(ctx context.Context) (*Stats, error) {
 	for rows.Next() {
 		var file string
 		var count int64
-		rows.Scan(&file, &count)
-		byFile[file] = count
+		if err := rows.Scan(&file, &count); err == nil {
+			byFile[file] = count
+		}
 	}
 	rows.Close()
 

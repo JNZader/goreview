@@ -85,9 +85,9 @@ func runChangelog(cmd *cobra.Command, args []string) error {
 
 	// If unreleased, get from latest tag
 	if unreleased {
-		latestTag, err := gitRepo.GetLatestTag(ctx)
-		if err != nil {
-			return fmt.Errorf("getting latest tag: %w", err)
+		latestTag, tagErr := gitRepo.GetLatestTag(ctx)
+		if tagErr != nil {
+			return fmt.Errorf("getting latest tag: %w", tagErr)
 		}
 		if latestTag != nil {
 			from = latestTag.Name
@@ -99,9 +99,9 @@ func runChangelog(cmd *cobra.Command, args []string) error {
 
 	// If no from specified, try to get from latest tag
 	if from == "" && !unreleased {
-		latestTag, err := gitRepo.GetLatestTag(ctx)
-		if err != nil {
-			return fmt.Errorf("getting latest tag: %w", err)
+		latestTag, tagErr := gitRepo.GetLatestTag(ctx)
+		if tagErr != nil {
+			return fmt.Errorf("getting latest tag: %w", tagErr)
 		}
 		if latestTag != nil {
 			from = latestTag.Name
@@ -130,10 +130,10 @@ func runChangelog(cmd *cobra.Command, args []string) error {
 
 	// Generate changelog
 	opts := changelogOptions{
-		Version: version,
+		Version:  version,
 		NoHeader: noHeader,
-		NoDate:  noDate,
-		NoLinks: noLinks,
+		NoDate:   noDate,
+		NoLinks:  noLinks,
 	}
 	changelog := generateChangelog(grouped, opts)
 
@@ -340,7 +340,7 @@ func writeChangelog(filename, content string, appendToFile bool) error {
 		flag = os.O_CREATE | os.O_WRONLY | os.O_TRUNC
 	}
 
-	file, err := os.OpenFile(filename, flag, 0644)
+	file, err := os.OpenFile(filename, flag, 0600) //nolint:gosec // User-specified output file
 	if err != nil {
 		return fmt.Errorf("opening file: %w", err)
 	}

@@ -11,15 +11,15 @@ import "time"
 // CommitAnalysis represents the detailed analysis of a single commit.
 // Stored in .git/goreview/commits/<hash>/
 type CommitAnalysis struct {
-	CommitHash  string           `json:"commit_hash"`
-	CommitMsg   string           `json:"commit_message"`
-	Author      string           `json:"author"`
-	AuthorEmail string           `json:"author_email"`
-	AnalyzedAt  time.Time        `json:"analyzed_at"`
-	Branch      string           `json:"branch,omitempty"`
-	Files       []AnalyzedFile   `json:"files"`
-	Summary     AnalysisSummary  `json:"summary"`
-	Context     AnalysisContext  `json:"context"`
+	CommitHash  string          `json:"commit_hash"`
+	CommitMsg   string          `json:"commit_message"`
+	Author      string          `json:"author"`
+	AuthorEmail string          `json:"author_email"`
+	AnalyzedAt  time.Time       `json:"analyzed_at"`
+	Branch      string          `json:"branch,omitempty"`
+	Files       []AnalyzedFile  `json:"files"`
+	Summary     AnalysisSummary `json:"summary"`
+	Context     AnalysisContext `json:"context"`
 }
 
 // AnalyzedFile represents analysis of a single file in a commit.
@@ -74,14 +74,14 @@ type AnalysisContext struct {
 
 // RecallResult represents a search match in historical commit data.
 type RecallResult struct {
-	CommitHash  string    `json:"commit_hash"`
-	CommitMsg   string    `json:"commit_message"`
-	Author      string    `json:"author"`
-	AnalyzedAt  time.Time `json:"analyzed_at"`
-	FilePath    string    `json:"file_path,omitempty"`
-	MatchType   string    `json:"match_type"` // "commit", "file", "issue", "content"
-	Snippet     string    `json:"snippet"`
-	Score       float64   `json:"score"`
+	CommitHash string    `json:"commit_hash"`
+	CommitMsg  string    `json:"commit_message"`
+	Author     string    `json:"author"`
+	AnalyzedAt time.Time `json:"analyzed_at"`
+	FilePath   string    `json:"file_path,omitempty"`
+	MatchType  string    `json:"match_type"` // "commit", "file", "issue", "content"
+	Snippet    string    `json:"snippet"`
+	Score      float64   `json:"score"`
 }
 
 // CommitHistory represents the analysis history of commits.
@@ -209,7 +209,7 @@ type Stats struct {
 
 // AuthorStats contains statistics for an author.
 type AuthorStats struct {
-	Author       string `json:"author"`
-	TotalIssues  int64  `json:"total_issues"`
+	Author       string  `json:"author"`
+	TotalIssues  int64   `json:"total_issues"`
 	ResolvedRate float64 `json:"resolved_rate"`
 }

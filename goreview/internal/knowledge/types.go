@@ -17,9 +17,9 @@ const (
 
 // Source represents a knowledge source configuration.
 type Source struct {
-	Type     SourceType `yaml:"type" json:"type"`
-	Name     string     `yaml:"name" json:"name"`
-	Enabled  bool       `yaml:"enabled" json:"enabled"`
+	Type    SourceType `yaml:"type" json:"type"`
+	Name    string     `yaml:"name" json:"name"`
+	Enabled bool       `yaml:"enabled" json:"enabled"`
 
 	// Notion-specific
 	NotionToken      string `yaml:"notion_token,omitempty" json:"notion_token,omitempty"`
@@ -37,8 +37,8 @@ type Source struct {
 	ObsidianTags      []string `yaml:"obsidian_tags,omitempty" json:"obsidian_tags,omitempty"`
 
 	// Local docs
-	LocalPath    string   `yaml:"local_path,omitempty" json:"local_path,omitempty"`
-	LocalPattern string   `yaml:"local_pattern,omitempty" json:"local_pattern,omitempty"` // glob pattern
+	LocalPath    string `yaml:"local_path,omitempty" json:"local_path,omitempty"`
+	LocalPattern string `yaml:"local_pattern,omitempty" json:"local_pattern,omitempty"` // glob pattern
 
 	// GitHub wiki/docs
 	GitHubOwner string `yaml:"github_owner,omitempty" json:"github_owner,omitempty"`

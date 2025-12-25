@@ -56,7 +56,7 @@ func (cs *CommitStore) Store(analysis *CommitAnalysis) error {
 	if err != nil {
 		return fmt.Errorf("marshaling analysis: %w", err)
 	}
-	if err := os.WriteFile(analysisPath, data, 0644); err != nil {
+	if err := os.WriteFile(analysisPath, data, 0600); err != nil {
 		return fmt.Errorf("writing analysis: %w", err)
 	}
 
@@ -67,12 +67,12 @@ func (cs *CommitStore) Store(analysis *CommitAnalysis) error {
 		allIssues = append(allIssues, f.Issues...)
 	}
 	issuesData, _ := json.MarshalIndent(allIssues, "", "  ")
-	_ = os.WriteFile(issuesPath, issuesData, 0644)
+	_ = os.WriteFile(issuesPath, issuesData, 0600) //nolint:gosec // Internal data file
 
 	// Store context for reference
 	contextPath := filepath.Join(commitDir, "context.json")
 	contextData, _ := json.MarshalIndent(analysis.Context, "", "  ")
-	_ = os.WriteFile(contextPath, contextData, 0644)
+	_ = os.WriteFile(contextPath, contextData, 0600) //nolint:gosec // Internal data file
 
 	// Generate markdown summary
 	mdPath := filepath.Join(commitDir, "analysis.md")
@@ -123,7 +123,7 @@ func (cs *CommitStore) List() ([]CommitSummary, error) {
 		return nil, fmt.Errorf("reading commits directory: %w", err)
 	}
 
-	var summaries []CommitSummary
+	summaries := make([]CommitSummary, 0, len(entries))
 	for _, entry := range entries {
 		if !entry.IsDir() {
 			continue
@@ -406,7 +406,7 @@ func (cs *CommitStore) generateMarkdownSummary(analysis *CommitAnalysis, path st
 		sb.WriteString(fmt.Sprintf("- Modes: %s\n", strings.Join(analysis.Context.Modes, ", ")))
 	}
 
-	return os.WriteFile(path, []byte(sb.String()), 0644)
+	return os.WriteFile(path, []byte(sb.String()), 0600) //nolint:gosec // Internal markdown file
 }
 
 // formatAnalysisSummary formats an analysis for display.

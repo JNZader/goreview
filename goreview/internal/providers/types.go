@@ -47,25 +47,25 @@ type ReviewResponse struct {
 
 // Issue represents a code review issue.
 type Issue struct {
-	ID         string    `json:"id"`
-	Type       IssueType `json:"type"`
-	Severity   Severity  `json:"severity"`
-	Message    string    `json:"message"`
-	Suggestion string    `json:"suggestion,omitempty"`
-	Location   *Location `json:"location,omitempty"`
-	RuleID     string    `json:"rule_id,omitempty"`
-	FixedCode  string    `json:"fixed_code,omitempty"`
+	ID         string     `json:"id"`
+	Type       IssueType  `json:"type"`
+	Severity   Severity   `json:"severity"`
+	Message    string     `json:"message"`
+	Suggestion string     `json:"suggestion,omitempty"`
+	Location   *Location  `json:"location,omitempty"`
+	RuleID     string     `json:"rule_id,omitempty"`
+	FixedCode  string     `json:"fixed_code,omitempty"`
 	RootCause  *RootCause `json:"root_cause,omitempty"`
 }
 
 // RootCause contains root cause analysis for an issue.
 type RootCause struct {
-	Description    string   `json:"description"`
-	OriginFile     string   `json:"origin_file,omitempty"`
-	OriginLine     int      `json:"origin_line,omitempty"`
+	Description     string   `json:"description"`
+	OriginFile      string   `json:"origin_file,omitempty"`
+	OriginLine      int      `json:"origin_line,omitempty"`
 	PropagationPath []string `json:"propagation_path,omitempty"`
-	RelatedIssues  []string `json:"related_issues,omitempty"`
-	Recommendation string   `json:"recommendation,omitempty"`
+	RelatedIssues   []string `json:"related_issues,omitempty"`
+	Recommendation  string   `json:"recommendation,omitempty"`
 }
 
 // Location represents a position in code.

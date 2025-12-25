@@ -66,25 +66,25 @@ func init() {
 
 // PlanReview represents the review of a design document.
 type PlanReview struct {
-	Document    string         `json:"document"`
-	ReviewedAt  time.Time      `json:"reviewed_at"`
-	Summary     string         `json:"summary"`
-	Score       PlanScore      `json:"score"`
-	Strengths   []string       `json:"strengths"`
-	Concerns    []PlanConcern  `json:"concerns"`
-	Suggestions []string       `json:"suggestions"`
+	Document    string          `json:"document"`
+	ReviewedAt  time.Time       `json:"reviewed_at"`
+	Summary     string          `json:"summary"`
+	Score       PlanScore       `json:"score"`
+	Strengths   []string        `json:"strengths"`
+	Concerns    []PlanConcern   `json:"concerns"`
+	Suggestions []string        `json:"suggestions"`
 	Checklist   []ChecklistItem `json:"checklist,omitempty"`
 }
 
 // PlanScore represents the quality scores for a design.
 type PlanScore struct {
-	Overall       float64 `json:"overall"`
-	Completeness  float64 `json:"completeness"`
-	Clarity       float64 `json:"clarity"`
-	Feasibility   float64 `json:"feasibility"`
-	Security      float64 `json:"security,omitempty"`
-	Performance   float64 `json:"performance,omitempty"`
-	Scalability   float64 `json:"scalability,omitempty"`
+	Overall      float64 `json:"overall"`
+	Completeness float64 `json:"completeness"`
+	Clarity      float64 `json:"clarity"`
+	Feasibility  float64 `json:"feasibility"`
+	Security     float64 `json:"security,omitempty"`
+	Performance  float64 `json:"performance,omitempty"`
+	Scalability  float64 `json:"scalability,omitempty"`
 }
 
 // PlanConcern represents a concern or potential issue in the design.
@@ -119,15 +119,15 @@ func runPlan(cmd *cobra.Command, args []string) error {
 	}
 	defer func() { _ = provider.Close() }()
 
-	if err := provider.HealthCheck(ctx); err != nil {
-		return fmt.Errorf("provider not available: %w", err)
+	if healthErr := provider.HealthCheck(ctx); healthErr != nil {
+		return fmt.Errorf("provider not available: %w", healthErr)
 	}
 
-	var reviews []*PlanReview
+	reviews := make([]*PlanReview, 0, len(args))
 	for _, docPath := range args {
-		review, err := reviewDocument(ctx, provider, docPath)
-		if err != nil {
-			fmt.Fprintf(os.Stderr, "Warning: failed to review %s: %v\n", docPath, err)
+		review, reviewErr := reviewDocument(ctx, provider, docPath)
+		if reviewErr != nil {
+			fmt.Fprintf(os.Stderr, "Warning: failed to review %s: %v\n", docPath, reviewErr)
 			continue
 		}
 		reviews = append(reviews, review)
@@ -279,9 +279,9 @@ func getFocusInstructions() string {
 	}
 
 	focusMap := map[string]string{
-		"security":      "Focus especially on security implications, vulnerabilities, and data protection.",
-		"performance":   "Focus especially on performance implications, bottlenecks, and optimization opportunities.",
-		"scalability":   "Focus especially on scalability concerns, growth patterns, and distributed systems considerations.",
+		"security":        "Focus especially on security implications, vulnerabilities, and data protection.",
+		"performance":     "Focus especially on performance implications, bottlenecks, and optimization opportunities.",
+		"scalability":     "Focus especially on scalability concerns, growth patterns, and distributed systems considerations.",
 		"maintainability": "Focus especially on code maintainability, modularity, and long-term sustainability.",
 	}
 
@@ -422,7 +422,7 @@ func formatPlanMarkdown(reviews []*PlanReview) string {
 					}
 				}
 				if len(items) > 0 {
-					sb.WriteString(fmt.Sprintf("### %s\n\n", strings.Title(cat)))
+					sb.WriteString(fmt.Sprintf("### %s\n\n", titleCase(cat)))
 					for _, item := range items {
 						priority := getPriorityEmoji(item.Priority)
 						sb.WriteString(fmt.Sprintf("- [ ] %s %s\n", priority, item.Task))
@@ -461,4 +461,12 @@ func getPriorityEmoji(priority string) string {
 	default:
 		return "[P2]"
 	}
+}
+
+// titleCase capitalizes the first letter of a string.
+func titleCase(s string) string {
+	if s == "" {
+		return s
+	}
+	return strings.ToUpper(s[:1]) + s[1:]
 }

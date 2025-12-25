@@ -92,18 +92,18 @@ func runSearch(cmd *cobra.Command, args []string) error {
 	}
 
 	if since, _ := cmd.Flags().GetString("since"); since != "" {
-		t, err := time.Parse("2006-01-02", since)
-		if err != nil {
-			return fmt.Errorf("invalid since date: %w", err)
+		sinceTime, parseErr := time.Parse("2006-01-02", since)
+		if parseErr != nil {
+			return fmt.Errorf("invalid since date: %w", parseErr)
 		}
-		query.Since = t
+		query.Since = sinceTime
 	}
 	if until, _ := cmd.Flags().GetString("until"); until != "" {
-		t, err := time.Parse("2006-01-02", until)
-		if err != nil {
-			return fmt.Errorf("invalid until date: %w", err)
+		untilTime, parseErr := time.Parse("2006-01-02", until)
+		if parseErr != nil {
+			return fmt.Errorf("invalid until date: %w", parseErr)
 		}
-		query.Until = t
+		query.Until = untilTime
 	}
 
 	resolved, _ := cmd.Flags().GetBool("resolved")
@@ -188,7 +188,7 @@ func getSeverityEmoji(severity string) string {
 
 // truncate is defined in commit_interactive.go
 
-func getHistoryDBPath(cfg *config.Config) string {
+func getHistoryDBPath(_ *config.Config) string {
 	// Default to .goreview/history.db in home directory
 	home, _ := os.UserHomeDir()
 	if home == "" {
@@ -196,7 +196,7 @@ func getHistoryDBPath(cfg *config.Config) string {
 	}
 
 	dir := filepath.Join(home, ".goreview")
-	os.MkdirAll(dir, 0755)
+	_ = os.MkdirAll(dir, 0750) //nolint:errcheck // Best effort directory creation
 
 	return filepath.Join(dir, "history.db")
 }

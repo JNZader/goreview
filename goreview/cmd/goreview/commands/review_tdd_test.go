@@ -109,10 +109,10 @@ func TestHasCorrespondingTest(t *testing.T) {
 	srcFile := filepath.Join(tmpDir, "utils.go")
 	testFile := filepath.Join(tmpDir, "utils_test.go")
 
-	if err := os.WriteFile(srcFile, []byte("package main"), 0644); err != nil {
+	if err := os.WriteFile(srcFile, []byte("package main"), 0600); err != nil {
 		t.Fatal(err)
 	}
-	if err := os.WriteFile(testFile, []byte("package main"), 0644); err != nil {
+	if err := os.WriteFile(testFile, []byte("package main"), 0600); err != nil {
 		t.Fatal(err)
 	}
 
@@ -123,7 +123,7 @@ func TestHasCorrespondingTest(t *testing.T) {
 
 	// Create file without test
 	noTestFile := filepath.Join(tmpDir, "standalone.go")
-	if err := os.WriteFile(noTestFile, []byte("package main"), 0644); err != nil {
+	if err := os.WriteFile(noTestFile, []byte("package main"), 0600); err != nil {
 		t.Fatal(err)
 	}
 

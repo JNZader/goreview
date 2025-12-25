@@ -18,9 +18,9 @@ import (
 
 // Fetcher handles fetching and caching external documentation.
 type Fetcher struct {
-	config     RAGConfig
-	client     *http.Client
-	cacheDir   string
+	config   RAGConfig
+	client   *http.Client
+	cacheDir string
 }
 
 // NewFetcher creates a new documentation fetcher.

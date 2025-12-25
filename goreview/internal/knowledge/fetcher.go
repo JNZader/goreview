@@ -99,7 +99,7 @@ func (f *Fetcher) fetchFromSource(ctx context.Context, source Source, query stri
 }
 
 // fetchFromNotion fetches documents from Notion.
-func (f *Fetcher) fetchFromNotion(ctx context.Context, source Source, query string) ([]Document, error) {
+func (f *Fetcher) fetchFromNotion(ctx context.Context, source Source, _ string) ([]Document, error) {
 	if source.NotionToken == "" {
 		return nil, fmt.Errorf("notion token required")
 	}
@@ -354,7 +354,7 @@ func (f *Fetcher) Search(ctx context.Context, query SearchQuery) ([]SearchResult
 		return nil, err
 	}
 
-	var results []SearchResult
+	results := make([]SearchResult, 0, len(docs.Documents))
 	queryLower := strings.ToLower(query.Text)
 
 	for _, doc := range docs.Documents {
@@ -411,7 +411,7 @@ func (f *Fetcher) Search(ctx context.Context, query SearchQuery) ([]SearchResult
 
 // Helper functions
 
-func parseNotionResponse(body []byte, source Source) ([]Document, error) {
+func parseNotionResponse(body []byte, _ Source) ([]Document, error) {
 	var result struct {
 		Results []struct {
 			ID         string `json:"id"`
@@ -430,7 +430,7 @@ func parseNotionResponse(body []byte, source Source) ([]Document, error) {
 		return nil, err
 	}
 
-	var docs []Document
+	docs := make([]Document, 0, len(result.Results))
 	for _, r := range result.Results {
 		title := ""
 		if len(r.Properties.Title.Title) > 0 {
@@ -469,7 +469,7 @@ func parseConfluenceResponse(body []byte, source Source) ([]Document, error) {
 		return nil, err
 	}
 
-	var docs []Document
+	docs := make([]Document, 0, len(result.Results))
 	for _, r := range result.Results {
 		docs = append(docs, Document{
 			ID:        r.ID,
@@ -484,7 +484,7 @@ func parseConfluenceResponse(body []byte, source Source) ([]Document, error) {
 	return docs, nil
 }
 
-func parseGitHubContents(ctx context.Context, client *http.Client, body []byte, source Source, query string) ([]Document, error) {
+func parseGitHubContents(ctx context.Context, client *http.Client, body []byte, _ Source, query string) ([]Document, error) {
 	var contents []struct {
 		Name        string `json:"name"`
 		Path        string `json:"path"`
@@ -497,7 +497,7 @@ func parseGitHubContents(ctx context.Context, client *http.Client, body []byte, 
 		return nil, err
 	}
 
-	var docs []Document
+	docs := make([]Document, 0, len(contents))
 	queryLower := strings.ToLower(query)
 
 	for _, c := range contents {

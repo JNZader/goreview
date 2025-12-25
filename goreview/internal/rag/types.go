@@ -8,21 +8,21 @@ import "time"
 type SourceType string
 
 const (
-	SourceTypeStyleGuide SourceType = "style_guide"
-	SourceTypeSecurity   SourceType = "security"
+	SourceTypeStyleGuide   SourceType = "style_guide"
+	SourceTypeSecurity     SourceType = "security"
 	SourceTypeBestPractice SourceType = "best_practice"
-	SourceTypeAPI        SourceType = "api"
-	SourceTypeFramework  SourceType = "framework"
+	SourceTypeAPI          SourceType = "api"
+	SourceTypeFramework    SourceType = "framework"
 )
 
 // Source represents an external documentation source.
 type Source struct {
-	URL         string     `yaml:"url" json:"url"`
-	Type        SourceType `yaml:"type" json:"type"`
-	Name        string     `yaml:"name" json:"name"`
-	Language    string     `yaml:"language,omitempty" json:"language,omitempty"`
-	CacheTTL    string     `yaml:"cache_ttl,omitempty" json:"cache_ttl,omitempty"`
-	Enabled     bool       `yaml:"enabled" json:"enabled"`
+	URL      string     `yaml:"url" json:"url"`
+	Type     SourceType `yaml:"type" json:"type"`
+	Name     string     `yaml:"name" json:"name"`
+	Language string     `yaml:"language,omitempty" json:"language,omitempty"`
+	CacheTTL string     `yaml:"cache_ttl,omitempty" json:"cache_ttl,omitempty"`
+	Enabled  bool       `yaml:"enabled" json:"enabled"`
 }
 
 // CachedDocument represents a cached documentation entry.
@@ -36,6 +36,8 @@ type CachedDocument struct {
 }
 
 // RAGConfig configures the RAG system.
+//
+//nolint:revive // RAGConfig name is intentional for clarity
 type RAGConfig struct {
 	Enabled         bool     `yaml:"enabled" mapstructure:"enabled"`
 	CacheDir        string   `yaml:"cache_dir" mapstructure:"cache_dir"`
@@ -53,18 +55,18 @@ type Context struct {
 
 // SourceContext represents context from a single source.
 type SourceContext struct {
-	Name     string `json:"name"`
+	Name     string     `json:"name"`
 	Type     SourceType `json:"type"`
-	Content  string `json:"content"`
-	URL      string `json:"url"`
-	Relevant bool   `json:"relevant"`
+	Content  string     `json:"content"`
+	URL      string     `json:"url"`
+	Relevant bool       `json:"relevant"`
 }
 
 // DetectedFramework represents an auto-detected framework/library.
 type DetectedFramework struct {
-	Name       string `json:"name"`
-	Version    string `json:"version,omitempty"`
-	Language   string `json:"language"`
-	DocsURL    string `json:"docs_url,omitempty"`
+	Name       string  `json:"name"`
+	Version    string  `json:"version,omitempty"`
+	Language   string  `json:"language"`
+	DocsURL    string  `json:"docs_url,omitempty"`
 	Confidence float64 `json:"confidence"`
 }

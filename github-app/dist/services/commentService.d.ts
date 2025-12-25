@@ -15,6 +15,10 @@ export declare class CommentService {
      */
     postReview(octokit: Octokit, owner: string, repo: string, pullNumber: number, result: PRReviewResult): Promise<void>;
     private buildReviewBody;
+    /**
+     * Convert PRReviewResult to the format expected by buildHandoffStatus.
+     */
+    private convertToHandoffResult;
     private buildInlineComments;
     private formatIssueComment;
     private getSeverityEmoji;

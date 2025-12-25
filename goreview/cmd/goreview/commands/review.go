@@ -78,6 +78,9 @@ func init() {
 	reviewCmd.Flags().Bool("require-tests", false, "Fail if reviewed code lacks corresponding tests")
 	reviewCmd.Flags().Float64("min-coverage", 0, "Minimum test coverage percentage required (0=disabled)")
 
+	// Analysis flags
+	reviewCmd.Flags().Bool("trace", false, "Enable root cause tracing for each issue")
+
 	// Profiling flags
 	reviewCmd.Flags().String("cpuprofile", "", "Write CPU profile to file")
 	reviewCmd.Flags().String("memprofile", "", "Write memory profile to file")
@@ -356,6 +359,9 @@ func applyFlagOverrides(cmd *cobra.Command, cfg *config.Config, args []string) {
 	}
 	if mode, _ := cmd.Flags().GetString("mode"); mode != "" {
 		cfg.Review.Modes = mode
+	}
+	if trace, _ := cmd.Flags().GetBool("trace"); trace {
+		cfg.Review.RootCauseTracing = true
 	}
 
 	// Include/exclude patterns

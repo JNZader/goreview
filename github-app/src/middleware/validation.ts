@@ -176,13 +176,13 @@ export const JobQuerySchema = z.object({
   status: z.enum(['pending', 'processing', 'completed', 'failed']).optional(),
   limit: z
     .string()
-    .transform((val) => parseInt(val, 10))
+    .transform((val) => Number.parseInt(val, 10))
     .pipe(z.number().int().positive().max(100))
     .optional()
     .default('50'),
   offset: z
     .string()
-    .transform((val) => parseInt(val, 10))
+    .transform((val) => Number.parseInt(val, 10))
     .pipe(z.number().int().nonnegative())
     .optional()
     .default('0'),
@@ -214,7 +214,7 @@ export function sanitizeString(input: string): string {
   return input
     .split('')
     .filter((char) => {
-      const code = char.charCodeAt(0);
+      const code = char.codePointAt(0) ?? 0;
       // Allow tab (9), newline (10), carriage return (13), and printable chars (32-126, 128+)
       return code === 9 || code === 10 || code === 13 || (code >= 32 && code !== 127);
     })

@@ -270,15 +270,10 @@ export function createRateLimiter(config: Partial<RateLimitConfig> = {}): Reques
     }
 
     const key = fullConfig.keyGenerator!(req);
-    let bucket = store.get(key);
-
-    // Initialize bucket if not exists
-    if (!bucket) {
-      bucket = {
-        tokens: fullConfig.maxTokens,
-        lastRefill: Date.now(),
-      };
-    }
+    const bucket = store.get(key) ?? {
+      tokens: fullConfig.maxTokens,
+      lastRefill: Date.now(),
+    };
 
     const result = consumeToken(bucket, fullConfig);
     store.set(key, result.bucket);

@@ -81,7 +81,7 @@ function parseFileBlock(block: string): DiffFile | null {
 
   return {
     path: newPath || 'unknown',
-    oldPath: oldPath !== newPath ? oldPath : undefined,
+    oldPath: oldPath === newPath ? undefined : oldPath,
     status: determineFileStatus(block),
     language: detectLanguage(newPath || ''),
     content,

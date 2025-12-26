@@ -166,50 +166,56 @@ func (s *Store) StoreBatch(ctx context.Context, records []*ReviewRecord) error {
 }
 
 // Search performs full-text search on review history.
-//
-//nolint:gocyclo,funlen // Complex query builder with multiple filter conditions
 func (s *Store) Search(ctx context.Context, q SearchQuery) (*SearchResult, error) {
+	conditions, args := buildSearchConditions(q)
+	whereClause := buildWhereClause(conditions)
+
+	totalCount, err := s.countSearchResults(ctx, whereClause, args)
+	if err != nil {
+		return nil, err
+	}
+
+	records, err := s.fetchSearchRecords(ctx, whereClause, args, q.Limit, q.Offset)
+	if err != nil {
+		return nil, err
+	}
+
+	return &SearchResult{
+		Records:    records,
+		TotalCount: totalCount,
+		Query:      q,
+	}, nil
+}
+
+func buildSearchConditions(q SearchQuery) ([]string, []interface{}) {
 	var args []interface{}
 	var conditions []string
 
-	// Full-text search
 	if q.Text != "" {
 		conditions = append(conditions, "r.id IN (SELECT rowid FROM reviews_fts WHERE reviews_fts MATCH ?)")
 		args = append(args, q.Text)
 	}
-
-	// File filter (supports LIKE patterns)
 	if q.File != "" {
 		pattern := strings.ReplaceAll(q.File, "*", "%")
 		conditions = append(conditions, "r.file_path LIKE ?")
 		args = append(args, pattern)
 	}
-
-	// Author filter
 	if q.Author != "" {
 		conditions = append(conditions, "r.author = ?")
 		args = append(args, q.Author)
 	}
-
-	// Severity filter
 	if q.Severity != "" {
 		conditions = append(conditions, "r.severity = ?")
 		args = append(args, q.Severity)
 	}
-
-	// Type filter
 	if q.Type != "" {
 		conditions = append(conditions, "r.issue_type = ?")
 		args = append(args, q.Type)
 	}
-
-	// Branch filter
 	if q.Branch != "" {
 		conditions = append(conditions, "r.branch = ?")
 		args = append(args, q.Branch)
 	}
-
-	// Date filters
 	if !q.Since.IsZero() {
 		conditions = append(conditions, "r.created_at >= ?")
 		args = append(args, q.Since)
@@ -218,32 +224,34 @@ func (s *Store) Search(ctx context.Context, q SearchQuery) (*SearchResult, error
 		conditions = append(conditions, "r.created_at <= ?")
 		args = append(args, q.Until)
 	}
-
-	// Resolved filter
 	if q.Resolved != nil {
 		conditions = append(conditions, "r.resolved = ?")
 		args = append(args, *q.Resolved)
 	}
 
-	// Build WHERE clause
-	whereClause := ""
-	if len(conditions) > 0 {
-		whereClause = "WHERE " + strings.Join(conditions, " AND ")
-	}
+	return conditions, args
+}
 
-	// Count total
+func buildWhereClause(conditions []string) string {
+	if len(conditions) == 0 {
+		return ""
+	}
+	return "WHERE " + strings.Join(conditions, " AND ")
+}
+
+func (s *Store) countSearchResults(ctx context.Context, whereClause string, args []interface{}) (int64, error) {
 	countQuery := "SELECT COUNT(*) FROM reviews r " + whereClause //nolint:gosec // Query built with parameterized args
 	var totalCount int64
 	if err := s.db.QueryRowContext(ctx, countQuery, args...).Scan(&totalCount); err != nil {
-		return nil, fmt.Errorf("counting results: %w", err)
+		return 0, fmt.Errorf("counting results: %w", err)
 	}
+	return totalCount, nil
+}
 
-	// Fetch results
-	limit := q.Limit
+func (s *Store) fetchSearchRecords(ctx context.Context, whereClause string, args []interface{}, limit, offset int) ([]ReviewRecord, error) {
 	if limit <= 0 {
 		limit = 100
 	}
-	offset := q.Offset
 
 	//nolint:gosec // Query built with parameterized args, whereClause uses placeholders
 	selectQuery := `
@@ -256,52 +264,58 @@ func (s *Store) Search(ctx context.Context, q SearchQuery) (*SearchResult, error
 	`
 
 	args = append(args, limit, offset)
-
 	rows, err := s.db.QueryContext(ctx, selectQuery, args...)
 	if err != nil {
 		return nil, fmt.Errorf("querying records: %w", err)
 	}
 	defer rows.Close()
 
+	return scanSearchRows(rows)
+}
+
+func scanSearchRows(rows *sql.Rows) ([]ReviewRecord, error) {
 	records := make([]ReviewRecord, 0)
 	for rows.Next() {
-		var r ReviewRecord
-		var resolvedAt sql.NullTime
-		var suggestion, author, branch sql.NullString
-		var line sql.NullInt64
-
-		if err := rows.Scan(
-			&r.ID, &r.CommitHash, &r.FilePath, &r.IssueType, &r.Severity,
-			&r.Message, &suggestion, &line, &author, &branch,
-			&r.CreatedAt, &r.Resolved, &resolvedAt, &r.ReviewRound,
-		); err != nil {
-			return nil, fmt.Errorf("scanning row: %w", err)
+		r, err := scanSearchRow(rows)
+		if err != nil {
+			return nil, err
 		}
-
-		if suggestion.Valid {
-			r.Suggestion = suggestion.String
-		}
-		if line.Valid {
-			r.Line = int(line.Int64)
-		}
-		if author.Valid {
-			r.Author = author.String
-		}
-		if branch.Valid {
-			r.Branch = branch.String
-		}
-		if resolvedAt.Valid {
-			r.ResolvedAt = resolvedAt.Time
-		}
-
 		records = append(records, r)
 	}
+	return records, nil
+}
 
-	return &SearchResult{
-		Records:    records,
-		TotalCount: totalCount,
-		Query:      q,
-	}, nil
+func scanSearchRow(rows *sql.Rows) (ReviewRecord, error) {
+	var r ReviewRecord
+	var resolvedAt sql.NullTime
+	var suggestion, author, branch sql.NullString
+	var line sql.NullInt64
+
+	if err := rows.Scan(
+		&r.ID, &r.CommitHash, &r.FilePath, &r.IssueType, &r.Severity,
+		&r.Message, &suggestion, &line, &author, &branch,
+		&r.CreatedAt, &r.Resolved, &resolvedAt, &r.ReviewRound,
+	); err != nil {
+		return ReviewRecord{}, fmt.Errorf("scanning row: %w", err)
+	}
+
+	if suggestion.Valid {
+		r.Suggestion = suggestion.String
+	}
+	if line.Valid {
+		r.Line = int(line.Int64)
+	}
+	if author.Valid {
+		r.Author = author.String
+	}
+	if branch.Valid {
+		r.Branch = branch.String
+	}
+	if resolvedAt.Valid {
+		r.ResolvedAt = resolvedAt.Time
+	}
+
+	return r, nil
 }
 
 // GetFileHistory returns the review history for a file or directory.

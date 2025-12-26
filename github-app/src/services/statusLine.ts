@@ -344,11 +344,8 @@ export function generatePersistentIssuesSection(
   const bySeverity: Record<string, ReviewIssueRecord[]> = {};
   for (const issue of persistent) {
     const sev = issue.severity;
-    if (!bySeverity[sev]) {
-      bySeverity[sev] = [];
-    }
-    const arr = bySeverity[sev];
-    if (arr) arr.push(issue);
+    bySeverity[sev] ??= [];
+    bySeverity[sev].push(issue);
   }
 
   const severityOrder = ['critical', 'error', 'warning', 'info'];

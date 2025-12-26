@@ -79,12 +79,8 @@ export class GeminiProvider implements AIProvider {
     }
 
     let reviewResponse: ReviewResponse;
-    if (
-      result.candidates &&
-      result.candidates[0]?.content?.parts &&
-      result.candidates[0].content.parts[0]?.text
-    ) {
-      const text = result.candidates[0].content.parts[0].text;
+    const text = result.candidates?.[0]?.content?.parts?.[0]?.text;
+    if (text) {
       reviewResponse = parseReviewResponse(text);
     } else {
       reviewResponse = { issues: [], summary: 'No response from Gemini', score: 70 };
@@ -124,12 +120,9 @@ export class GeminiProvider implements AIProvider {
       }>;
     };
 
-    if (
-      result.candidates &&
-      result.candidates[0]?.content?.parts &&
-      result.candidates[0].content.parts[0]?.text
-    ) {
-      return result.candidates[0].content.parts[0].text.trim();
+    const commitText = result.candidates?.[0]?.content?.parts?.[0]?.text;
+    if (commitText) {
+      return commitText.trim();
     }
 
     throw new Error('No response from Gemini');
@@ -165,12 +158,9 @@ export class GeminiProvider implements AIProvider {
       }>;
     };
 
-    if (
-      result.candidates &&
-      result.candidates[0]?.content?.parts &&
-      result.candidates[0].content.parts[0]?.text
-    ) {
-      return result.candidates[0].content.parts[0].text.trim();
+    const chatText = result.candidates?.[0]?.content?.parts?.[0]?.text;
+    if (chatText) {
+      return chatText.trim();
     }
 
     throw new Error('No response from Gemini');

@@ -254,71 +254,89 @@ func groupCommitsByType(commits []git.Commit) map[string][]git.ConventionalCommi
 func generateChangelog(grouped map[string][]git.ConventionalCommit, opts changelogOptions) string {
 	var sb strings.Builder
 
-	// Header
-	if !opts.NoHeader {
-		if opts.Version != "" {
-			sb.WriteString("## ")
-			sb.WriteString(opts.Version)
-		} else {
-			sb.WriteString("## Changelog")
-		}
+	writeChangelogHeader(&sb, opts)
+	writeBreakingChangesSection(&sb, grouped, opts.NoLinks)
+	writeTypeGroupSections(&sb, grouped, opts.NoLinks)
+	writeOtherChangesSection(&sb, grouped, opts.NoLinks)
 
-		if !opts.NoDate {
-			sb.WriteString(" (")
-			sb.WriteString(time.Now().Format("2006-01-02"))
-			sb.WriteString(")")
-		}
-		sb.WriteString("\n\n")
+	return sb.String()
+}
+
+func writeChangelogHeader(sb *strings.Builder, opts changelogOptions) {
+	if opts.NoHeader {
+		return
 	}
 
-	// Breaking changes first
+	if opts.Version != "" {
+		sb.WriteString("## ")
+		sb.WriteString(opts.Version)
+	} else {
+		sb.WriteString("## Changelog")
+	}
+
+	if !opts.NoDate {
+		sb.WriteString(" (")
+		sb.WriteString(time.Now().Format("2006-01-02"))
+		sb.WriteString(")")
+	}
+	sb.WriteString("\n\n")
+}
+
+func writeBreakingChangesSection(sb *strings.Builder, grouped map[string][]git.ConventionalCommit, noLinks bool) {
 	breakingChanges := collectBreakingChanges(grouped)
-	if len(breakingChanges) > 0 {
-		sb.WriteString("### BREAKING CHANGES\n\n")
-		for _, cc := range breakingChanges {
-			writeCommitLine(&sb, cc, opts.NoLinks)
-		}
-		sb.WriteString("\n")
+	if len(breakingChanges) == 0 {
+		return
 	}
 
-	// Groups in order
+	sb.WriteString("### BREAKING CHANGES\n\n")
+	for _, cc := range breakingChanges {
+		writeCommitLine(sb, cc, noLinks)
+	}
+	sb.WriteString("\n")
+}
+
+func writeTypeGroupSections(sb *strings.Builder, grouped map[string][]git.ConventionalCommit, noLinks bool) {
 	for _, typeInfo := range commitTypeOrder {
 		commits, ok := grouped[typeInfo.Type]
 		if !ok || len(commits) == 0 {
 			continue
 		}
 
-		// Filter out breaking changes (already shown above)
 		nonBreaking := filterNonBreaking(commits)
 		if len(nonBreaking) == 0 {
 			continue
 		}
 
-		sb.WriteString("### ")
-		sb.WriteString(typeInfo.Title)
-		sb.WriteString("\n\n")
+		writeTypeSection(sb, typeInfo.Title, nonBreaking, noLinks)
+	}
+}
 
-		// Sort by scope
-		sort.Slice(nonBreaking, func(i, j int) bool {
-			return nonBreaking[i].Scope < nonBreaking[j].Scope
-		})
+func writeTypeSection(sb *strings.Builder, title string, commits []git.ConventionalCommit, noLinks bool) {
+	sb.WriteString("### ")
+	sb.WriteString(title)
+	sb.WriteString("\n\n")
 
-		for _, cc := range nonBreaking {
-			writeCommitLine(&sb, cc, opts.NoLinks)
-		}
-		sb.WriteString("\n")
+	sort.Slice(commits, func(i, j int) bool {
+		return commits[i].Scope < commits[j].Scope
+	})
+
+	for _, cc := range commits {
+		writeCommitLine(sb, cc, noLinks)
+	}
+	sb.WriteString("\n")
+}
+
+func writeOtherChangesSection(sb *strings.Builder, grouped map[string][]git.ConventionalCommit, noLinks bool) {
+	others, ok := grouped["other"]
+	if !ok || len(others) == 0 {
+		return
 	}
 
-	// Other commits (non-conventional)
-	if others, ok := grouped["other"]; ok && len(others) > 0 {
-		sb.WriteString("### Other Changes\n\n")
-		for _, cc := range others {
-			writeCommitLine(&sb, cc, opts.NoLinks)
-		}
-		sb.WriteString("\n")
+	sb.WriteString("### Other Changes\n\n")
+	for _, cc := range others {
+		writeCommitLine(sb, cc, noLinks)
 	}
-
-	return sb.String()
+	sb.WriteString("\n")
 }
 
 func writeCommitLine(sb *strings.Builder, cc git.ConventionalCommit, noLinks bool) {

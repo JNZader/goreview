@@ -84,7 +84,6 @@ func outputStatsJSON(stats *history.Stats) error {
 	return nil
 }
 
-//nolint:funlen,unparam // Dashboard output with multiple statistics sections
 func outputStatsDashboard(stats *history.Stats) error {
 	if stats.TotalIssues == 0 {
 		fmt.Println("No review history found.")
@@ -92,14 +91,26 @@ func outputStatsDashboard(stats *history.Stats) error {
 		return nil
 	}
 
-	// Header
+	printDashboardHeader()
+	resolutionRate := printDashboardSummary(stats)
+	printResolutionProgress(resolutionRate)
+	printSeveritySection(stats)
+	printTypeSection(stats)
+	printTopFilesSection(stats)
+	printDashboardFooter()
+
+	return nil
+}
+
+func printDashboardHeader() {
 	fmt.Println()
 	fmt.Println("╔══════════════════════════════════════════════════════╗")
 	fmt.Println("║              📊 GOREVIEW STATS DASHBOARD             ║")
 	fmt.Println("╚══════════════════════════════════════════════════════╝")
 	fmt.Println()
+}
 
-	// Summary Section
+func printDashboardSummary(stats *history.Stats) float64 {
 	resolutionRate := float64(0)
 	if stats.TotalIssues > 0 {
 		resolutionRate = float64(stats.ResolvedIssues) / float64(stats.TotalIssues) * 100
@@ -115,102 +126,123 @@ func outputStatsDashboard(stats *history.Stats) error {
 	fmt.Println(tableBottom)
 	fmt.Println()
 
-	// Resolution Progress Bar
+	return resolutionRate
+}
+
+func printResolutionProgress(resolutionRate float64) {
 	barWidth := 40
 	filled := int(resolutionRate / 100 * float64(barWidth))
 	bar := strings.Repeat("█", filled) + strings.Repeat("░", barWidth-filled)
 	fmt.Printf("  Resolution Progress: [%s] %.1f%%\n\n", bar, resolutionRate)
+}
 
-	// By Severity
-	if len(stats.BySeverity) > 0 {
-		fmt.Println(tableTop)
-		fmt.Println("│                  🎯 BY SEVERITY                     │")
-		fmt.Println(tableMid)
-
-		severityOrder := []string{"critical", "error", "warning", "info"}
-		for _, sev := range severityOrder {
-			if count, ok := stats.BySeverity[sev]; ok && count > 0 {
-				emoji := getSeverityEmoji(sev)
-				percent := float64(count) / float64(stats.TotalIssues) * 100
-				innerBar := makeProgressBar(int(count), int(stats.TotalIssues), 20)
-				fmt.Printf("│  %s %-10s %s %-4d (%.0f%%)    │\n", emoji, sev, innerBar, count, percent)
-			}
-		}
-		fmt.Println(tableBottom)
-		fmt.Println()
+func printSeveritySection(stats *history.Stats) {
+	if len(stats.BySeverity) == 0 {
+		return
 	}
 
-	// By Type
-	if len(stats.ByType) > 0 {
-		fmt.Println(tableTop)
-		fmt.Println("│                    🏷️  BY TYPE                      │")
-		fmt.Println(tableMid)
+	fmt.Println(tableTop)
+	fmt.Println("│                  🎯 BY SEVERITY                     │")
+	fmt.Println(tableMid)
 
-		// Sort by count descending
-		type typeCount struct {
-			typ   string
-			count int64
+	severityOrder := []string{"critical", "error", "warning", "info"}
+	for _, sev := range severityOrder {
+		if count, ok := stats.BySeverity[sev]; ok && count > 0 {
+			emoji := getSeverityEmoji(sev)
+			percent := float64(count) / float64(stats.TotalIssues) * 100
+			innerBar := makeProgressBar(int(count), int(stats.TotalIssues), 20)
+			fmt.Printf("│  %s %-10s %s %-4d (%.0f%%)    │\n", emoji, sev, innerBar, count, percent)
 		}
-		var types []typeCount
-		for t, c := range stats.ByType {
-			types = append(types, typeCount{t, c})
-		}
-		sort.Slice(types, func(i, j int) bool {
-			return types[i].count > types[j].count
-		})
+	}
+	fmt.Println(tableBottom)
+	fmt.Println()
+}
 
-		for _, tc := range types {
-			percent := float64(tc.count) / float64(stats.TotalIssues) * 100
-			innerBar := makeProgressBar(int(tc.count), int(stats.TotalIssues), 20)
-			fmt.Printf("│  %-12s %s %-4d (%.0f%%)        │\n", tc.typ, innerBar, tc.count, percent)
-		}
-		fmt.Println(tableBottom)
-		fmt.Println()
+// typeCount holds type name and count for sorting.
+type typeCount struct {
+	typ   string
+	count int64
+}
+
+func printTypeSection(stats *history.Stats) {
+	if len(stats.ByType) == 0 {
+		return
 	}
 
-	// Top Files
-	if len(stats.ByFile) > 0 {
-		fmt.Println(tableTop)
-		fmt.Println("│                   📁 TOP FILES                      │")
-		fmt.Println(tableMid)
+	fmt.Println(tableTop)
+	fmt.Println("│                    🏷️  BY TYPE                      │")
+	fmt.Println(tableMid)
 
-		// Sort by count descending
-		type fileCount struct {
-			file  string
-			count int64
-		}
-		var files []fileCount
-		for f, c := range stats.ByFile {
-			files = append(files, fileCount{f, c})
-		}
-		sort.Slice(files, func(i, j int) bool {
-			return files[i].count > files[j].count
-		})
+	types := getSortedTypes(stats.ByType)
+	for _, tc := range types {
+		percent := float64(tc.count) / float64(stats.TotalIssues) * 100
+		innerBar := makeProgressBar(int(tc.count), int(stats.TotalIssues), 20)
+		fmt.Printf("│  %-12s %s %-4d (%.0f%%)        │\n", tc.typ, innerBar, tc.count, percent)
+	}
+	fmt.Println(tableBottom)
+	fmt.Println()
+}
 
-		maxShow := 10
-		if len(files) < maxShow {
-			maxShow = len(files)
-		}
+func getSortedTypes(byType map[string]int64) []typeCount {
+	var types []typeCount
+	for t, c := range byType {
+		types = append(types, typeCount{t, c})
+	}
+	sort.Slice(types, func(i, j int) bool {
+		return types[i].count > types[j].count
+	})
+	return types
+}
 
-		for i := 0; i < maxShow; i++ {
-			fc := files[i]
-			// Truncate long file paths
-			displayPath := fc.file
-			if len(displayPath) > 35 {
-				displayPath = "..." + displayPath[len(displayPath)-32:]
-			}
-			fmt.Printf("│  %-35s %4d issues    │\n", displayPath, fc.count)
-		}
-		fmt.Println(tableBottom)
-		fmt.Println()
+// fileCount holds file path and issue count for sorting.
+type fileCount struct {
+	file  string
+	count int64
+}
+
+func printTopFilesSection(stats *history.Stats) {
+	if len(stats.ByFile) == 0 {
+		return
 	}
 
-	// Footer
+	fmt.Println(tableTop)
+	fmt.Println("│                   📁 TOP FILES                      │")
+	fmt.Println(tableMid)
+
+	files := getSortedFiles(stats.ByFile)
+	maxShow := min(10, len(files))
+
+	for i := 0; i < maxShow; i++ {
+		fc := files[i]
+		displayPath := truncateFilePath(fc.file, 35)
+		fmt.Printf("│  %-35s %4d issues    │\n", displayPath, fc.count)
+	}
+	fmt.Println(tableBottom)
+	fmt.Println()
+}
+
+func getSortedFiles(byFile map[string]int64) []fileCount {
+	var files []fileCount
+	for f, c := range byFile {
+		files = append(files, fileCount{f, c})
+	}
+	sort.Slice(files, func(i, j int) bool {
+		return files[i].count > files[j].count
+	})
+	return files
+}
+
+func truncateFilePath(path string, maxLen int) string {
+	if len(path) <= maxLen {
+		return path
+	}
+	return "..." + path[len(path)-(maxLen-3):]
+}
+
+func printDashboardFooter() {
 	fmt.Println("  Use 'goreview search' to explore specific issues")
 	fmt.Println("  Use 'goreview history <file>' for file-specific history")
 	fmt.Println()
-
-	return nil
 }
 
 func makeProgressBar(current, total, width int) string {

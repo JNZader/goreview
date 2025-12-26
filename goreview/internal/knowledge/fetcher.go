@@ -191,61 +191,74 @@ func (f *Fetcher) fetchFromObsidian(source Source, query string) ([]Document, er
 	queryLower := strings.ToLower(query)
 
 	err := filepath.Walk(source.ObsidianVaultPath, func(path string, info os.FileInfo, err error) error {
-		if err != nil {
-			return nil // Skip errors
-		}
-
-		if info.IsDir() {
+		if err != nil || info.IsDir() {
 			return nil
 		}
 
-		ext := filepath.Ext(path)
-		if ext != ".md" && ext != ".markdown" {
-			return nil
+		doc := processObsidianFile(path, source, queryLower)
+		if doc != nil {
+			docs = append(docs, *doc)
 		}
-
-		content, err := os.ReadFile(path) //nolint:gosec // Path from config
-		if err != nil {
-			return nil
-		}
-
-		contentStr := string(content)
-
-		// Check if content matches query or tags
-		if !strings.Contains(strings.ToLower(contentStr), queryLower) {
-			// Check tags
-			tags := extractObsidianTags(contentStr)
-			hasTag := false
-			for _, tag := range tags {
-				for _, filterTag := range source.ObsidianTags {
-					if strings.Contains(tag, filterTag) {
-						hasTag = true
-						break
-					}
-				}
-			}
-			if !hasTag && len(source.ObsidianTags) > 0 {
-				return nil
-			}
-		}
-
-		relPath, _ := filepath.Rel(source.ObsidianVaultPath, path)
-		docs = append(docs, Document{
-			ID:        hashString(path),
-			Title:     strings.TrimSuffix(filepath.Base(path), ext),
-			Content:   contentStr,
-			Source:    SourceTypeObsidian,
-			Tags:      extractObsidianTags(contentStr),
-			FetchedAt: time.Now(),
-			Metadata: map[string]string{
-				"path": relPath,
-			},
-		})
-
 		return nil
 	})
 
 	return docs, err
+}
+
+func processObsidianFile(path string, source Source, queryLower string) *Document {
+	ext := filepath.Ext(path)
+	if !isMarkdownFile(ext) {
+		return nil
+	}
+
+	content, err := os.ReadFile(path) //nolint:gosec // Path from config
+	if err != nil {
+		return nil
+	}
+
+	contentStr := string(content)
+	if !matchesObsidianQuery(contentStr, queryLower, source.ObsidianTags) {
+		return nil
+	}
+
+	relPath, _ := filepath.Rel(source.ObsidianVaultPath, path)
+	return &Document{
+		ID:        hashString(path),
+		Title:     strings.TrimSuffix(filepath.Base(path), ext),
+		Content:   contentStr,
+		Source:    SourceTypeObsidian,
+		Tags:      extractObsidianTags(contentStr),
+		FetchedAt: time.Now(),
+		Metadata: map[string]string{
+			"path": relPath,
+		},
+	}
+}
+
+func isMarkdownFile(ext string) bool {
+	return ext == ".md" || ext == ".markdown"
+}
+
+func matchesObsidianQuery(content, queryLower string, filterTags []string) bool {
+	if strings.Contains(strings.ToLower(content), queryLower) {
+		return true
+	}
+	if len(filterTags) == 0 {
+		return true
+	}
+	return hasObsidianTagMatch(content, filterTags)
+}
+
+func hasObsidianTagMatch(content string, filterTags []string) bool {
+	tags := extractObsidianTags(content)
+	for _, tag := range tags {
+		for _, filterTag := range filterTags {
+			if strings.Contains(tag, filterTag) {
+				return true
+			}
+		}
+	}
+	return false
 }
 
 // fetchFromLocal fetches documents from local files.

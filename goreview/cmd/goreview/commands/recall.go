@@ -149,13 +149,23 @@ func listAnalyzedCommits(store *history.CommitStore) error {
 	return nil
 }
 
-//nolint:funlen // Display function with structured output sections
 func viewCommitAnalysis(store *history.CommitStore, commitHash string) error {
 	analysis, err := store.Load(commitHash)
 	if err != nil {
 		return fmt.Errorf("commit analysis not found: %w", err)
 	}
 
+	printAnalysisHeader(analysis)
+	printAnalysisSummary(analysis)
+	printAnalysisSeverities(analysis)
+	printAnalysisRecommendation(analysis)
+	printAnalysisFiles(analysis)
+	printAnalysisContext(analysis)
+
+	return nil
+}
+
+func printAnalysisHeader(analysis *history.CommitAnalysis) {
 	fmt.Printf("Commit Analysis: %s\n", analysis.CommitHash[:7])
 	fmt.Println(strings.Repeat("=", 60))
 	fmt.Println()
@@ -165,60 +175,76 @@ func viewCommitAnalysis(store *history.CommitStore, commitHash string) error {
 	fmt.Printf("Branch:     %s\n", analysis.Branch)
 	fmt.Printf("Analyzed:   %s\n", analysis.AnalyzedAt.Format(time.RFC3339))
 	fmt.Println()
+}
 
-	// Summary
+func printAnalysisSummary(analysis *history.CommitAnalysis) {
 	fmt.Println("Summary")
 	fmt.Println(strings.Repeat("-", 30))
 	fmt.Printf("  Files:     %d\n", analysis.Summary.TotalFiles)
 	fmt.Printf("  Issues:    %d\n", analysis.Summary.TotalIssues)
 	fmt.Printf("  Score:     %.1f/100\n", analysis.Summary.OverallScore)
 	fmt.Println()
+}
 
-	if len(analysis.Summary.BySeverity) > 0 {
-		fmt.Println("By Severity")
-		fmt.Println(strings.Repeat("-", 30))
-		for sev, count := range analysis.Summary.BySeverity {
-			emoji := getSeverityEmoji(sev)
-			fmt.Printf("  %s %-10s %d\n", emoji, sev, count)
-		}
-		fmt.Println()
+func printAnalysisSeverities(analysis *history.CommitAnalysis) {
+	if len(analysis.Summary.BySeverity) == 0 {
+		return
 	}
-
-	if analysis.Summary.Recommendation != "" {
-		fmt.Println("Recommendation")
-		fmt.Println(strings.Repeat("-", 30))
-		fmt.Printf("  %s\n\n", analysis.Summary.Recommendation)
+	fmt.Println("By Severity")
+	fmt.Println(strings.Repeat("-", 30))
+	for sev, count := range analysis.Summary.BySeverity {
+		emoji := getSeverityEmoji(sev)
+		fmt.Printf("  %s %-10s %d\n", emoji, sev, count)
 	}
+	fmt.Println()
+}
 
-	// Files and issues
+func printAnalysisRecommendation(analysis *history.CommitAnalysis) {
+	if analysis.Summary.Recommendation == "" {
+		return
+	}
+	fmt.Println("Recommendation")
+	fmt.Println(strings.Repeat("-", 30))
+	fmt.Printf("  %s\n\n", analysis.Summary.Recommendation)
+}
+
+func printAnalysisFiles(analysis *history.CommitAnalysis) {
 	for _, file := range analysis.Files {
 		if len(file.Issues) == 0 {
 			continue
 		}
-
-		fmt.Printf("File: %s\n", file.Path)
-		fmt.Printf("  Language: %s, Changes: +%d/-%d\n", file.Language, file.LinesAdded, file.LinesRemoved)
-		fmt.Println()
-
-		for _, issue := range file.Issues {
-			emoji := getSeverityEmoji(issue.Severity)
-			location := ""
-			if issue.Line > 0 {
-				location = fmt.Sprintf(" (line %d)", issue.Line)
-			}
-			fmt.Printf("  %s [%s]%s\n", emoji, issue.Severity, location)
-			fmt.Printf("     %s\n", issue.Message)
-			if issue.Suggestion != "" {
-				fmt.Printf("     Suggestion: %s\n", issue.Suggestion)
-			}
-			if issue.RootCause != nil {
-				fmt.Printf("     Root Cause: %s\n", issue.RootCause.Description)
-			}
-			fmt.Println()
-		}
+		printFileWithIssues(file)
 	}
+}
 
-	// Context
+func printFileWithIssues(file history.AnalyzedFile) {
+	fmt.Printf("File: %s\n", file.Path)
+	fmt.Printf("  Language: %s, Changes: +%d/-%d\n", file.Language, file.LinesAdded, file.LinesRemoved)
+	fmt.Println()
+
+	for _, issue := range file.Issues {
+		printIssue(issue)
+	}
+}
+
+func printIssue(issue history.Issue) {
+	emoji := getSeverityEmoji(issue.Severity)
+	location := ""
+	if issue.Line > 0 {
+		location = fmt.Sprintf(" (line %d)", issue.Line)
+	}
+	fmt.Printf("  %s [%s]%s\n", emoji, issue.Severity, location)
+	fmt.Printf("     %s\n", issue.Message)
+	if issue.Suggestion != "" {
+		fmt.Printf("     Suggestion: %s\n", issue.Suggestion)
+	}
+	if issue.RootCause != nil {
+		fmt.Printf("     Root Cause: %s\n", issue.RootCause.Description)
+	}
+	fmt.Println()
+}
+
+func printAnalysisContext(analysis *history.CommitAnalysis) {
 	fmt.Println("Analysis Context")
 	fmt.Println(strings.Repeat("-", 30))
 	fmt.Printf("  Provider:    %s\n", analysis.Context.Provider)
@@ -232,8 +258,6 @@ func viewCommitAnalysis(store *history.CommitStore, commitHash string) error {
 	if len(analysis.Context.RAGSources) > 0 {
 		fmt.Printf("  RAG Sources: %s\n", strings.Join(analysis.Context.RAGSources, ", "))
 	}
-
-	return nil
 }
 
 func viewFileHistory(store *history.CommitStore, filePath string) error {

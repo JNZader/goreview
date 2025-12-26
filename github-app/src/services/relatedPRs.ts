@@ -139,8 +139,8 @@ export class RelatedPRsService {
       console.error('Error finding related PRs:', error);
     }
 
-    // Sort by overlap percentage
-    return relatedPRs
+    // Sort by overlap percentage (using slice to avoid mutation)
+    return [...relatedPRs]
       .sort((a, b) => b.overlapPercentage - a.overlapPercentage)
       .slice(0, 10);
   }
@@ -167,8 +167,9 @@ export class RelatedPRsService {
         // Check if issue mentions any of the changed files
         const issueText = `${issue.title} ${issue.body || ''}`.toLowerCase();
         const mentionedFiles = changedFiles.filter(file => {
-          const fileName = file.split('/').pop()?.toLowerCase() || '';
-          const dirName = file.split('/').slice(-2, -1)[0]?.toLowerCase() || '';
+          const parts = file.split('/');
+          const fileName = parts.at(-1)?.toLowerCase() ?? '';
+          const dirName = parts.at(-2)?.toLowerCase() ?? '';
           return issueText.includes(fileName) || issueText.includes(dirName);
         });
 

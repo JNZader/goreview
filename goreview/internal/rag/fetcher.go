@@ -54,23 +54,31 @@ func (f *Fetcher) FetchContext(ctx context.Context, language string, frameworks 
 		Sources: make([]SourceContext, 0),
 	}
 
-	// Fetch from configured sources
-	for _, source := range f.config.Sources {
-		if !source.Enabled {
-			continue
-		}
+	configuredSources := f.fetchConfiguredSources(ctx, language)
+	ragCtx.Sources = append(ragCtx.Sources, configuredSources...)
 
-		// Check if source is relevant for the language
-		if source.Language != "" && source.Language != language {
+	if f.config.AutoDetect {
+		frameworkSources := f.fetchFrameworkSources(ctx, frameworks)
+		ragCtx.Sources = append(ragCtx.Sources, frameworkSources...)
+	}
+
+	return ragCtx, nil
+}
+
+func (f *Fetcher) fetchConfiguredSources(ctx context.Context, language string) []SourceContext {
+	var sources []SourceContext
+
+	for _, source := range f.config.Sources {
+		if !isSourceRelevant(source, language) {
 			continue
 		}
 
 		doc, err := f.fetchWithCache(ctx, source)
 		if err != nil {
-			continue // Skip failed sources
+			continue
 		}
 
-		ragCtx.Sources = append(ragCtx.Sources, SourceContext{
+		sources = append(sources, SourceContext{
 			Name:     source.Name,
 			Type:     source.Type,
 			Content:  doc.Summary,
@@ -79,33 +87,53 @@ func (f *Fetcher) FetchContext(ctx context.Context, language string, frameworks 
 		})
 	}
 
-	// Fetch framework-specific docs if auto-detect is enabled
-	if f.config.AutoDetect {
-		for _, fw := range frameworks {
-			if fw.DocsURL != "" {
-				doc, err := f.fetchWithCache(ctx, Source{
-					URL:      fw.DocsURL,
-					Type:     SourceTypeFramework,
-					Name:     fw.Name,
-					Language: fw.Language,
-					Enabled:  true,
-				})
-				if err != nil {
-					continue
-				}
+	return sources
+}
 
-				ragCtx.Sources = append(ragCtx.Sources, SourceContext{
-					Name:     fw.Name,
-					Type:     SourceTypeFramework,
-					Content:  doc.Summary,
-					URL:      fw.DocsURL,
-					Relevant: true,
-				})
-			}
+func isSourceRelevant(source Source, language string) bool {
+	if !source.Enabled {
+		return false
+	}
+	if source.Language != "" && source.Language != language {
+		return false
+	}
+	return true
+}
+
+func (f *Fetcher) fetchFrameworkSources(ctx context.Context, frameworks []DetectedFramework) []SourceContext {
+	var sources []SourceContext
+
+	for _, fw := range frameworks {
+		if fw.DocsURL == "" {
+			continue
 		}
+
+		source := f.createFrameworkSource(fw)
+		doc, err := f.fetchWithCache(ctx, source)
+		if err != nil {
+			continue
+		}
+
+		sources = append(sources, SourceContext{
+			Name:     fw.Name,
+			Type:     SourceTypeFramework,
+			Content:  doc.Summary,
+			URL:      fw.DocsURL,
+			Relevant: true,
+		})
 	}
 
-	return ragCtx, nil
+	return sources
+}
+
+func (f *Fetcher) createFrameworkSource(fw DetectedFramework) Source {
+	return Source{
+		URL:      fw.DocsURL,
+		Type:     SourceTypeFramework,
+		Name:     fw.Name,
+		Language: fw.Language,
+		Enabled:  true,
+	}
 }
 
 // fetchWithCache fetches a document with caching support.

@@ -231,47 +231,76 @@ func (cs *CommitStore) Recall(opts RecallOptions) ([]RecallResult, error) {
 func (cs *CommitStore) searchAnalysis(analysis *CommitAnalysis, query string, opts RecallOptions) []RecallResult {
 	var results []RecallResult
 
-	// Check commit message
-	if query != "" && strings.Contains(strings.ToLower(analysis.CommitMsg), query) {
+	if commitMsgMatch := cs.matchCommitMsg(analysis, query); commitMsgMatch != nil {
+		results = append(results, *commitMsgMatch)
+	}
+
+	issueMatches := cs.matchIssues(analysis, query, opts)
+	results = append(results, issueMatches...)
+
+	return results
+}
+
+func (cs *CommitStore) matchCommitMsg(analysis *CommitAnalysis, query string) *RecallResult {
+	if query == "" || !strings.Contains(strings.ToLower(analysis.CommitMsg), query) {
+		return nil
+	}
+	return &RecallResult{
+		CommitHash: analysis.CommitHash,
+		CommitMsg:  analysis.CommitMsg,
+		Author:     analysis.Author,
+		AnalyzedAt: analysis.AnalyzedAt,
+		MatchType:  "commit",
+		Snippet:    analysis.CommitMsg,
+		Score:      0.8,
+	}
+}
+
+func (cs *CommitStore) matchIssues(analysis *CommitAnalysis, query string, opts RecallOptions) []RecallResult {
+	var results []RecallResult
+
+	for _, file := range analysis.Files {
+		if opts.FilePath != "" && !strings.Contains(file.Path, opts.FilePath) {
+			continue
+		}
+		fileResults := cs.matchFileIssues(analysis, file, query, opts.Severity)
+		results = append(results, fileResults...)
+	}
+
+	return results
+}
+
+func (cs *CommitStore) matchFileIssues(analysis *CommitAnalysis, file AnalyzedFile, query, severity string) []RecallResult {
+	var results []RecallResult
+
+	for _, issue := range file.Issues {
+		if severity != "" && issue.Severity != severity {
+			continue
+		}
+		if !issueMatchesQuery(issue, query) {
+			continue
+		}
 		results = append(results, RecallResult{
 			CommitHash: analysis.CommitHash,
 			CommitMsg:  analysis.CommitMsg,
 			Author:     analysis.Author,
 			AnalyzedAt: analysis.AnalyzedAt,
-			MatchType:  "commit",
-			Snippet:    analysis.CommitMsg,
-			Score:      0.8,
+			FilePath:   file.Path,
+			MatchType:  "issue",
+			Snippet:    fmt.Sprintf("[%s] %s", issue.Severity, issue.Message),
+			Score:      0.9,
 		})
 	}
 
-	// Check files and issues
-	for _, file := range analysis.Files {
-		if opts.FilePath != "" && !strings.Contains(file.Path, opts.FilePath) {
-			continue
-		}
-
-		for _, issue := range file.Issues {
-			if opts.Severity != "" && issue.Severity != opts.Severity {
-				continue
-			}
-
-			issueText := strings.ToLower(issue.Message + " " + issue.Suggestion)
-			if query == "" || strings.Contains(issueText, query) {
-				results = append(results, RecallResult{
-					CommitHash: analysis.CommitHash,
-					CommitMsg:  analysis.CommitMsg,
-					Author:     analysis.Author,
-					AnalyzedAt: analysis.AnalyzedAt,
-					FilePath:   file.Path,
-					MatchType:  "issue",
-					Snippet:    fmt.Sprintf("[%s] %s", issue.Severity, issue.Message),
-					Score:      0.9,
-				})
-			}
-		}
-	}
-
 	return results
+}
+
+func issueMatchesQuery(issue Issue, query string) bool {
+	if query == "" {
+		return true
+	}
+	issueText := strings.ToLower(issue.Message + " " + issue.Suggestion)
+	return strings.Contains(issueText, query)
 }
 
 // GetFileHistory returns the analysis history for a specific file.
@@ -281,38 +310,8 @@ func (cs *CommitStore) GetFileHistory(filePath string) (*CommitHistory, error) {
 		return nil, err
 	}
 
-	var relevantCommits []CommitSummary
-	issuesByType := make(map[string]int)
-	var totalIssues int
-
-	for _, summary := range summaries {
-		analysis, err := cs.Load(summary.Hash)
-		if err != nil {
-			continue
-		}
-
-		for _, file := range analysis.Files {
-			if strings.Contains(file.Path, filePath) || strings.Contains(filePath, file.Path) {
-				for _, issue := range file.Issues {
-					issuesByType[issue.Type]++
-					totalIssues++
-				}
-				relevantCommits = append(relevantCommits, summary)
-				break
-			}
-		}
-	}
-
-	trend := "stable"
-	if len(relevantCommits) >= 3 {
-		recent := relevantCommits[0].IssueCount
-		older := relevantCommits[len(relevantCommits)-1].IssueCount
-		if recent < older {
-			trend = "improving"
-		} else if recent > older {
-			trend = "worsening"
-		}
-	}
+	relevantCommits, totalIssues := cs.findRelevantCommits(summaries, filePath)
+	trend := calculateTrend(relevantCommits)
 
 	return &CommitHistory{
 		TotalCommits:    len(summaries),
@@ -324,6 +323,52 @@ func (cs *CommitStore) GetFileHistory(filePath string) (*CommitHistory, error) {
 			TrendDirection: trend,
 		},
 	}, nil
+}
+
+func (cs *CommitStore) findRelevantCommits(summaries []CommitSummary, filePath string) ([]CommitSummary, int) {
+	var relevantCommits []CommitSummary
+	var totalIssues int
+
+	for _, summary := range summaries {
+		analysis, err := cs.Load(summary.Hash)
+		if err != nil {
+			continue
+		}
+
+		issues := countFileIssues(analysis, filePath)
+		if issues > 0 {
+			totalIssues += issues
+			relevantCommits = append(relevantCommits, summary)
+		}
+	}
+
+	return relevantCommits, totalIssues
+}
+
+func countFileIssues(analysis *CommitAnalysis, filePath string) int {
+	for _, file := range analysis.Files {
+		if strings.Contains(file.Path, filePath) || strings.Contains(filePath, file.Path) {
+			return len(file.Issues)
+		}
+	}
+	return 0
+}
+
+func calculateTrend(commits []CommitSummary) string {
+	if len(commits) < 3 {
+		return "stable"
+	}
+
+	recent := commits[0].IssueCount
+	older := commits[len(commits)-1].IssueCount
+
+	if recent < older {
+		return "improving"
+	}
+	if recent > older {
+		return "worsening"
+	}
+	return "stable"
 }
 
 // Delete removes a commit analysis.

@@ -40,7 +40,6 @@ func init() {
 	historyCmd.Flags().Int("limit", 20, "Number of issues to show in detailed mode")
 }
 
-//nolint:gocyclo,funlen // CLI command with multiple display modes
 func runHistory(cmd *cobra.Command, args []string) error {
 	path := "."
 	if len(args) > 0 {
@@ -52,17 +51,13 @@ func runHistory(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("loading config: %w", err)
 	}
 
-	dbPath := getHistoryDBPath(cfg)
-
-	store, err := history.NewStore(history.StoreConfig{Path: dbPath})
+	store, err := history.NewStore(history.StoreConfig{Path: getHistoryDBPath(cfg)})
 	if err != nil {
 		return fmt.Errorf("opening history database: %w", err)
 	}
 	defer store.Close()
 
 	ctx := context.Background()
-
-	// Get file history
 	hist, err := store.GetFileHistory(ctx, path)
 	if err != nil {
 		return fmt.Errorf("getting history: %w", err)
@@ -73,12 +68,28 @@ func runHistory(cmd *cobra.Command, args []string) error {
 		return nil
 	}
 
-	// Print summary
+	printHistoryHeader(path)
+	printHistorySummary(hist)
+	printHistoryTimeline(hist)
+	printSeverityBreakdown(hist)
+	printTypeBreakdown(hist)
+
+	detailed, _ := cmd.Flags().GetBool("detailed")
+	if detailed {
+		limit, _ := cmd.Flags().GetInt("limit")
+		return printDetailedIssues(ctx, store, path, limit)
+	}
+
+	return nil
+}
+
+func printHistoryHeader(path string) {
 	fmt.Printf("📁 Review History: %s\n", path)
 	fmt.Println(repeatChar('=', 50))
 	fmt.Println()
+}
 
-	// Stats
+func printHistorySummary(hist *history.FileHistory) {
 	resolutionRate := float64(0)
 	if hist.TotalIssues > 0 {
 		resolutionRate = float64(hist.Resolved) / float64(hist.TotalIssues) * 100
@@ -90,74 +101,83 @@ func runHistory(cmd *cobra.Command, args []string) error {
 	fmt.Printf("   Pending:         %d\n", hist.Pending)
 	fmt.Printf("   Review Rounds:   %d\n", hist.ReviewRounds)
 	fmt.Println()
+}
 
-	if !hist.FirstReview.IsZero() {
-		fmt.Printf("📅 Timeline\n")
-		fmt.Printf("   First Review:    %s\n", hist.FirstReview.Format("2006-01-02 15:04"))
-		fmt.Printf("   Last Review:     %s\n", hist.LastReview.Format("2006-01-02 15:04"))
-		fmt.Println()
+func printHistoryTimeline(hist *history.FileHistory) {
+	if hist.FirstReview.IsZero() {
+		return
 	}
+	fmt.Printf("📅 Timeline\n")
+	fmt.Printf("   First Review:    %s\n", hist.FirstReview.Format("2006-01-02 15:04"))
+	fmt.Printf("   Last Review:     %s\n", hist.LastReview.Format("2006-01-02 15:04"))
+	fmt.Println()
+}
 
-	// Severity breakdown
-	if len(hist.BySeverity) > 0 {
-		fmt.Printf("🎯 By Severity\n")
-		severityOrder := []string{"critical", "error", "warning", "info"}
-		for _, sev := range severityOrder {
-			if count, ok := hist.BySeverity[sev]; ok && count > 0 {
-				emoji := getSeverityEmoji(sev)
-				bar := progressBar(count, int(hist.TotalIssues), 20)
-				fmt.Printf("   %s %-10s %s %d\n", emoji, sev, bar, count)
-			}
-		}
-		fmt.Println()
+func printSeverityBreakdown(hist *history.FileHistory) {
+	if len(hist.BySeverity) == 0 {
+		return
 	}
-
-	// Type breakdown
-	if len(hist.ByType) > 0 {
-		fmt.Printf("🏷️  By Type\n")
-		for typ, count := range hist.ByType {
+	fmt.Printf("🎯 By Severity\n")
+	severityOrder := []string{"critical", "error", "warning", "info"}
+	for _, sev := range severityOrder {
+		if count, ok := hist.BySeverity[sev]; ok && count > 0 {
+			emoji := getSeverityEmoji(sev)
 			bar := progressBar(count, int(hist.TotalIssues), 20)
-			fmt.Printf("   %-15s %s %d\n", typ, bar, count)
-		}
-		fmt.Println()
-	}
-
-	// Detailed issue list
-	detailed, _ := cmd.Flags().GetBool("detailed")
-	if detailed {
-		limit, _ := cmd.Flags().GetInt("limit")
-		result, err := store.Search(ctx, history.SearchQuery{
-			File:  path,
-			Limit: limit,
-		})
-		if err != nil {
-			return fmt.Errorf("searching issues: %w", err)
-		}
-
-		if len(result.Records) > 0 {
-			fmt.Printf("📋 Recent Issues (showing %d of %d)\n", len(result.Records), result.TotalCount)
-			fmt.Println()
-
-			for _, r := range result.Records {
-				emoji := getSeverityEmoji(r.Severity)
-				status := ""
-				if r.Resolved {
-					status = " ✓"
-				}
-
-				location := r.FilePath
-				if r.Line > 0 {
-					location = fmt.Sprintf("%s:%d", r.FilePath, r.Line)
-				}
-
-				fmt.Printf("%s [%s]%s %s\n", emoji, r.Severity, status, location)
-				fmt.Printf("   %s\n", truncate(r.Message, 70))
-				fmt.Println()
-			}
+			fmt.Printf("   %s %-10s %s %d\n", emoji, sev, bar, count)
 		}
 	}
+	fmt.Println()
+}
 
+func printTypeBreakdown(hist *history.FileHistory) {
+	if len(hist.ByType) == 0 {
+		return
+	}
+	fmt.Printf("🏷️  By Type\n")
+	for typ, count := range hist.ByType {
+		bar := progressBar(count, int(hist.TotalIssues), 20)
+		fmt.Printf("   %-15s %s %d\n", typ, bar, count)
+	}
+	fmt.Println()
+}
+
+func printDetailedIssues(ctx context.Context, store *history.Store, path string, limit int) error {
+	result, err := store.Search(ctx, history.SearchQuery{
+		File:  path,
+		Limit: limit,
+	})
+	if err != nil {
+		return fmt.Errorf("searching issues: %w", err)
+	}
+
+	if len(result.Records) == 0 {
+		return nil
+	}
+
+	fmt.Printf("📋 Recent Issues (showing %d of %d)\n", len(result.Records), result.TotalCount)
+	fmt.Println()
+
+	for _, r := range result.Records {
+		printIssueRecord(r)
+	}
 	return nil
+}
+
+func printIssueRecord(r history.ReviewRecord) {
+	emoji := getSeverityEmoji(r.Severity)
+	status := ""
+	if r.Resolved {
+		status = " ✓"
+	}
+
+	location := r.FilePath
+	if r.Line > 0 {
+		location = fmt.Sprintf("%s:%d", r.FilePath, r.Line)
+	}
+
+	fmt.Printf("%s [%s]%s %s\n", emoji, r.Severity, status, location)
+	fmt.Printf("   %s\n", truncate(r.Message, 70))
+	fmt.Println()
 }
 
 func progressBar(current, total, width int) string {

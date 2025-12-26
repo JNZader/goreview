@@ -76,8 +76,9 @@ export class GroqProvider implements AIProvider {
     }
 
     let reviewResponse: ReviewResponse;
-    if (result.choices && result.choices[0]?.message?.content) {
-      reviewResponse = parseReviewResponse(result.choices[0].message.content);
+    const content = result.choices?.[0]?.message?.content;
+    if (content) {
+      reviewResponse = parseReviewResponse(content);
     } else {
       reviewResponse = { issues: [], summary: 'No response from Groq', score: 70 };
     }
@@ -116,8 +117,9 @@ export class GroqProvider implements AIProvider {
       }>;
     };
 
-    if (result.choices && result.choices[0]?.message?.content) {
-      return result.choices[0].message.content.trim();
+    const commitContent = result.choices?.[0]?.message?.content;
+    if (commitContent) {
+      return commitContent.trim();
     }
 
     throw new Error('No response from Groq');
@@ -154,8 +156,9 @@ export class GroqProvider implements AIProvider {
       }>;
     };
 
-    if (result.choices && result.choices[0]?.message?.content) {
-      return result.choices[0].message.content.trim();
+    const chatContent = result.choices?.[0]?.message?.content;
+    if (chatContent) {
+      return chatContent.trim();
     }
 
     throw new Error('No response from Groq');

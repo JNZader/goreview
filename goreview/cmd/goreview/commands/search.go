@@ -53,29 +53,54 @@ func init() {
 	searchCmd.Flags().StringP("format", "f", "table", "Output format (table, json)")
 }
 
-//nolint:gocyclo,gocognit // CLI command with multiple flag handling paths
 func runSearch(cmd *cobra.Command, args []string) error {
 	cfg, err := config.LoadDefault()
 	if err != nil {
 		return fmt.Errorf("loading config: %w", err)
 	}
 
-	// Get history database path
 	dbPath := getHistoryDBPath(cfg)
-
 	store, err := history.NewStore(history.StoreConfig{Path: dbPath})
 	if err != nil {
 		return fmt.Errorf("opening history database: %w", err)
 	}
 	defer store.Close()
 
-	// Build query
+	query, err := buildSearchQuery(cmd, args)
+	if err != nil {
+		return err
+	}
+
+	ctx := context.Background()
+	result, err := store.Search(ctx, query)
+	if err != nil {
+		return fmt.Errorf("search failed: %w", err)
+	}
+
+	format, _ := cmd.Flags().GetString("format")
+	return outputSearchResults(result, format)
+}
+
+func buildSearchQuery(cmd *cobra.Command, args []string) (history.SearchQuery, error) {
 	query := history.SearchQuery{}
 
 	if len(args) > 0 {
 		query.Text = strings.Join(args, " ")
 	}
 
+	applyStringFilters(cmd, &query)
+
+	if err := applyDateFilters(cmd, &query); err != nil {
+		return query, err
+	}
+
+	applyResolvedFilter(cmd, &query)
+	query.Limit, _ = cmd.Flags().GetInt("limit")
+
+	return query, nil
+}
+
+func applyStringFilters(cmd *cobra.Command, query *history.SearchQuery) {
 	if file, _ := cmd.Flags().GetString("file"); file != "" {
 		query.File = file
 	}
@@ -91,7 +116,9 @@ func runSearch(cmd *cobra.Command, args []string) error {
 	if branch, _ := cmd.Flags().GetString("branch"); branch != "" {
 		query.Branch = branch
 	}
+}
 
+func applyDateFilters(cmd *cobra.Command, query *history.SearchQuery) error {
 	if since, _ := cmd.Flags().GetString("since"); since != "" {
 		sinceTime, parseErr := time.Parse(dateFormat, since)
 		if parseErr != nil {
@@ -106,7 +133,10 @@ func runSearch(cmd *cobra.Command, args []string) error {
 		}
 		query.Until = untilTime
 	}
+	return nil
+}
 
+func applyResolvedFilter(cmd *cobra.Command, query *history.SearchQuery) {
 	resolved, _ := cmd.Flags().GetBool("resolved")
 	unresolved, _ := cmd.Flags().GetBool("unresolved")
 	if resolved {
@@ -116,19 +146,6 @@ func runSearch(cmd *cobra.Command, args []string) error {
 		r := false
 		query.Resolved = &r
 	}
-
-	query.Limit, _ = cmd.Flags().GetInt("limit")
-
-	// Execute search
-	ctx := context.Background()
-	result, err := store.Search(ctx, query)
-	if err != nil {
-		return fmt.Errorf("search failed: %w", err)
-	}
-
-	// Output results
-	format, _ := cmd.Flags().GetString("format")
-	return outputSearchResults(result, format)
 }
 
 //nolint:unparam // error return kept for consistency with other output functions

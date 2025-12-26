@@ -98,7 +98,7 @@ function isBotMention(body) {
  */
 function parseCommand(body) {
     // Remove the @mention
-    const cleanBody = body.replace(/@goreview\b/gi, '').trim();
+    const cleanBody = body.replaceAll(/@goreview\b/gi, '').trim();
     // Detect command type
     let type = 'general';
     if (COMMANDS.help.test(cleanBody)) {

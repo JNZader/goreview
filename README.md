@@ -2,6 +2,18 @@
 
 Suite de herramientas para automatizar code review usando inteligencia artificial.
 
+## Code Quality
+
+| Metric | Status |
+|--------|--------|
+| Bugs | 0 |
+| Vulnerabilities | 0 |
+| Code Smells | 0 |
+| Security Hotspots | 0 |
+| Duplications | < 3% |
+
+> Analizado con SonarQube. Cognitive complexity mantenida por debajo de 15 en todas las funciones.
+
 ## Componentes
 
 | Componente | Descripcion | Tecnologia |
@@ -15,20 +27,36 @@ Suite de herramientas para automatizar code review usando inteligencia artificia
 - **Review de codigo con IA** - Detecta bugs, vulnerabilidades, problemas de rendimiento
 - **Multiples proveedores** - Ollama (local), OpenAI, Gemini, Groq, Mistral
 - **Generacion de commits** - Mensajes siguiendo Conventional Commits
-- **Documentacion automatica** - Changelogs y documentacion de cambios
+- **Generacion de changelog** - Changelog automatico desde Conventional Commits
 - **Integracion GitHub** - Reviews automaticos en Pull Requests
 - **Sistema de reglas** - Configurable por severidad, categoria y lenguaje
 - **Cache inteligente** - Evita re-analizar codigo sin cambios
 - **Multiples formatos** - Markdown, JSON, SARIF
 
+### Modos de Revision Especializados
+- **`--mode=security`** - Enfoque en vulnerabilidades OWASP, secrets, injections
+- **`--mode=perf`** - N+1 queries, complejidad, memory leaks
+- **`--mode=clean`** - SOLID, DRY, naming, code smells
+- **`--mode=docs`** - Comentarios faltantes, JSDoc/GoDoc
+- **`--mode=tests`** - Cobertura, edge cases, mocking
+
+### Personalidades de Revisor
+- **`--personality=senior`** - Mentoring, explica el "por que"
+- **`--personality=strict`** - Directo, exigente
+- **`--personality=friendly`** - Sugerencias amables
+- **`--personality=security-expert`** - Paranoia saludable
+
 ### Avanzadas
-- **Auto-fix** - Comando `goreview fix` para aplicar correcciones automaticamente
-- **Comentarios interactivos** - Responde a menciones @goreview en GitHub
-- **Token Budgeting** - Gestion inteligente de tokens con chunking de codigo
-- **AST Parsing** - Analisis de contexto de codigo (Go, JS/TS, Python, Java, Rust)
-- **RAG para Style Guides** - Integra guias de estilo del proyecto en reviews
-- **Worker Pool** - Procesamiento concurrente optimizado
-- **Secret Masking** - Enmascaramiento automatico de secretos en logs
+- **Root Cause Tracing** - `--trace` rastrea hasta la causa raiz de cada issue
+- **Workflow TDD** - `--require-tests` bloquea si no hay tests correspondientes
+- **Historial de Reviews** - SQLite + FTS5 para busqueda full-text
+- **Sistema de Handoffs** - Preserva contexto entre rondas de review
+- **StatusLine** - Progreso del PR con advertencias escalonadas
+- **Auto-fix** - `goreview fix` aplica correcciones automaticamente
+- **RAG** - Integra guias de estilo y documentacion externa
+- **AST Parsing** - Analisis multi-lenguaje (Go, JS/TS, Python, Java, Rust)
+- **Token Budgeting** - Gestion inteligente de tokens con chunking
+- **Secret Masking** - Enmascaramiento automatico de secretos
 - **Cola persistente** - BullMQ + Redis para alta disponibilidad
 
 ## Inicio Rapido

@@ -256,10 +256,12 @@ func (e *Engine) calculateOptimalConcurrency() int {
 func (e *Engine) reviewFile(ctx context.Context, file git.FileDiff) *FileResult {
 	// Build review request
 	req := &providers.ReviewRequest{
-		Diff:        formatDiff(file),
-		Language:    file.Language,
-		FilePath:    file.Path,
-		Personality: e.cfg.Review.Personality,
+		Diff:             formatDiff(file),
+		Language:         file.Language,
+		FilePath:         file.Path,
+		Personality:      e.cfg.Review.Personality,
+		Modes:            providers.ParseModes(e.cfg.Review.Modes),
+		RootCauseTracing: e.cfg.Review.RootCauseTracing,
 	}
 
 	// Check cache

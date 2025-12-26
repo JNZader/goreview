@@ -6,6 +6,23 @@ import { logger } from '../utils/logger.js';
  * Provides visual indicators of review progress and warnings.
  */
 
+export interface ReviewIssueRecord {
+  /** Unique identifier for the issue (hash of location + message) */
+  id: string;
+  /** File path where the issue was found */
+  file: string;
+  /** Line number in the file */
+  line?: number;
+  /** Issue severity */
+  severity: 'info' | 'warning' | 'error' | 'critical';
+  /** Issue type */
+  type: string;
+  /** Issue description */
+  message: string;
+  /** Round when first detected */
+  firstSeenRound: number;
+}
+
 export interface ReviewStatus {
   /** Total issues found in current review */
   totalIssues: number;
@@ -21,6 +38,10 @@ export interface ReviewStatus {
   lastReviewAt: string;
   /** Review round number */
   reviewRound: number;
+  /** Detailed issue records for tracking */
+  issueRecords?: ReviewIssueRecord[];
+  /** Files that have been approved (no issues in last N rounds) */
+  approvedFiles?: string[];
 }
 
 export interface StatusLineOptions {
@@ -53,7 +74,7 @@ export function generateStatusLine(
   parts.push(`${scoreEmoji} Score: ${status.score}/100`);
 
   // Issues summary
-  const issuesEmoji = status.criticalIssues > 0 ? '🔴' : status.totalIssues > 0 ? '🟡' : '🟢';
+  const issuesEmoji = getIssuesEmoji(status.criticalIssues, status.totalIssues);
   if (opts.showEmoji) {
     parts.push(`${issuesEmoji} Issues: ${status.totalIssues}`);
   } else {
@@ -92,27 +113,24 @@ export function generateStatusBlock(
   options: StatusLineOptions = {}
 ): string {
   const opts = { ...DEFAULT_OPTIONS, ...options };
-  const lines: string[] = [];
-
-  // Header
-  lines.push('## GoReview Status');
-  lines.push('');
-
-  // Main status line
-  lines.push(`> ${generateStatusLine(status, opts)}`);
-  lines.push('');
+  const lines: string[] = [
+    // Header
+    '## GoReview Status',
+    '',
+    // Main status line
+    `> ${generateStatusLine(status, opts)}`,
+    '',
+  ];
 
   // Inactivity warning
   const inactivityWarning = checkInactivity(status.lastReviewAt, opts);
   if (inactivityWarning) {
-    lines.push(`⚠️ **Warning:** ${inactivityWarning}`);
-    lines.push('');
+    lines.push(`⚠️ **Warning:** ${inactivityWarning}`, '');
   }
 
   // Progress section (if there's history)
   if (status.reviewRound > 1) {
-    lines.push('### Progress Since Last Review');
-    lines.push('');
+    lines.push('### Progress Since Last Review', '');
 
     if (status.resolvedIssues > 0) {
       lines.push(`✅ ${status.resolvedIssues} issue(s) resolved`);
@@ -120,19 +138,16 @@ export function generateStatusBlock(
     if (status.persistentIssues > 0) {
       lines.push(`⏳ ${status.persistentIssues} issue(s) still pending`);
     }
-    if (status.totalIssues > status.persistentIssues) {
-      const newIssues = status.totalIssues - status.persistentIssues;
-      if (newIssues > 0) {
-        lines.push(`🆕 ${newIssues} new issue(s) found`);
-      }
+    const newIssues = status.totalIssues - status.persistentIssues;
+    if (newIssues > 0) {
+      lines.push(`🆕 ${newIssues} new issue(s) found`);
     }
     lines.push('');
   }
 
   // Critical issues warning
   if (status.criticalIssues > 0) {
-    lines.push(`🚨 **${status.criticalIssues} critical issue(s) require immediate attention**`);
-    lines.push('');
+    lines.push(`🚨 **${status.criticalIssues} critical issue(s) require immediate attention**`, '');
   }
 
   return lines.join('\n');
@@ -144,8 +159,9 @@ export function generateStatusBlock(
 export function parseExistingStatus(commentBody: string): Partial<ReviewStatus> | null {
   try {
     // Look for status data in HTML comment
-    const match = commentBody.match(/<!--goreview-status:(.*?)-->/);
-    if (match) {
+    const statusRegex = /<!--goreview-status:(.*?)-->/;
+    const match = statusRegex.exec(commentBody);
+    if (match?.[1]) {
       return JSON.parse(match[1]);
     }
     return null;
@@ -182,8 +198,9 @@ export async function getPreviousStatus(
     // Find the most recent GoReview comment
     for (let i = comments.length - 1; i >= 0; i--) {
       const comment = comments[i];
-      if (comment.body?.includes('<!--goreview-status:')) {
-        const status = parseExistingStatus(comment.body);
+      const body = comment?.body;
+      if (body?.includes('<!--goreview-status:')) {
+        const status = parseExistingStatus(body);
         if (status) {
           return status;
         }
@@ -248,6 +265,21 @@ function getProgressEmoji(percentage: number): string {
   return '⏳';
 }
 
+function getIssuesEmoji(criticalIssues: number, totalIssues: number): string {
+  if (criticalIssues > 0) return '🔴';
+  if (totalIssues > 0) return '🟡';
+  return '🟢';
+}
+
+function getSeverityEmoji(severity: string): string {
+  switch (severity) {
+    case 'critical': return '🚨';
+    case 'error': return '❌';
+    case 'warning': return '⚠️';
+    default: return 'ℹ️';
+  }
+}
+
 function checkInactivity(
   lastReviewAt: string,
   options: StatusLineOptions
@@ -267,6 +299,290 @@ function checkInactivity(
   return null;
 }
 
+/**
+ * Generate a unique ID for an issue based on location and content.
+ */
+export function generateIssueId(
+  file: string,
+  line: number | undefined,
+  message: string
+): string {
+  const content = `${file}:${line ?? 0}:${message.slice(0, 100)}`;
+  // Simple hash function for consistency
+  let hash = 0;
+  for (let i = 0; i < content.length; i++) {
+    const char = content.codePointAt(i) ?? 0;
+    hash = ((hash << 5) - hash) + char;
+    hash = hash & hash; // Convert to 32bit integer
+  }
+  return `issue-${Math.abs(hash).toString(16)}`;
+}
+
+/**
+ * Generate detailed persistent issues section for PR comment.
+ */
+export function generatePersistentIssuesSection(
+  currentIssues: ReviewIssueRecord[],
+  previousIssues: ReviewIssueRecord[],
+  currentRound: number
+): string {
+  const previousIds = new Set(previousIssues.map(i => i.id));
+  const persistent = currentIssues.filter(i => previousIds.has(i.id));
+
+  if (persistent.length === 0) {
+    return '';
+  }
+
+  const lines: string[] = [
+    '### Persistent Issues',
+    '',
+    'These issues were found in previous reviews and still need attention:',
+    '',
+  ];
+
+  // Group by severity
+  const bySeverity: Record<string, ReviewIssueRecord[]> = {};
+  for (const issue of persistent) {
+    const sev = issue.severity;
+    bySeverity[sev] ??= [];
+    bySeverity[sev].push(issue);
+  }
+
+  const severityOrder = ['critical', 'error', 'warning', 'info'];
+
+  for (const severity of severityOrder) {
+    const issues = bySeverity[severity];
+    if (!issues || issues.length === 0) continue;
+
+    for (const issue of issues) {
+      const roundsOld = currentRound - issue.firstSeenRound;
+      const roundLabel = roundsOld > 0 ? ` (since Round ${issue.firstSeenRound})` : ' (new)';
+      const emoji = getSeverityEmoji(severity);
+
+      const location = issue.line ? `${issue.file}:${issue.line}` : issue.file;
+      lines.push(
+        `${emoji} **[${severity.toUpperCase()}]** \`${location}\`${roundLabel}`,
+        `   ${issue.message}`,
+        ''
+      );
+    }
+  }
+
+  return lines.join('\n');
+}
+
+/**
+ * Determine which files have been "approved" (no issues for N rounds).
+ */
+export function getApprovedFiles(
+  currentFiles: string[],
+  issueRecords: ReviewIssueRecord[],
+  previousApproved: string[] = [],
+  requiredCleanRounds: number = 1
+): string[] {
+  // Files with current issues
+  const filesWithIssues = new Set(issueRecords.map(i => i.file));
+
+  // Files that are clean in this round
+  const cleanFiles = currentFiles.filter(f => !filesWithIssues.has(f));
+
+  // Combine with previously approved files (that still exist)
+  const allApproved = new Set([
+    ...previousApproved.filter(f => currentFiles.includes(f)),
+    ...cleanFiles,
+  ]);
+
+  return Array.from(allApproved);
+}
+
+/**
+ * Build a complete handoff status for the next review round.
+ */
+export function buildHandoffStatus(
+  currentResult: {
+    score: number;
+    totalIssues: number;
+    criticalIssues: number;
+    files: Array<{
+      path: string;
+      issues: Array<{
+        severity: string;
+        type: string;
+        message: string;
+        line?: number;
+      }>;
+    }>;
+  },
+  previousStatus: Partial<ReviewStatus> | null
+): ReviewStatus {
+  const currentRound = calculateReviewRound(previousStatus);
+  const now = new Date().toISOString();
+
+  // Build issue records with IDs using flatMap instead of nested loop with push
+  const issueRecords: ReviewIssueRecord[] = currentResult.files.flatMap((file) =>
+    file.issues.map((issue) => {
+      const id = generateIssueId(file.path, issue.line, issue.message);
+      // Check if this issue existed before
+      const previousIssue = previousStatus?.issueRecords?.find((p) => p.id === id);
+      const firstSeenRound = previousIssue?.firstSeenRound ?? currentRound;
+
+      return {
+        id,
+        file: file.path,
+        line: issue.line,
+        severity: issue.severity as ReviewIssueRecord['severity'],
+        type: issue.type,
+        message: issue.message,
+        firstSeenRound,
+      };
+    })
+  );
+
+  // Calculate resolved/persistent
+  const previousIds = new Set(previousStatus?.issueRecords?.map(i => i.id) ?? []);
+  const currentIds = new Set(issueRecords.map(i => i.id));
+
+  let resolved = 0;
+  let persistent = 0;
+  for (const id of previousIds) {
+    if (currentIds.has(id)) {
+      persistent++;
+    } else {
+      resolved++;
+    }
+  }
+
+  // Get approved files
+  const allFiles = currentResult.files.map(f => f.path);
+  const approvedFiles = getApprovedFiles(
+    allFiles,
+    issueRecords,
+    previousStatus?.approvedFiles
+  );
+
+  return {
+    totalIssues: currentResult.totalIssues,
+    criticalIssues: currentResult.criticalIssues,
+    resolvedIssues: resolved,
+    persistentIssues: persistent,
+    score: currentResult.score,
+    lastReviewAt: now,
+    reviewRound: currentRound,
+    issueRecords,
+    approvedFiles,
+  };
+}
+
+/**
+ * Generate complete status block with handoff information.
+ */
+export function generateHandoffBlock(
+  status: ReviewStatus,
+  previousStatus: Partial<ReviewStatus> | null,
+  options: StatusLineOptions = {}
+): string {
+  const opts = { ...DEFAULT_OPTIONS, ...options };
+  const lines: string[] = buildHandoffHeader(status, opts);
+
+  appendInactivityWarning(lines, status, opts);
+  appendProgressSection(lines, status, previousStatus);
+  appendCriticalWarning(lines, status);
+  appendApprovedFilesSection(lines, status);
+
+  return lines.join('\n');
+}
+
+function buildHandoffHeader(status: ReviewStatus, opts: StatusLineOptions): string[] {
+  return [
+    embedStatusData(status),
+    '',
+    '## GoReview Status',
+    '',
+    `> ${generateStatusLine(status, opts)}`,
+    '',
+  ];
+}
+
+function appendInactivityWarning(
+  lines: string[],
+  status: ReviewStatus,
+  opts: StatusLineOptions
+): void {
+  const inactivityWarning = checkInactivity(status.lastReviewAt, opts);
+  if (inactivityWarning) {
+    lines.push(`⚠️ **Warning:** ${inactivityWarning}`, '');
+  }
+}
+
+function appendProgressSection(
+  lines: string[],
+  status: ReviewStatus,
+  previousStatus: Partial<ReviewStatus> | null
+): void {
+  if (status.reviewRound <= 1 || !previousStatus) {
+    return;
+  }
+
+  lines.push('### Progress Since Last Review', '');
+  appendProgressStats(lines, status);
+  appendPersistentIssuesDetail(lines, status, previousStatus);
+}
+
+function appendProgressStats(lines: string[], status: ReviewStatus): void {
+  if (status.resolvedIssues > 0) {
+    lines.push(`✅ **${status.resolvedIssues}** issue(s) resolved`);
+  }
+  if (status.persistentIssues > 0) {
+    lines.push(`⏳ **${status.persistentIssues}** issue(s) still pending`);
+  }
+  const newIssues = status.totalIssues - status.persistentIssues;
+  if (newIssues > 0) {
+    lines.push(`🆕 **${newIssues}** new issue(s) found`);
+  }
+  lines.push('');
+}
+
+function appendPersistentIssuesDetail(
+  lines: string[],
+  status: ReviewStatus,
+  previousStatus: Partial<ReviewStatus>
+): void {
+  if (!status.issueRecords || !previousStatus.issueRecords) {
+    return;
+  }
+  const persistentSection = generatePersistentIssuesSection(
+    status.issueRecords,
+    previousStatus.issueRecords,
+    status.reviewRound
+  );
+  if (persistentSection) {
+    lines.push(persistentSection);
+  }
+}
+
+function appendCriticalWarning(lines: string[], status: ReviewStatus): void {
+  if (status.criticalIssues > 0) {
+    lines.push(`🚨 **${status.criticalIssues} critical issue(s) require immediate attention**`, '');
+  }
+}
+
+function appendApprovedFilesSection(lines: string[], status: ReviewStatus): void {
+  if (!status.approvedFiles || status.approvedFiles.length === 0) {
+    return;
+  }
+
+  lines.push(
+    '<details>',
+    `<summary>✅ ${status.approvedFiles.length} file(s) approved</summary>`,
+    '',
+    ...status.approvedFiles.slice(0, 10).map((file) => `- \`${file}\``)
+  );
+  if (status.approvedFiles.length > 10) {
+    lines.push(`- ... and ${status.approvedFiles.length - 10} more`);
+  }
+  lines.push('</details>', '');
+}
+
 export const statusLineService = {
   generateStatusLine,
   generateStatusBlock,
@@ -275,4 +591,9 @@ export const statusLineService = {
   getPreviousStatus,
   calculateReviewRound,
   compareIssues,
+  generateIssueId,
+  generatePersistentIssuesSection,
+  getApprovedFiles,
+  buildHandoffStatus,
+  generateHandoffBlock,
 };

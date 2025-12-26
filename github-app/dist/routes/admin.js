@@ -10,7 +10,7 @@ export const adminRouter = Router();
  */
 const requireAuth = (req, _res, next) => {
     const authHeader = req.headers.authorization;
-    if (!authHeader || !authHeader.startsWith('Bearer ')) {
+    if (!authHeader?.startsWith('Bearer ')) {
         throw new AppError('Authorization required', 401);
     }
     const token = authHeader.slice(7);
@@ -42,8 +42,8 @@ adminRouter.get('/jobs', (req, res) => {
     const status = req.query.status;
     const limitParam = typeof req.query.limit === 'string' ? req.query.limit : '50';
     const offsetParam = typeof req.query.offset === 'string' ? req.query.offset : '0';
-    const limit = Math.min(parseInt(limitParam, 10) || 50, 100);
-    const offset = parseInt(offsetParam, 10) || 0;
+    const limit = Math.min(Number.parseInt(limitParam, 10) || 50, 100);
+    const offset = Number.parseInt(offsetParam, 10) || 0;
     const allJobs = jobQueue.listJobs();
     // Filter by status if provided
     const filtered = status
@@ -74,7 +74,7 @@ adminRouter.get('/jobs/:id', (req, res) => {
  */
 adminRouter.post('/cleanup', (req, res) => {
     const maxAgeParam = typeof req.query.maxAge === 'string' ? req.query.maxAge : '3600000';
-    const maxAge = parseInt(maxAgeParam, 10) || 3600000; // 1 hour default
+    const maxAge = Number.parseInt(maxAgeParam, 10) || 3600000; // 1 hour default
     const removed = jobQueue.cleanup(maxAge);
     logger.info({ removed, maxAge }, 'Admin cleanup executed');
     res.json({

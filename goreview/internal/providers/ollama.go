@@ -94,11 +94,29 @@ func (p *OllamaProvider) Close() error { return nil }
 
 func buildReviewPrompt(req *ReviewRequest) string {
 	personalityPrompt := GetPersonalityPrompt(req.Personality)
+	modePrompt := CombineModePrompts(req.Modes)
+
+	issueSchema := `{"id": "1", "type": "bug|security|performance|style", "severity": "info|warning|error|critical", "message": "description", "suggestion": "how to fix"}`
+
+	if req.RootCauseTracing {
+		issueSchema = `{"id": "1", "type": "bug|security|performance|style", "severity": "info|warning|error|critical", "message": "description", "suggestion": "how to fix", "root_cause": {"description": "why this issue exists", "propagation_path": ["step1", "step2"], "recommendation": "how to fix at the source"}}`
+	}
+
+	rootCauseInstructions := ""
+	if req.RootCauseTracing {
+		rootCauseInstructions = `
+
+ROOT CAUSE ANALYSIS:
+For each issue, analyze and provide:
+- description: The underlying reason why this issue exists
+- propagation_path: How the issue spreads through the code (list of steps)
+- recommendation: How to fix the issue at its source, not just its symptoms`
+	}
 
 	return fmt.Sprintf(`%s
 
-Analyze this code and identify issues.
-
+%s
+%s
 File: %s
 Language: %s
 
@@ -107,10 +125,8 @@ Code:
 
 Return a JSON object:
 {
-  "issues": [{"id": "1", "type": "bug|security|performance|style", "severity": "info|warning|error|critical", "message": "description", "suggestion": "how to fix"}],
+  "issues": [%s],
   "summary": "brief summary",
   "score": 85
-}
-
-Only report real issues, not nitpicks.`, personalityPrompt, req.FilePath, req.Language, req.Diff)
+}`, personalityPrompt, modePrompt, rootCauseInstructions, req.FilePath, req.Language, req.Diff, issueSchema)
 }

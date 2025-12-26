@@ -47,10 +47,8 @@ export class GeminiProvider {
             throw new Error(`Gemini error ${result.error.code}: ${result.error.message}`);
         }
         let reviewResponse;
-        if (result.candidates &&
-            result.candidates[0]?.content?.parts &&
-            result.candidates[0].content.parts[0]?.text) {
-            const text = result.candidates[0].content.parts[0].text;
+        const text = result.candidates?.[0]?.content?.parts?.[0]?.text;
+        if (text) {
             reviewResponse = parseReviewResponse(text);
         }
         else {
@@ -76,10 +74,9 @@ export class GeminiProvider {
             throw new Error(`Gemini error: ${response.status}`);
         }
         const result = (await response.json());
-        if (result.candidates &&
-            result.candidates[0]?.content?.parts &&
-            result.candidates[0].content.parts[0]?.text) {
-            return result.candidates[0].content.parts[0].text.trim();
+        const commitText = result.candidates?.[0]?.content?.parts?.[0]?.text;
+        if (commitText) {
+            return commitText.trim();
         }
         throw new Error('No response from Gemini');
     }
@@ -102,10 +99,9 @@ export class GeminiProvider {
             throw new Error(`Gemini error: ${response.status}`);
         }
         const result = (await response.json());
-        if (result.candidates &&
-            result.candidates[0]?.content?.parts &&
-            result.candidates[0].content.parts[0]?.text) {
-            return result.candidates[0].content.parts[0].text.trim();
+        const chatText = result.candidates?.[0]?.content?.parts?.[0]?.text;
+        if (chatText) {
+            return chatText.trim();
         }
         throw new Error('No response from Gemini');
     }

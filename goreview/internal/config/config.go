@@ -34,6 +34,40 @@ type Config struct {
 
 	// Memory configures the cognitive memory system
 	Memory MemoryConfig `mapstructure:"memory" yaml:"memory"`
+
+	// RAG configures Retrieval-Augmented Generation with external docs
+	RAG RAGConfig `mapstructure:"rag" yaml:"rag"`
+}
+
+// RAGConfig configures the RAG system for external documentation.
+type RAGConfig struct {
+	// Enabled enables/disables RAG
+	Enabled bool `mapstructure:"enabled" yaml:"enabled"`
+
+	// CacheDir is the directory for cached documentation
+	CacheDir string `mapstructure:"cache_dir" yaml:"cache_dir"`
+
+	// DefaultCacheTTL is the default cache duration
+	DefaultCacheTTL string `mapstructure:"default_cache_ttl" yaml:"default_cache_ttl"`
+
+	// MaxCacheSize is the maximum cache size in bytes
+	MaxCacheSize int64 `mapstructure:"max_cache_size" yaml:"max_cache_size"`
+
+	// AutoDetect enables automatic framework detection
+	AutoDetect bool `mapstructure:"auto_detect" yaml:"auto_detect"`
+
+	// Sources is the list of external documentation sources
+	Sources []RAGSource `mapstructure:"sources" yaml:"sources"`
+}
+
+// RAGSource represents an external documentation source.
+type RAGSource struct {
+	URL      string `mapstructure:"url" yaml:"url"`
+	Type     string `mapstructure:"type" yaml:"type"`
+	Name     string `mapstructure:"name" yaml:"name"`
+	Language string `mapstructure:"language,omitempty" yaml:"language,omitempty"`
+	CacheTTL string `mapstructure:"cache_ttl,omitempty" yaml:"cache_ttl,omitempty"`
+	Enabled  bool   `mapstructure:"enabled" yaml:"enabled"`
 }
 
 // ProviderConfig configures the AI provider.
@@ -101,6 +135,13 @@ type ReviewConfig struct {
 
 	// Personality is the reviewer personality style: "default", "senior", "strict", "friendly", "security-expert"
 	Personality string `mapstructure:"personality" yaml:"personality"`
+
+	// Modes specifies specialized review focus areas: "security", "perf", "clean", "docs", "tests"
+	// Multiple modes can be combined with commas: "security,perf"
+	Modes string `mapstructure:"modes" yaml:"modes"`
+
+	// RootCauseTracing enables root cause analysis for each issue
+	RootCauseTracing bool `mapstructure:"root_cause_tracing" yaml:"root_cause_tracing"`
 }
 
 // OutputConfig configures output formatting.
@@ -155,6 +196,15 @@ type RulesConfig struct {
 
 	// Disabled is the list of disabled rule IDs
 	Disabled []string `mapstructure:"disabled" yaml:"disabled"`
+
+	// InheritFrom specifies sources to inherit rules from (URLs or local paths)
+	// Rules are merged with later sources taking precedence
+	// Example: ["https://company.com/rules.yaml", "./team-rules.yaml"]
+	InheritFrom []string `mapstructure:"inherit_from" yaml:"inherit_from"`
+
+	// Override contains rule property overrides for this project
+	// Example: {"SEC-001": {"severity": "critical"}}
+	Override map[string]interface{} `mapstructure:"override" yaml:"override"`
 }
 
 // MemoryConfig configures the cognitive memory system.

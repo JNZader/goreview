@@ -74,9 +74,7 @@ let providerInstance: AIProvider | null = null;
  * Get the AI provider singleton.
  */
 export function getProvider(): AIProvider {
-  if (!providerInstance) {
-    providerInstance = createProvider();
-  }
+  providerInstance ??= createProvider();
   return providerInstance;
 }
 

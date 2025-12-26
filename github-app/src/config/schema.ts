@@ -5,7 +5,7 @@ import { z } from 'zod';
 const DURATION_REGEX = /^(\d+)([hms])$/;
 
 const durationSchema = z.string().superRefine((val, ctx) => {
-  const match = val.match(DURATION_REGEX);
+  const match = DURATION_REGEX.exec(val);
   if (!match) {
     ctx.addIssue({
       code: z.ZodIssueCode.custom,
@@ -13,7 +13,7 @@ const durationSchema = z.string().superRefine((val, ctx) => {
     });
   }
 }).transform((val) => {
-  const match = val.match(DURATION_REGEX);
+  const match = DURATION_REGEX.exec(val);
   if (!match) return 0; // Won't reach here due to superRefine
 
   const num = match[1] ?? '0';
@@ -24,7 +24,7 @@ const durationSchema = z.string().superRefine((val, ctx) => {
     s: 1000,
   };
 
-  return parseInt(num, 10) * (multipliers[unit] ?? 1000);
+  return Number.parseInt(num, 10) * (multipliers[unit] ?? 1000);
 });
 
 export const envSchema = z.object({
@@ -37,7 +37,7 @@ export const envSchema = z.object({
   GITHUB_APP_ID: z.coerce.number(),
   GITHUB_PRIVATE_KEY: z.string().transform((key) => {
     // Handle escaped newlines from env vars
-    return key.replace(/\\n/g, '\n');
+    return key.replaceAll(String.raw`\n`, '\n');
   }),
   GITHUB_WEBHOOK_SECRET: z.string().min(20),
   GITHUB_CLIENT_ID: z.string().optional(),

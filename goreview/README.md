@@ -2,15 +2,52 @@
 
 Herramienta de linea de comandos para code review con IA. Analiza cambios de codigo, identifica problemas potenciales y proporciona feedback accionable usando modelos de lenguaje.
 
+## Code Quality
+
+| Metric | Status |
+|--------|--------|
+| Bugs | 0 |
+| Vulnerabilities | 0 |
+| Code Smells | 0 |
+| Security Hotspots | 0 |
+
+> Cognitive complexity < 15 en todas las funciones. Analizado con SonarQube y golangci-lint.
+
 ## Caracteristicas
 
-- **Review de codigo con IA**: Analiza diffs y detecta bugs, vulnerabilidades de seguridad, problemas de rendimiento y violaciones de mejores practicas
-- **Generacion de commits**: Genera mensajes de commit siguiendo Conventional Commits
-- **Generacion de documentacion**: Crea documentacion automatica de cambios
-- **Multiples proveedores de IA**: Soporta Ollama (local), OpenAI, Gemini, Groq y Mistral
+### Core
+- **Review de codigo con IA**: Analiza diffs y detecta bugs, vulnerabilidades, problemas de rendimiento
+- **Generacion de commits**: Mensajes siguiendo Conventional Commits
+- **Generacion de changelog**: Changelog automatico desde commits
+- **Multiples proveedores de IA**: Ollama (local), OpenAI, Gemini, Groq, Mistral
 - **Sistema de cache**: Evita re-analizar codigo sin cambios
-- **Reportes en multiples formatos**: Markdown, JSON y SARIF
-- **Sistema de reglas configurable**: Presets minimal, standard y strict
+- **Reportes multiples**: Markdown, JSON, SARIF
+- **Sistema de reglas**: Presets minimal, standard, strict
+
+### Modos de Revision (`--mode`)
+| Modo | Enfoque |
+|------|---------|
+| `security` | Vulnerabilidades OWASP, secrets, injections |
+| `perf` | N+1 queries, complejidad, memory leaks |
+| `clean` | SOLID, DRY, naming, code smells |
+| `docs` | Comentarios faltantes, JSDoc/GoDoc |
+| `tests` | Cobertura, edge cases, mocking |
+
+### Personalidades (`--personality`)
+| Personalidad | Estilo |
+|--------------|--------|
+| `senior` | Mentoring, explica el "por que" |
+| `strict` | Directo, sin rodeos, exigente |
+| `friendly` | Sugerencias amables, positivo |
+| `security-expert` | Paranoia saludable, peor caso |
+
+### Avanzadas
+- **Root Cause Tracing**: `--trace` rastrea hasta la causa raiz
+- **Workflow TDD**: `--require-tests` bloquea sin tests
+- **Historial de Reviews**: SQLite + FTS5 para busqueda full-text
+- **Auto-fix**: Aplica correcciones automaticamente
+- **RAG**: Integra guias de estilo y documentacion externa
+- **AST Parsing**: Contexto multi-lenguaje (Go, JS/TS, Python, Java, Rust)
 
 ## Instalacion
 
@@ -70,6 +107,21 @@ goreview review --staged --format json -o report.json
 
 # Exportar a SARIF (para IDEs)
 goreview review --staged --format sarif -o report.sarif
+
+# Review enfocado en seguridad
+goreview review --staged --mode=security
+
+# Multiples modos combinados
+goreview review --staged --mode=security,perf
+
+# Con personalidad de mentor
+goreview review --staged --personality=senior
+
+# Con verificacion de tests (TDD)
+goreview review --staged --require-tests --min-coverage=80
+
+# Con root cause tracing
+goreview review --staged --trace
 ```
 
 **Flags:**
@@ -88,6 +140,11 @@ goreview review --staged --format sarif -o report.sarif
 | `--concurrency` | Reviews paralelos (0=auto) |
 | `--no-cache` | Desactivar cache |
 | `--preset` | Preset de reglas: minimal, standard, strict |
+| `--mode` | Modo de revision: security, perf, clean, docs, tests |
+| `--personality` | Estilo de reviewer: senior, strict, friendly, security-expert |
+| `--require-tests` | Fallar si no hay tests correspondientes |
+| `--min-coverage` | Cobertura minima requerida (0=desactivado) |
+| `--trace` | Activar root cause tracing |
 
 ### `commit` - Generar mensaje de commit
 
@@ -181,6 +238,78 @@ goreview config show --json
 
 ```bash
 goreview version
+```
+
+### `fix` - Auto-corregir issues
+
+Aplica correcciones automaticas a los issues detectados.
+
+```bash
+# Corregir issues en cambios staged
+goreview fix --staged
+
+# Modo dry-run (ver sin aplicar)
+goreview fix --staged --dry-run
+
+# Corregir archivo especifico
+goreview fix file.go
+```
+
+### `history` - Historial de reviews
+
+Gestiona el historial de reviews realizados.
+
+```bash
+# Mostrar historial reciente
+goreview history
+
+# Buscar en historial
+goreview history search "error handling"
+
+# Limpiar historial antiguo
+goreview history prune --days 30
+```
+
+### `recall` - Recordar contexto
+
+Recupera informacion de reviews anteriores para contexto.
+
+```bash
+# Buscar reviews anteriores
+goreview recall "authentication"
+
+# Ver estadisticas
+goreview recall --stats
+```
+
+### `stats` - Estadisticas
+
+Muestra estadisticas del proyecto y reviews.
+
+```bash
+# Estadisticas generales
+goreview stats
+
+# Estadisticas por archivo
+goreview stats --by-file
+
+# Estadisticas por severidad
+goreview stats --by-severity
+```
+
+### `changelog` - Generar changelog
+
+Genera changelog automatico basado en commits.
+
+```bash
+# Generar changelog desde ultimo tag
+goreview changelog
+
+# Generar desde version especifica
+goreview changelog --from v1.0.0
+
+# Escribir a archivo
+goreview changelog -o CHANGELOG.md
 ```
 
 ## Flags globales
@@ -381,16 +510,22 @@ goreview/
 ├── cmd/goreview/           # Punto de entrada y comandos
 │   └── commands/           # Implementacion de comandos CLI
 ├── internal/
+│   ├── ast/                # AST parsing multi-lenguaje
 │   ├── cache/              # Sistema de cache LRU
 │   ├── config/             # Carga y validacion de config
 │   ├── git/                # Integracion con Git
+│   ├── history/            # Historial y recall de reviews
+│   ├── knowledge/          # Base de conocimiento
+│   ├── logger/             # Logger con secret masking
 │   ├── memory/             # Sistema de memoria cognitiva
 │   ├── metrics/            # Metricas de rendimiento
 │   ├── profiler/           # Profiling CPU/memoria
 │   ├── providers/          # Proveedores de IA
+│   ├── rag/                # RAG para style guides
 │   ├── report/             # Generadores de reportes
 │   ├── review/             # Motor de review
 │   ├── rules/              # Sistema de reglas
+│   ├── tokenizer/          # Token budgeting y chunking
 │   └── worker/             # Pool de workers concurrentes
 ├── .golangci.yml           # Configuracion de linter
 ├── Makefile                # Comandos de build

@@ -35,7 +35,7 @@ function getRedisConfig(): ConnectionOptions {
 
     return {
       host: url.hostname,
-      port: parseInt(url.port) || 6379,
+      port: Number.parseInt(url.port) || 6379,
       password: url.password || undefined,
       username: url.username || undefined,
       // Upstash Redis requires TLS with specific options
@@ -59,11 +59,11 @@ function getRedisConfig(): ConnectionOptions {
  * BullMQ Queue Manager for PR Reviews
  */
 export class BullQueueManager {
-  private queue: Queue<PRReviewJobData, JobResult>;
+  private readonly queue: Queue<PRReviewJobData, JobResult>;
   private worker: Worker<PRReviewJobData, JobResult> | null = null;
   private queueEvents: QueueEvents | null = null;
   private isInitialized = false;
-  private connection: ConnectionOptions;
+  private readonly connection: ConnectionOptions;
 
   constructor() {
     this.connection = getRedisConfig();
@@ -103,7 +103,7 @@ export class BullQueueManager {
       async (job) => this.processJob(job),
       {
         connection: this.connection,
-        concurrency: parseInt(process.env.QUEUE_CONCURRENCY || '3'),
+        concurrency: Number.parseInt(process.env.QUEUE_CONCURRENCY || '3'),
         limiter: {
           max: 10, // Max 10 jobs per minute
           duration: 60000,
@@ -443,9 +443,7 @@ let bullQueueManager: BullQueueManager | null = null;
  * Get the BullMQ queue manager instance
  */
 export function getBullQueue(): BullQueueManager {
-  if (!bullQueueManager) {
-    bullQueueManager = new BullQueueManager();
-  }
+  bullQueueManager ??= new BullQueueManager();
   return bullQueueManager;
 }
 

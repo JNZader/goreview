@@ -207,9 +207,9 @@ export function generateUrlSafeToken(length = 32) {
     const bytes = crypto.randomBytes(Math.ceil(length * 0.75));
     return bytes
         .toString('base64')
-        .replace(/\+/g, '-')
-        .replace(/\//g, '_')
-        .replace(/=/g, '')
+        .replaceAll('+', '-')
+        .replaceAll('/', '_')
+        .replaceAll('=', '')
         .slice(0, length);
 }
 // =============================================================================

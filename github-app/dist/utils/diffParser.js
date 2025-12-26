@@ -55,7 +55,8 @@ function parseFileBlock(block) {
     const firstLine = lines[0];
     if (!firstLine)
         return null;
-    const headerMatch = firstLine.match(/^diff --git a\/(.+) b\/(.+)$/);
+    const headerRegex = /^diff --git a\/(.+) b\/(.+)$/;
+    const headerMatch = headerRegex.exec(firstLine);
     if (!headerMatch)
         return null;
     const oldPath = headerMatch[1] ?? '';
@@ -63,7 +64,7 @@ function parseFileBlock(block) {
     const { content, additions, deletions } = extractHunks(lines);
     return {
         path: newPath || 'unknown',
-        oldPath: oldPath !== newPath ? oldPath : undefined,
+        oldPath: oldPath === newPath ? undefined : oldPath,
         status: determineFileStatus(block),
         language: detectLanguage(newPath || ''),
         content,

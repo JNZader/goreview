@@ -134,7 +134,8 @@ func (idx *Index) isStyleGuideFile(name string) bool {
 
 // LoadFile loads and indexes a style guide file
 func (idx *Index) LoadFile(path string) error {
-	content, err := os.ReadFile(path) //nolint:gosec // Path comes from trusted directory scan
+	cleanPath := filepath.Clean(path)
+	content, err := os.ReadFile(cleanPath) // #nosec G304 - path from trusted directory scan
 	if err != nil {
 		return err
 	}

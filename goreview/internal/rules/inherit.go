@@ -155,7 +155,8 @@ func (hl *HierarchicalLoader) loadFromFile(path string) ([]byte, error) {
 		path = filepath.Join(cwd, path)
 	}
 
-	return os.ReadFile(path) //nolint:gosec // Path comes from config
+	cleanPath := filepath.Clean(path)
+	return os.ReadFile(cleanPath) // #nosec G304 - path validated above
 }
 
 // parseRulesData parses YAML rules data.

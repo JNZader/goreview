@@ -31,14 +31,14 @@ func NewStore(cfg StoreConfig) (*Store, error) {
 
 	// Enable WAL mode for better concurrency
 	if _, err := db.Exec("PRAGMA journal_mode=WAL"); err != nil {
-		db.Close()
+		_ = db.Close() // #nosec G104 - best effort cleanup
 		return nil, fmt.Errorf("setting WAL mode: %w", err)
 	}
 
 	store := &Store{db: db}
 
 	if err := store.migrate(); err != nil {
-		db.Close()
+		_ = db.Close() // #nosec G104 - best effort cleanup
 		return nil, fmt.Errorf("running migrations: %w", err)
 	}
 
@@ -253,7 +253,7 @@ func (s *Store) fetchSearchRecords(ctx context.Context, whereClause string, args
 		limit = 100
 	}
 
-	//nolint:gosec // Query built with parameterized args, whereClause uses placeholders
+	// #nosec G202 - whereClause built with parameterized placeholders, safe from injection
 	selectQuery := `
 		SELECT id, commit_hash, file_path, issue_type, severity, message, suggestion,
 		       line, author, branch, created_at, resolved, resolved_at, review_round
@@ -423,7 +423,7 @@ func (s *Store) queryBreakdown(ctx context.Context, column, pattern string) (map
 		return nil, fmt.Errorf("invalid column: %s", column)
 	}
 
-	query := fmt.Sprintf(`SELECT %s, COUNT(*) FROM reviews WHERE file_path LIKE ? GROUP BY %s`, column, column) //nolint:gosec // column validated above
+	query := fmt.Sprintf(`SELECT %s, COUNT(*) FROM reviews WHERE file_path LIKE ? GROUP BY %s`, column, column) // #nosec G201 - column validated above
 	result := make(map[string]int)
 
 	rows, err := s.db.QueryContext(ctx, query, pattern)
@@ -455,45 +455,51 @@ func (s *Store) GetStats(ctx context.Context) (*Stats, error) {
 
 	// By severity
 	bySeverity := make(map[string]int64)
-	rows, _ := s.db.QueryContext(ctx, `SELECT severity, COUNT(*) FROM reviews GROUP BY severity`)
-	for rows.Next() {
-		var sev string
-		var count int64
-		if err := rows.Scan(&sev, &count); err == nil {
-			bySeverity[sev] = count
+	severityRows, _ := s.db.QueryContext(ctx, `SELECT severity, COUNT(*) FROM reviews GROUP BY severity`)
+	if severityRows != nil {
+		for severityRows.Next() {
+			var sev string
+			var count int64
+			if err := severityRows.Scan(&sev, &count); err == nil {
+				bySeverity[sev] = count
+			}
 		}
+		_ = severityRows.Close() // #nosec G104 - best effort cleanup
 	}
-	rows.Close()
 
 	// By type
 	byType := make(map[string]int64)
-	rows, _ = s.db.QueryContext(ctx, `SELECT issue_type, COUNT(*) FROM reviews GROUP BY issue_type`)
-	for rows.Next() {
-		var typ string
-		var count int64
-		if err := rows.Scan(&typ, &count); err == nil {
-			byType[typ] = count
+	typeRows, _ := s.db.QueryContext(ctx, `SELECT issue_type, COUNT(*) FROM reviews GROUP BY issue_type`)
+	if typeRows != nil {
+		for typeRows.Next() {
+			var typ string
+			var count int64
+			if err := typeRows.Scan(&typ, &count); err == nil {
+				byType[typ] = count
+			}
 		}
+		_ = typeRows.Close() // #nosec G104 - best effort cleanup
 	}
-	rows.Close()
 
 	// Top files
 	byFile := make(map[string]int64)
-	rows, _ = s.db.QueryContext(ctx, `
+	fileRows, _ := s.db.QueryContext(ctx, `
 		SELECT file_path, COUNT(*) as cnt
 		FROM reviews
 		GROUP BY file_path
 		ORDER BY cnt DESC
 		LIMIT 10
 	`)
-	for rows.Next() {
-		var file string
-		var count int64
-		if err := rows.Scan(&file, &count); err == nil {
-			byFile[file] = count
+	if fileRows != nil {
+		for fileRows.Next() {
+			var file string
+			var count int64
+			if err := fileRows.Scan(&file, &count); err == nil {
+				byFile[file] = count
+			}
 		}
+		_ = fileRows.Close() // #nosec G104 - best effort cleanup
 	}
-	rows.Close()
 
 	return &Stats{
 		TotalReviews:   0, // Would need separate tracking

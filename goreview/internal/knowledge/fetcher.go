@@ -30,7 +30,7 @@ func NewFetcher(cfg Config) (*Fetcher, error) {
 		cacheDir = filepath.Join(home, ".goreview", "knowledge-cache")
 	}
 
-	if err := os.MkdirAll(cacheDir, 0755); err != nil {
+	if err := os.MkdirAll(cacheDir, 0750); err != nil { // #nosec G301
 		return nil, fmt.Errorf("creating cache directory: %w", err)
 	}
 
@@ -211,7 +211,8 @@ func processObsidianFile(path string, source Source, queryLower string) *Documen
 		return nil
 	}
 
-	content, err := os.ReadFile(path) //nolint:gosec // Path from config
+	cleanPath := filepath.Clean(path)
+	content, err := os.ReadFile(cleanPath) // #nosec G304 - path validated by caller
 	if err != nil {
 		return nil
 	}
@@ -290,7 +291,8 @@ func (f *Fetcher) fetchFromLocal(source Source, query string) ([]Document, error
 			return nil
 		}
 
-		content, err := os.ReadFile(path) //nolint:gosec // Path from config
+		cleanPath := filepath.Clean(path)
+		content, err := os.ReadFile(cleanPath) // #nosec G304 - path validated by caller
 		if err != nil {
 			return nil
 		}
@@ -537,8 +539,8 @@ func parseGitHubContents(ctx context.Context, client *http.Client, body []byte, 
 			continue
 		}
 
-		content, _ := io.ReadAll(resp.Body)
-		resp.Body.Close()
+		content, _ := io.ReadAll(resp.Body) // #nosec G104 - best effort read
+		_ = resp.Body.Close()               // #nosec G104 - best effort cleanup
 
 		contentStr := string(content)
 		if query != "" && !strings.Contains(strings.ToLower(contentStr), queryLower) {

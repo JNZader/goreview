@@ -389,7 +389,8 @@ func writeChangelog(filename, content string, appendToFile bool) error {
 		flag = os.O_CREATE | os.O_WRONLY | os.O_TRUNC
 	}
 
-	file, err := os.OpenFile(filename, flag, 0600) //nolint:gosec // User-specified output file
+	cleanPath := filepath.Clean(filename)
+	file, err := os.OpenFile(cleanPath, flag, 0600) // #nosec G304 - user-specified output file
 	if err != nil {
 		return fmt.Errorf("opening file: %w", err)
 	}

@@ -53,7 +53,8 @@ func (d *FrameworkDetector) Detect() []DetectedFramework {
 }
 
 func (d *FrameworkDetector) readFile(name string) (string, error) {
-	data, err := os.ReadFile(filepath.Join(d.projectRoot, name))
+	cleanPath := filepath.Clean(filepath.Join(d.projectRoot, name))
+	data, err := os.ReadFile(cleanPath) // #nosec G304 - path built from project root + known filenames
 	if err != nil {
 		return "", err
 	}

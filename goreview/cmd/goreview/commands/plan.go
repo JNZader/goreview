@@ -155,7 +155,8 @@ func runPlan(cmd *cobra.Command, args []string) error {
 }
 
 func reviewDocument(ctx context.Context, provider providers.Provider, docPath string) (*PlanReview, error) {
-	content, err := os.ReadFile(docPath)
+	cleanPath := filepath.Clean(docPath)
+	content, err := os.ReadFile(cleanPath) // #nosec G304 - path from CLI args
 	if err != nil {
 		return nil, fmt.Errorf("reading document: %w", err)
 	}

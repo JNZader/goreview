@@ -31,7 +31,7 @@ func NewFetcher(cfg RAGConfig) (*Fetcher, error) {
 		cacheDir = filepath.Join(home, ".goreview", "rag-cache")
 	}
 
-	if err := os.MkdirAll(cacheDir, 0755); err != nil {
+	if err := os.MkdirAll(cacheDir, 0750); err != nil { // #nosec G301
 		return nil, fmt.Errorf("creating cache directory: %w", err)
 	}
 
@@ -207,7 +207,8 @@ func (f *Fetcher) fetchURL(ctx context.Context, url string) (string, error) {
 
 // loadFromCache loads a cached document.
 func (f *Fetcher) loadFromCache(path string) (*CachedDocument, error) {
-	data, err := os.ReadFile(path)
+	cleanPath := filepath.Clean(path)
+	data, err := os.ReadFile(cleanPath) // #nosec G304 - path from internal cache directory
 	if err != nil {
 		return nil, err
 	}

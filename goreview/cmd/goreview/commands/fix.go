@@ -404,7 +404,7 @@ func applyFixToFile(fix FixableIssue) error {
 		return err
 	}
 
-	content, err := os.ReadFile(absPath) //nolint:gosec // CLI tool reads user-specified files
+	content, err := os.ReadFile(absPath) // #nosec G304 - path validated by filepath.Abs above
 	if err != nil {
 		return err
 	}

@@ -30,7 +30,7 @@ func NewCommitStore(repoRoot string) (*CommitStore, error) {
 	}
 
 	baseDir := filepath.Join(gitDir, "goreview", "commits")
-	if err := os.MkdirAll(baseDir, 0755); err != nil {
+	if err := os.MkdirAll(baseDir, 0750); err != nil { // #nosec G301
 		return nil, fmt.Errorf("creating commits directory: %w", err)
 	}
 
@@ -49,7 +49,7 @@ func (cs *CommitStore) Store(analysis *CommitAnalysis) error {
 	}
 
 	commitDir := filepath.Join(cs.baseDir, shortHash)
-	if err := os.MkdirAll(commitDir, 0755); err != nil {
+	if err := os.MkdirAll(commitDir, 0750); err != nil { // #nosec G301
 		return fmt.Errorf("creating commit directory: %w", err)
 	}
 
@@ -92,8 +92,8 @@ func (cs *CommitStore) Load(commitHash string) (*CommitAnalysis, error) {
 		shortHash = shortHash[:7]
 	}
 
-	analysisPath := filepath.Join(cs.baseDir, shortHash, analysisFileName)
-	data, err := os.ReadFile(analysisPath)
+	analysisPath := filepath.Clean(filepath.Join(cs.baseDir, shortHash, analysisFileName))
+	data, err := os.ReadFile(analysisPath) // #nosec G304 - path built from controlled components
 	if err != nil {
 		return nil, fmt.Errorf("reading analysis: %w", err)
 	}

@@ -10,6 +10,7 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"sort"
 	"strings"
 	"time"
 )
@@ -348,67 +349,67 @@ func (f *Fetcher) fetchFromGitHub(ctx context.Context, source Source, query stri
 }
 
 // Search searches across all configured knowledge sources.
-//
-//nolint:gocyclo // CLI search function with multiple filter conditions
 func (f *Fetcher) Search(ctx context.Context, query SearchQuery) ([]SearchResult, error) {
 	docs, err := f.FetchContext(ctx, query.Text)
 	if err != nil {
 		return nil, err
 	}
 
-	results := make([]SearchResult, 0, len(docs.Documents))
+	results := filterAndScoreDocuments(docs.Documents, query)
+	sortResultsByScore(results)
+	return applyResultLimit(results, query.Limit), nil
+}
+
+func filterAndScoreDocuments(docs []Document, query SearchQuery) []SearchResult {
+	results := make([]SearchResult, 0, len(docs))
 	queryLower := strings.ToLower(query.Text)
 
-	for _, doc := range docs.Documents {
-		// Filter by source type
-		if query.SourceType != "" && doc.Source != query.SourceType {
+	for _, doc := range docs {
+		if !matchesFilters(doc, query) {
 			continue
 		}
-
-		// Filter by tags
-		if len(query.Tags) > 0 {
-			hasTag := false
-			for _, queryTag := range query.Tags {
-				for _, docTag := range doc.Tags {
-					if strings.Contains(strings.ToLower(docTag), strings.ToLower(queryTag)) {
-						hasTag = true
-						break
-					}
-				}
-				if hasTag {
-					break
-				}
-			}
-			if !hasTag {
-				continue
-			}
-		}
-
-		// Calculate score
-		score := calculateRelevanceScore(doc, queryLower)
-
 		results = append(results, SearchResult{
 			Document: doc,
-			Score:    score,
+			Score:    calculateRelevanceScore(doc, queryLower),
 			Snippet:  extractSnippet(doc.Content, queryLower, 200),
 		})
 	}
+	return results
+}
 
-	// Sort by score
-	for i := 0; i < len(results)-1; i++ {
-		for j := i + 1; j < len(results); j++ {
-			if results[i].Score < results[j].Score {
-				results[i], results[j] = results[j], results[i]
+func matchesFilters(doc Document, query SearchQuery) bool {
+	if query.SourceType != "" && doc.Source != query.SourceType {
+		return false
+	}
+	if len(query.Tags) > 0 && !hasMatchingTag(doc.Tags, query.Tags) {
+		return false
+	}
+	return true
+}
+
+func hasMatchingTag(docTags, queryTags []string) bool {
+	for _, queryTag := range queryTags {
+		queryTagLower := strings.ToLower(queryTag)
+		for _, docTag := range docTags {
+			if strings.Contains(strings.ToLower(docTag), queryTagLower) {
+				return true
 			}
 		}
 	}
+	return false
+}
 
-	// Apply limit
-	if query.Limit > 0 && len(results) > query.Limit {
-		results = results[:query.Limit]
+func sortResultsByScore(results []SearchResult) {
+	sort.Slice(results, func(i, j int) bool {
+		return results[i].Score > results[j].Score
+	})
+}
+
+func applyResultLimit(results []SearchResult, limit int) []SearchResult {
+	if limit > 0 && len(results) > limit {
+		return results[:limit]
 	}
-
-	return results, nil
+	return results
 }
 
 // Helper functions

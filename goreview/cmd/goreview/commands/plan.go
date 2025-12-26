@@ -340,7 +340,6 @@ func formatPlanOutput(reviews []*PlanReview) (string, error) {
 	}
 }
 
-//nolint:gocyclo,funlen // Markdown formatting with multiple sections
 func formatPlanMarkdown(reviews []*PlanReview) string {
 	var sb strings.Builder
 
@@ -348,95 +347,141 @@ func formatPlanMarkdown(reviews []*PlanReview) string {
 		if i > 0 {
 			sb.WriteString("\n---\n\n")
 		}
-
-		sb.WriteString(fmt.Sprintf("# Design Review: %s\n\n", filepath.Base(review.Document)))
-		sb.WriteString(fmt.Sprintf("**Reviewed:** %s\n\n", review.ReviewedAt.Format(time.RFC3339)))
-
-		// Summary
-		sb.WriteString("## Summary\n\n")
-		sb.WriteString(review.Summary)
-		sb.WriteString("\n\n")
-
-		// Score
-		sb.WriteString("## Scores\n\n")
-		sb.WriteString(fmt.Sprintf("| Aspect | Score |\n"))
-		sb.WriteString(fmt.Sprintf("|--------|-------|\n"))
-		sb.WriteString(fmt.Sprintf("| **Overall** | %.0f/100 |\n", review.Score.Overall))
-		sb.WriteString(fmt.Sprintf("| Completeness | %.0f/100 |\n", review.Score.Completeness))
-		sb.WriteString(fmt.Sprintf("| Clarity | %.0f/100 |\n", review.Score.Clarity))
-		sb.WriteString(fmt.Sprintf("| Feasibility | %.0f/100 |\n", review.Score.Feasibility))
-		if review.Score.Security > 0 {
-			sb.WriteString(fmt.Sprintf("| Security | %.0f/100 |\n", review.Score.Security))
-		}
-		if review.Score.Performance > 0 {
-			sb.WriteString(fmt.Sprintf("| Performance | %.0f/100 |\n", review.Score.Performance))
-		}
-		if review.Score.Scalability > 0 {
-			sb.WriteString(fmt.Sprintf("| Scalability | %.0f/100 |\n", review.Score.Scalability))
-		}
-		sb.WriteString("\n")
-
-		// Strengths
-		if len(review.Strengths) > 0 {
-			sb.WriteString("## Strengths\n\n")
-			for _, s := range review.Strengths {
-				sb.WriteString(fmt.Sprintf("- %s\n", s))
-			}
-			sb.WriteString("\n")
-		}
-
-		// Concerns
-		if len(review.Concerns) > 0 {
-			sb.WriteString("## Concerns\n\n")
-			for _, c := range review.Concerns {
-				emoji := getConcernEmoji(c.Severity)
-				sb.WriteString(fmt.Sprintf("### %s [%s] %s\n\n", emoji, c.Category, c.Description))
-				if c.Section != "" {
-					sb.WriteString(fmt.Sprintf("**Section:** %s\n\n", c.Section))
-				}
-				if c.Suggestion != "" {
-					sb.WriteString(fmt.Sprintf("**Suggestion:** %s\n\n", c.Suggestion))
-				}
-			}
-		}
-
-		// Suggestions
-		if len(review.Suggestions) > 0 {
-			sb.WriteString("## Improvement Suggestions\n\n")
-			for _, s := range review.Suggestions {
-				sb.WriteString(fmt.Sprintf("- %s\n", s))
-			}
-			sb.WriteString("\n")
-		}
-
-		// Checklist
-		if len(review.Checklist) > 0 {
-			sb.WriteString("## Implementation Checklist\n\n")
-
-			// Group by category
-			categories := []string{"setup", "core", "testing", "deployment", "documentation"}
-			for _, cat := range categories {
-				var items []ChecklistItem
-				for _, item := range review.Checklist {
-					if item.Category == cat {
-						items = append(items, item)
-					}
-				}
-				if len(items) > 0 {
-					sb.WriteString(fmt.Sprintf("### %s\n\n", titleCase(cat)))
-					for _, item := range items {
-						priority := getPriorityEmoji(item.Priority)
-						sb.WriteString(fmt.Sprintf("- [ ] %s %s\n", priority, item.Task))
-						if len(item.Depends) > 0 {
-							sb.WriteString(fmt.Sprintf("  - *Depends on:* %s\n", strings.Join(item.Depends, ", ")))
-						}
-					}
-					sb.WriteString("\n")
-				}
-			}
-		}
+		sb.WriteString(formatReviewHeader(review))
+		sb.WriteString(formatReviewScores(review.Score))
+		sb.WriteString(formatReviewStrengths(review.Strengths))
+		sb.WriteString(formatReviewConcerns(review.Concerns))
+		sb.WriteString(formatReviewSuggestions(review.Suggestions))
+		sb.WriteString(formatReviewChecklist(review.Checklist))
 	}
 
+	return sb.String()
+}
+
+func formatReviewHeader(review *PlanReview) string {
+	var sb strings.Builder
+	sb.WriteString(fmt.Sprintf("# Design Review: %s\n\n", filepath.Base(review.Document)))
+	sb.WriteString(fmt.Sprintf("**Reviewed:** %s\n\n", review.ReviewedAt.Format(time.RFC3339)))
+	sb.WriteString("## Summary\n\n")
+	sb.WriteString(review.Summary)
+	sb.WriteString("\n\n")
+	return sb.String()
+}
+
+func formatReviewScores(score PlanScore) string {
+	var sb strings.Builder
+	sb.WriteString("## Scores\n\n")
+	sb.WriteString("| Aspect | Score |\n")
+	sb.WriteString("|--------|-------|\n")
+	sb.WriteString(fmt.Sprintf("| **Overall** | %.0f/100 |\n", score.Overall))
+	sb.WriteString(fmt.Sprintf("| Completeness | %.0f/100 |\n", score.Completeness))
+	sb.WriteString(fmt.Sprintf("| Clarity | %.0f/100 |\n", score.Clarity))
+	sb.WriteString(fmt.Sprintf("| Feasibility | %.0f/100 |\n", score.Feasibility))
+	if score.Security > 0 {
+		sb.WriteString(fmt.Sprintf("| Security | %.0f/100 |\n", score.Security))
+	}
+	if score.Performance > 0 {
+		sb.WriteString(fmt.Sprintf("| Performance | %.0f/100 |\n", score.Performance))
+	}
+	if score.Scalability > 0 {
+		sb.WriteString(fmt.Sprintf("| Scalability | %.0f/100 |\n", score.Scalability))
+	}
+	sb.WriteString("\n")
+	return sb.String()
+}
+
+func formatReviewStrengths(strengths []string) string {
+	if len(strengths) == 0 {
+		return ""
+	}
+	var sb strings.Builder
+	sb.WriteString("## Strengths\n\n")
+	for _, s := range strengths {
+		sb.WriteString(fmt.Sprintf("- %s\n", s))
+	}
+	sb.WriteString("\n")
+	return sb.String()
+}
+
+func formatReviewConcerns(concerns []PlanConcern) string {
+	if len(concerns) == 0 {
+		return ""
+	}
+	var sb strings.Builder
+	sb.WriteString("## Concerns\n\n")
+	for _, c := range concerns {
+		sb.WriteString(formatConcernItem(c))
+	}
+	return sb.String()
+}
+
+func formatConcernItem(c PlanConcern) string {
+	var sb strings.Builder
+	emoji := getConcernEmoji(c.Severity)
+	sb.WriteString(fmt.Sprintf("### %s [%s] %s\n\n", emoji, c.Category, c.Description))
+	if c.Section != "" {
+		sb.WriteString(fmt.Sprintf("**Section:** %s\n\n", c.Section))
+	}
+	if c.Suggestion != "" {
+		sb.WriteString(fmt.Sprintf("**Suggestion:** %s\n\n", c.Suggestion))
+	}
+	return sb.String()
+}
+
+func formatReviewSuggestions(suggestions []string) string {
+	if len(suggestions) == 0 {
+		return ""
+	}
+	var sb strings.Builder
+	sb.WriteString("## Improvement Suggestions\n\n")
+	for _, s := range suggestions {
+		sb.WriteString(fmt.Sprintf("- %s\n", s))
+	}
+	sb.WriteString("\n")
+	return sb.String()
+}
+
+func formatReviewChecklist(checklist []ChecklistItem) string {
+	if len(checklist) == 0 {
+		return ""
+	}
+	var sb strings.Builder
+	sb.WriteString("## Implementation Checklist\n\n")
+
+	categories := []string{"setup", "core", "testing", "deployment", "documentation"}
+	for _, cat := range categories {
+		sb.WriteString(formatChecklistCategory(checklist, cat))
+	}
+	return sb.String()
+}
+
+func formatChecklistCategory(checklist []ChecklistItem, category string) string {
+	var items []ChecklistItem
+	for _, item := range checklist {
+		if item.Category == category {
+			items = append(items, item)
+		}
+	}
+	if len(items) == 0 {
+		return ""
+	}
+
+	var sb strings.Builder
+	sb.WriteString(fmt.Sprintf("### %s\n\n", titleCase(category)))
+	for _, item := range items {
+		sb.WriteString(formatChecklistItem(item))
+	}
+	sb.WriteString("\n")
+	return sb.String()
+}
+
+func formatChecklistItem(item ChecklistItem) string {
+	var sb strings.Builder
+	priority := getPriorityEmoji(item.Priority)
+	sb.WriteString(fmt.Sprintf("- [ ] %s %s\n", priority, item.Task))
+	if len(item.Depends) > 0 {
+		sb.WriteString(fmt.Sprintf("  - *Depends on:* %s\n", strings.Join(item.Depends, ", ")))
+	}
 	return sb.String()
 }
 

@@ -62,54 +62,22 @@ func init() {
 	changelogCmd.Flags().Bool("no-links", false, "Skip commit links")
 }
 
-func runChangelog(cmd *cobra.Command, args []string) error {
+func runChangelog(cmd *cobra.Command, _ []string) error {
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
 
-	// Initialize git repo
 	gitRepo, err := git.NewRepo(".")
 	if err != nil {
 		return fmt.Errorf("initializing git: %w", err)
 	}
 
-	// Get flags
-	from, _ := cmd.Flags().GetString("from")
-	to, _ := cmd.Flags().GetString("to")
-	unreleased, _ := cmd.Flags().GetBool("unreleased")
-	output, _ := cmd.Flags().GetString("output")
-	appendFile, _ := cmd.Flags().GetBool("append")
-	version, _ := cmd.Flags().GetString("version")
-	noHeader, _ := cmd.Flags().GetBool("no-header")
-	noDate, _ := cmd.Flags().GetBool("no-date")
-	noLinks, _ := cmd.Flags().GetBool("no-links")
-
-	// If unreleased, get from latest tag
-	if unreleased {
-		latestTag, tagErr := gitRepo.GetLatestTag(ctx)
-		if tagErr != nil {
-			return fmt.Errorf("getting latest tag: %w", tagErr)
-		}
-		if latestTag != nil {
-			from = latestTag.Name
-		}
-		if version == "" {
-			version = "Unreleased"
-		}
+	flags := parseChangelogFlags(cmd)
+	from, version, err := resolveChangelogRange(ctx, gitRepo, flags)
+	if err != nil {
+		return err
 	}
 
-	// If no from specified, try to get from latest tag
-	if from == "" && !unreleased {
-		latestTag, tagErr := gitRepo.GetLatestTag(ctx)
-		if tagErr != nil {
-			return fmt.Errorf("getting latest tag: %w", tagErr)
-		}
-		if latestTag != nil {
-			from = latestTag.Name
-		}
-	}
-
-	// Get commits
-	commits, err := gitRepo.GetCommits(ctx, from, to)
+	commits, err := gitRepo.GetCommits(ctx, from, flags.to)
 	if err != nil {
 		return fmt.Errorf("getting commits: %w", err)
 	}
@@ -125,25 +93,88 @@ func runChangelog(cmd *cobra.Command, args []string) error {
 		fmt.Fprintf(os.Stderr, "Found %d commits\n", len(commits))
 	}
 
-	// Parse and group commits
 	grouped := groupCommitsByType(commits)
-
-	// Generate changelog
 	opts := changelogOptions{
 		Version:  version,
-		NoHeader: noHeader,
-		NoDate:   noDate,
-		NoLinks:  noLinks,
+		NoHeader: flags.noHeader,
+		NoDate:   flags.noDate,
+		NoLinks:  flags.noLinks,
 	}
 	changelog := generateChangelog(grouped, opts)
 
-	// Output
-	if output != "" {
-		return writeChangelog(output, changelog, appendFile)
+	if flags.output != "" {
+		return writeChangelog(flags.output, changelog, flags.appendFile)
 	}
 
 	fmt.Print(changelog)
 	return nil
+}
+
+type changelogFlags struct {
+	from       string
+	to         string
+	unreleased bool
+	output     string
+	appendFile bool
+	version    string
+	noHeader   bool
+	noDate     bool
+	noLinks    bool
+}
+
+func parseChangelogFlags(cmd *cobra.Command) changelogFlags {
+	from, _ := cmd.Flags().GetString("from")
+	to, _ := cmd.Flags().GetString("to")
+	unreleased, _ := cmd.Flags().GetBool("unreleased")
+	output, _ := cmd.Flags().GetString("output")
+	appendFile, _ := cmd.Flags().GetBool("append")
+	version, _ := cmd.Flags().GetString("version")
+	noHeader, _ := cmd.Flags().GetBool("no-header")
+	noDate, _ := cmd.Flags().GetBool("no-date")
+	noLinks, _ := cmd.Flags().GetBool("no-links")
+
+	return changelogFlags{
+		from:       from,
+		to:         to,
+		unreleased: unreleased,
+		output:     output,
+		appendFile: appendFile,
+		version:    version,
+		noHeader:   noHeader,
+		noDate:     noDate,
+		noLinks:    noLinks,
+	}
+}
+
+func resolveChangelogRange(ctx context.Context, gitRepo *git.Repo, flags changelogFlags) (from, version string, err error) {
+	from = flags.from
+	version = flags.version
+
+	if flags.unreleased {
+		latestTag, tagErr := gitRepo.GetLatestTag(ctx)
+		if tagErr != nil {
+			return "", "", fmt.Errorf("getting latest tag: %w", tagErr)
+		}
+		if latestTag != nil {
+			from = latestTag.Name
+		}
+		if version == "" {
+			version = "Unreleased"
+		}
+		return from, version, nil
+	}
+
+	if from == "" {
+		latestTag, tagErr := gitRepo.GetLatestTag(ctx)
+		if tagErr != nil {
+			return "", "", fmt.Errorf("getting latest tag: %w", tagErr)
+		}
+		if latestTag != nil {
+			from = latestTag.Name
+		}
+	}
+
+	return from, version, nil
 }
 
 type changelogOptions struct {

@@ -242,10 +242,11 @@ export class RelatedPRsService {
     }
 
     if (context.suggestedReviewers.length > 0) {
+      const reviewerMentions = context.suggestedReviewers.map((r) => `@${r}`).join(', ');
       sections.push(
         '### Suggested Reviewers\n',
         'Based on previous contributions to these files:\n',
-        `- ${context.suggestedReviewers.map((r) => `@${r}`).join(', ')}`,
+        `- ${reviewerMentions}`,
         ''
       );
     }

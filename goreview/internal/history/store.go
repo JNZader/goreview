@@ -305,14 +305,53 @@ func (s *Store) Search(ctx context.Context, q SearchQuery) (*SearchResult, error
 }
 
 // GetFileHistory returns the review history for a file or directory.
-//
-//nolint:gocyclo,funlen // Aggregation query with multiple statistics calculations
 func (s *Store) GetFileHistory(ctx context.Context, path string) (*FileHistory, error) {
-	pattern := path
-	if strings.HasSuffix(path, "/") || !strings.Contains(filepath.Base(path), ".") {
-		pattern = path + "%"
+	pattern := buildFilePattern(path)
+
+	stats, err := s.queryFileStats(ctx, pattern)
+	if err != nil {
+		return nil, err
 	}
 
+	bySeverity, err := s.queryBreakdown(ctx, "severity", pattern)
+	if err != nil {
+		return nil, fmt.Errorf("querying severity breakdown: %w", err)
+	}
+
+	byType, err := s.queryBreakdown(ctx, "issue_type", pattern)
+	if err != nil {
+		return nil, fmt.Errorf("querying type breakdown: %w", err)
+	}
+
+	return &FileHistory{
+		Path:         path,
+		TotalIssues:  stats.total,
+		Resolved:     stats.resolved,
+		Pending:      stats.total - stats.resolved,
+		BySeverity:   bySeverity,
+		ByType:       byType,
+		FirstReview:  stats.firstReview,
+		LastReview:   stats.lastReview,
+		ReviewRounds: stats.maxRound,
+	}, nil
+}
+
+func buildFilePattern(path string) string {
+	if strings.HasSuffix(path, "/") || !strings.Contains(filepath.Base(path), ".") {
+		return path + "%"
+	}
+	return path
+}
+
+type fileStats struct {
+	total       int64
+	resolved    int64
+	firstReview time.Time
+	lastReview  time.Time
+	maxRound    int
+}
+
+func (s *Store) queryFileStats(ctx context.Context, pattern string) (*fileStats, error) {
 	query := `
 		SELECT
 			COUNT(*) as total,
@@ -335,86 +374,52 @@ func (s *Store) GetFileHistory(ctx context.Context, path string) (*FileHistory, 
 		return nil, fmt.Errorf("querying file history: %w", err)
 	}
 
-	var firstReview, lastReview time.Time
-	if firstReviewStr.Valid {
-		firstReview, _ = time.Parse("2006-01-02 15:04:05.999999999-07:00", firstReviewStr.String)
-		if firstReview.IsZero() {
-			firstReview, _ = time.Parse("2006-01-02T15:04:05Z", firstReviewStr.String)
-		}
-		if firstReview.IsZero() {
-			firstReview, _ = time.Parse(time.RFC3339, firstReviewStr.String)
-		}
-	}
-	if lastReviewStr.Valid {
-		lastReview, _ = time.Parse("2006-01-02 15:04:05.999999999-07:00", lastReviewStr.String)
-		if lastReview.IsZero() {
-			lastReview, _ = time.Parse("2006-01-02T15:04:05Z", lastReviewStr.String)
-		}
-		if lastReview.IsZero() {
-			lastReview, _ = time.Parse(time.RFC3339, lastReviewStr.String)
-		}
-	}
-
-	// Get severity breakdown
-	severityQuery := `
-		SELECT severity, COUNT(*)
-		FROM reviews
-		WHERE file_path LIKE ?
-		GROUP BY severity
-	`
-	bySeverity := make(map[string]int)
-	rows, err := s.db.QueryContext(ctx, severityQuery, pattern)
-	if err != nil {
-		return nil, fmt.Errorf("querying severity breakdown: %w", err)
-	}
-	defer rows.Close()
-
-	for rows.Next() {
-		var sev string
-		var count int
-		if scanErr := rows.Scan(&sev, &count); scanErr != nil {
-			continue
-		}
-		bySeverity[sev] = count
-	}
-
-	// Get type breakdown
-	typeQuery := `
-		SELECT issue_type, COUNT(*)
-		FROM reviews
-		WHERE file_path LIKE ?
-		GROUP BY issue_type
-	`
-	byType := make(map[string]int)
-	rows, err = s.db.QueryContext(ctx, typeQuery, pattern)
-	if err != nil {
-		return nil, fmt.Errorf("querying type breakdown: %w", err)
-	}
-	defer rows.Close()
-
-	for rows.Next() {
-		var typ string
-		var count int
-		if scanErr := rows.Scan(&typ, &count); scanErr != nil {
-			continue
-		}
-		byType[typ] = count
-	}
-
-	resolvedCount := resolved.Int64
-	maxRoundVal := int(maxRound.Int64)
-
-	return &FileHistory{
-		Path:         path,
-		TotalIssues:  total,
-		Resolved:     resolvedCount,
-		Pending:      total - resolvedCount,
-		BySeverity:   bySeverity,
-		ByType:       byType,
-		FirstReview:  firstReview,
-		LastReview:   lastReview,
-		ReviewRounds: maxRoundVal,
+	return &fileStats{
+		total:       total,
+		resolved:    resolved.Int64,
+		firstReview: parseReviewTime(firstReviewStr),
+		lastReview:  parseReviewTime(lastReviewStr),
+		maxRound:    int(maxRound.Int64),
 	}, nil
+}
+
+func parseReviewTime(timeStr sql.NullString) time.Time {
+	if !timeStr.Valid {
+		return time.Time{}
+	}
+
+	formats := []string{
+		"2006-01-02 15:04:05.999999999-07:00",
+		"2006-01-02T15:04:05Z",
+		time.RFC3339,
+	}
+
+	for _, format := range formats {
+		if t, err := time.Parse(format, timeStr.String); err == nil && !t.IsZero() {
+			return t
+		}
+	}
+	return time.Time{}
+}
+
+func (s *Store) queryBreakdown(ctx context.Context, column, pattern string) (map[string]int, error) {
+	query := fmt.Sprintf(`SELECT %s, COUNT(*) FROM reviews WHERE file_path LIKE ? GROUP BY %s`, column, column)
+	result := make(map[string]int)
+
+	rows, err := s.db.QueryContext(ctx, query, pattern)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	for rows.Next() {
+		var key string
+		var count int
+		if scanErr := rows.Scan(&key, &count); scanErr == nil {
+			result[key] = count
+		}
+	}
+	return result, nil
 }
 
 // GetStats returns aggregate statistics.

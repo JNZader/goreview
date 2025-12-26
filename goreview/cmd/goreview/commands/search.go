@@ -53,7 +53,7 @@ func init() {
 	searchCmd.Flags().StringP("format", "f", "table", "Output format (table, json)")
 }
 
-//nolint:gocyclo // CLI command with multiple flag handling paths
+//nolint:gocyclo,gocognit // CLI command with multiple flag handling paths
 func runSearch(cmd *cobra.Command, args []string) error {
 	cfg, err := config.LoadDefault()
 	if err != nil {

@@ -15,13 +15,39 @@ Herramienta de linea de comandos para code review con IA. Analiza cambios de cod
 
 ## Caracteristicas
 
-- **Review de codigo con IA**: Analiza diffs y detecta bugs, vulnerabilidades de seguridad, problemas de rendimiento y violaciones de mejores practicas
-- **Generacion de commits**: Genera mensajes de commit siguiendo Conventional Commits
-- **Generacion de documentacion**: Crea documentacion automatica de cambios
-- **Multiples proveedores de IA**: Soporta Ollama (local), OpenAI, Gemini, Groq y Mistral
+### Core
+- **Review de codigo con IA**: Analiza diffs y detecta bugs, vulnerabilidades, problemas de rendimiento
+- **Generacion de commits**: Mensajes siguiendo Conventional Commits
+- **Generacion de changelog**: Changelog automatico desde commits
+- **Multiples proveedores de IA**: Ollama (local), OpenAI, Gemini, Groq, Mistral
 - **Sistema de cache**: Evita re-analizar codigo sin cambios
-- **Reportes en multiples formatos**: Markdown, JSON y SARIF
-- **Sistema de reglas configurable**: Presets minimal, standard y strict
+- **Reportes multiples**: Markdown, JSON, SARIF
+- **Sistema de reglas**: Presets minimal, standard, strict
+
+### Modos de Revision (`--mode`)
+| Modo | Enfoque |
+|------|---------|
+| `security` | Vulnerabilidades OWASP, secrets, injections |
+| `perf` | N+1 queries, complejidad, memory leaks |
+| `clean` | SOLID, DRY, naming, code smells |
+| `docs` | Comentarios faltantes, JSDoc/GoDoc |
+| `tests` | Cobertura, edge cases, mocking |
+
+### Personalidades (`--personality`)
+| Personalidad | Estilo |
+|--------------|--------|
+| `senior` | Mentoring, explica el "por que" |
+| `strict` | Directo, sin rodeos, exigente |
+| `friendly` | Sugerencias amables, positivo |
+| `security-expert` | Paranoia saludable, peor caso |
+
+### Avanzadas
+- **Root Cause Tracing**: `--trace` rastrea hasta la causa raiz
+- **Workflow TDD**: `--require-tests` bloquea sin tests
+- **Historial de Reviews**: SQLite + FTS5 para busqueda full-text
+- **Auto-fix**: Aplica correcciones automaticamente
+- **RAG**: Integra guias de estilo y documentacion externa
+- **AST Parsing**: Contexto multi-lenguaje (Go, JS/TS, Python, Java, Rust)
 
 ## Instalacion
 
@@ -81,6 +107,21 @@ goreview review --staged --format json -o report.json
 
 # Exportar a SARIF (para IDEs)
 goreview review --staged --format sarif -o report.sarif
+
+# Review enfocado en seguridad
+goreview review --staged --mode=security
+
+# Multiples modos combinados
+goreview review --staged --mode=security,perf
+
+# Con personalidad de mentor
+goreview review --staged --personality=senior
+
+# Con verificacion de tests (TDD)
+goreview review --staged --require-tests --min-coverage=80
+
+# Con root cause tracing
+goreview review --staged --trace
 ```
 
 **Flags:**
@@ -99,6 +140,11 @@ goreview review --staged --format sarif -o report.sarif
 | `--concurrency` | Reviews paralelos (0=auto) |
 | `--no-cache` | Desactivar cache |
 | `--preset` | Preset de reglas: minimal, standard, strict |
+| `--mode` | Modo de revision: security, perf, clean, docs, tests |
+| `--personality` | Estilo de reviewer: senior, strict, friendly, security-expert |
+| `--require-tests` | Fallar si no hay tests correspondientes |
+| `--min-coverage` | Cobertura minima requerida (0=desactivado) |
+| `--trace` | Activar root cause tracing |
 
 ### `commit` - Generar mensaje de commit
 

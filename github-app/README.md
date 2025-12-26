@@ -185,6 +185,37 @@ src/
 
 - Analiza commits directos a ramas protegidas
 
+## Sistema de Handoffs
+
+Preserva contexto entre multiples rondas de review del mismo PR.
+
+### StatusLine
+
+Al re-revisar un PR, muestra progreso con advertencias escalonadas:
+
+```markdown
+## Review Round 3
+
+### Progreso desde ultima revision:
+- 5/8 issues corregidos
+- 3 issues pendientes (2 critical, 1 warning)
+- 2 nuevos archivos para revisar
+
+### Issues persistentes:
+1. [CRITICAL] SQL injection en auth.go:45 (desde Round 1)
+2. [WARNING] Variable shadowing en utils.go:67 (desde Round 1)
+
+### Advertencias:
+- 2 critical issues pendientes > 48h
+```
+
+### PRs Relacionados
+
+Detecta y vincula automaticamente PRs que tocan el mismo codigo:
+- Muestra PRs anteriores que modificaron los mismos archivos
+- Alerta si hay issues abiertos relacionados
+- Sugiere PRs para revisar en conjunto
+
 ## Configuracion Avanzada
 
 ### Proveedores de IA

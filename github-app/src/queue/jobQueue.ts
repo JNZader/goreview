@@ -23,11 +23,11 @@ export interface Job {
  * Simple in-memory job queue with retry support.
  */
 class JobQueue {
-  private jobs: Map<string, Job> = new Map();
-  private processing: Set<string> = new Set();
-  private concurrency: number = 3;
-  private maxRetries: number = 3;
-  private retryDelays: number[] = [1000, 5000, 15000]; // ms
+  private readonly jobs: Map<string, Job> = new Map();
+  private readonly processing: Set<string> = new Set();
+  private readonly concurrency: number = 3;
+  private readonly maxRetries: number = 3;
+  private readonly retryDelays: number[] = [1000, 5000, 15000]; // ms
 
   /**
    * Add a job to the queue.

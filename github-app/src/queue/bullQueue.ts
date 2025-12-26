@@ -35,7 +35,7 @@ function getRedisConfig(): ConnectionOptions {
 
     return {
       host: url.hostname,
-      port: parseInt(url.port) || 6379,
+      port: Number.parseInt(url.port) || 6379,
       password: url.password || undefined,
       username: url.username || undefined,
       // Upstash Redis requires TLS with specific options
@@ -103,7 +103,7 @@ export class BullQueueManager {
       async (job) => this.processJob(job),
       {
         connection: this.connection,
-        concurrency: parseInt(process.env.QUEUE_CONCURRENCY || '3'),
+        concurrency: Number.parseInt(process.env.QUEUE_CONCURRENCY || '3'),
         limiter: {
           max: 10, // Max 10 jobs per minute
           duration: 60000,

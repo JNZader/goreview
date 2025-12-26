@@ -220,7 +220,7 @@ export class RelatedPRsService {
       sections.push('PRs that modified the same files:\n');
 
       for (const pr of context.relatedPRs.slice(0, 5)) {
-        const stateEmoji = pr.state === 'merged' ? '🟣' : pr.state === 'open' ? '🟢' : '🔴';
+        const stateEmoji = this.getPRStateEmoji(pr.state);
         const overlap = `${pr.overlapPercentage.toFixed(0)}% overlap`;
         sections.push(`- ${stateEmoji} #${pr.number}: ${pr.title} (${overlap})`);
       }
@@ -248,6 +248,14 @@ export class RelatedPRsService {
     }
 
     return sections.join('\n');
+  }
+
+  private getPRStateEmoji(state: 'open' | 'closed' | 'merged'): string {
+    switch (state) {
+      case 'merged': return '🟣';
+      case 'open': return '🟢';
+      default: return '🔴';
+    }
   }
 }
 

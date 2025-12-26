@@ -74,7 +74,7 @@ export function generateStatusLine(
   parts.push(`${scoreEmoji} Score: ${status.score}/100`);
 
   // Issues summary
-  const issuesEmoji = status.criticalIssues > 0 ? '🔴' : status.totalIssues > 0 ? '🟡' : '🟢';
+  const issuesEmoji = getIssuesEmoji(status.criticalIssues, status.totalIssues);
   if (opts.showEmoji) {
     parts.push(`${issuesEmoji} Issues: ${status.totalIssues}`);
   } else {
@@ -165,8 +165,9 @@ export function generateStatusBlock(
 export function parseExistingStatus(commentBody: string): Partial<ReviewStatus> | null {
   try {
     // Look for status data in HTML comment
-    const match = commentBody.match(/<!--goreview-status:(.*?)-->/);
-    if (match && match[1]) {
+    const statusRegex = /<!--goreview-status:(.*?)-->/;
+    const match = statusRegex.exec(commentBody);
+    if (match?.[1]) {
       return JSON.parse(match[1]);
     }
     return null;
@@ -270,6 +271,21 @@ function getProgressEmoji(percentage: number): string {
   return '⏳';
 }
 
+function getIssuesEmoji(criticalIssues: number, totalIssues: number): string {
+  if (criticalIssues > 0) return '🔴';
+  if (totalIssues > 0) return '🟡';
+  return '🟢';
+}
+
+function getSeverityEmoji(severity: string): string {
+  switch (severity) {
+    case 'critical': return '🚨';
+    case 'error': return '❌';
+    case 'warning': return '⚠️';
+    default: return 'ℹ️';
+  }
+}
+
 function checkInactivity(
   lastReviewAt: string,
   options: StatusLineOptions
@@ -301,7 +317,7 @@ export function generateIssueId(
   // Simple hash function for consistency
   let hash = 0;
   for (let i = 0; i < content.length; i++) {
-    const char = content.charCodeAt(i);
+    const char = content.codePointAt(i) ?? 0;
     hash = ((hash << 5) - hash) + char;
     hash = hash & hash; // Convert to 32bit integer
   }
@@ -349,9 +365,7 @@ export function generatePersistentIssuesSection(
     for (const issue of issues) {
       const roundsOld = currentRound - issue.firstSeenRound;
       const roundLabel = roundsOld > 0 ? ` (since Round ${issue.firstSeenRound})` : ' (new)';
-      const emoji = severity === 'critical' ? '🚨' :
-                    severity === 'error' ? '❌' :
-                    severity === 'warning' ? '⚠️' : 'ℹ️';
+      const emoji = getSeverityEmoji(severity);
 
       const location = issue.line ? `${issue.file}:${issue.line}` : issue.file;
       lines.push(`${emoji} **[${severity.toUpperCase()}]** \`${location}\`${roundLabel}`);

@@ -71,7 +71,8 @@ function parseFileBlock(block: string): DiffFile | null {
   const firstLine = lines[0];
   if (!firstLine) return null;
 
-  const headerMatch = firstLine.match(/^diff --git a\/(.+) b\/(.+)$/);
+  const headerRegex = /^diff --git a\/(.+) b\/(.+)$/;
+  const headerMatch = headerRegex.exec(firstLine);
   if (!headerMatch) return null;
 
   const oldPath = headerMatch[1] ?? '';

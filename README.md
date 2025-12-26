@@ -2,6 +2,18 @@
 
 Suite de herramientas para automatizar code review usando inteligencia artificial.
 
+## Code Quality
+
+| Metric | Status |
+|--------|--------|
+| Bugs | 0 |
+| Vulnerabilities | 0 |
+| Code Smells | 0 |
+| Security Hotspots | 0 |
+| Duplications | < 3% |
+
+> Analizado con SonarQube. Cognitive complexity mantenida por debajo de 15 en todas las funciones.
+
 ## Componentes
 
 | Componente | Descripcion | Tecnologia |

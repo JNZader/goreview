@@ -10,8 +10,9 @@ FROM node:20-alpine AS deps
 
 WORKDIR /app
 
-# Copy package files
-COPY package.json package-lock.json* ./
+# Copy package files (explicit, no glob patterns for security - S6470)
+COPY package.json ./
+COPY package-lock.json ./
 
 # Install all dependencies (including dev for build)
 RUN npm ci
@@ -26,8 +27,9 @@ WORKDIR /app
 # Copy dependencies
 COPY --from=deps /app/node_modules ./node_modules
 
-# Copy source files
-COPY . .
+# Copy only required source files (explicit, no recursive copy for security - S6470)
+COPY src/ ./src/
+COPY package.json tsconfig.json ./
 
 # Build TypeScript
 RUN npm run build
@@ -48,10 +50,11 @@ RUN apk upgrade --no-cache \
 
 WORKDIR /app
 
-# Copy built application
-COPY --from=builder --chown=nodejs:nodejs /app/dist ./dist
-COPY --from=builder --chown=nodejs:nodejs /app/node_modules ./node_modules
-COPY --from=builder --chown=nodejs:nodejs /app/package.json ./
+# Copy built application (no --chown for read-only security - S6504)
+# Files owned by root, app runs as non-root with read-only access
+COPY --from=builder /app/dist ./dist
+COPY --from=builder /app/node_modules ./node_modules
+COPY --from=builder /app/package.json ./
 
 # Set environment
 ENV NODE_ENV=production

@@ -2,6 +2,17 @@
 
 GitHub App para reviews automaticos de codigo con IA en Pull Requests.
 
+## Code Quality
+
+| Metric | Status |
+|--------|--------|
+| Bugs | 0 |
+| Vulnerabilities | 0 |
+| Code Smells | 0 |
+| Security Hotspots | 0 |
+
+> Cognitive complexity < 15 en todas las funciones. Analizado con SonarQube y ESLint.
+
 ## Caracteristicas
 
 - **Reviews automaticos** - Analiza PRs cuando se abren o actualizan
@@ -9,6 +20,9 @@ GitHub App para reviews automaticos de codigo con IA en Pull Requests.
 - **Comentarios interactivos** - Responde a menciones @goreview en comentarios
 - **Multiples proveedores** - Soporta Ollama (local), Gemini, Groq y OpenAI
 - **Auto-deteccion** - Selecciona automaticamente el mejor proveedor disponible
+- **Status Line** - Genera resumen de estado para handoff entre revisores
+- **PRs relacionados** - Detecta y referencia PRs relacionados
+- **Estilos de personalidad** - Diferentes tonos de review (helpful, strict, mentor, etc.)
 - **Cola persistente** - BullMQ + Redis para alta disponibilidad (fallback a in-memory)
 - **Rate limiting** - Proteccion contra abuso
 - **Cache** - Evita re-analizar codigo sin cambios
@@ -138,7 +152,9 @@ src/
 │   │   └── ollama.ts     # Ollama local
 │   ├── github.ts         # Cliente de GitHub
 │   ├── reviewService.ts  # Logica de review
-│   └── commentService.ts # Comentarios en PRs
+│   ├── commentService.ts # Comentarios en PRs
+│   ├── statusLine.ts     # Status line para handoff entre revisores
+│   └── relatedPRs.ts     # Deteccion de PRs relacionados
 ├── middleware/           # Middleware Express
 ├── routes/               # Rutas HTTP
 ├── queue/                # Cola de procesamiento

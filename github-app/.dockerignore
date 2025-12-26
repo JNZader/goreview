@@ -12,21 +12,42 @@ dist/
 .idea/
 .vscode/
 *.swp
+*.swo
 
-# Environment
+# Environment and secrets (SECURITY CRITICAL)
 .env
+.env.*
 .env.local
 .env*.local
+*.pem
+*.key
+*.crt
+secrets/
+credentials/
+config.local.*
 
 # Tests
 coverage/
 *.test.ts
+*.spec.ts
 __tests__/
 
 # Documentation
 *.md
-!README.md
-
 
 # CI
 .github/
+
+# Docker files (prevent recursive copy issues)
+Dockerfile*
+docker-compose*.yml
+.dockerignore
+
+# Temporary files
+tmp/
+temp/
+*.tmp
+*.log
+
+# Husky git hooks
+.husky/

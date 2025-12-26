@@ -51,7 +51,7 @@ export interface RateLimitInfo {
 // =============================================================================
 
 class MemoryStore implements RateLimitStore {
-  private buckets: Map<string, TokenBucket> = new Map();
+  private readonly buckets: Map<string, TokenBucket> = new Map();
   private cleanupInterval: NodeJS.Timeout | null = null;
 
   constructor(cleanupIntervalMs: number = 60000) {

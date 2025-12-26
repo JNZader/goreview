@@ -113,27 +113,24 @@ export function generateStatusBlock(
   options: StatusLineOptions = {}
 ): string {
   const opts = { ...DEFAULT_OPTIONS, ...options };
-  const lines: string[] = [];
-
-  // Header
-  lines.push('## GoReview Status');
-  lines.push('');
-
-  // Main status line
-  lines.push(`> ${generateStatusLine(status, opts)}`);
-  lines.push('');
+  const lines: string[] = [
+    // Header
+    '## GoReview Status',
+    '',
+    // Main status line
+    `> ${generateStatusLine(status, opts)}`,
+    '',
+  ];
 
   // Inactivity warning
   const inactivityWarning = checkInactivity(status.lastReviewAt, opts);
   if (inactivityWarning) {
-    lines.push(`⚠️ **Warning:** ${inactivityWarning}`);
-    lines.push('');
+    lines.push(`⚠️ **Warning:** ${inactivityWarning}`, '');
   }
 
   // Progress section (if there's history)
   if (status.reviewRound > 1) {
-    lines.push('### Progress Since Last Review');
-    lines.push('');
+    lines.push('### Progress Since Last Review', '');
 
     if (status.resolvedIssues > 0) {
       lines.push(`✅ ${status.resolvedIssues} issue(s) resolved`);
@@ -141,19 +138,16 @@ export function generateStatusBlock(
     if (status.persistentIssues > 0) {
       lines.push(`⏳ ${status.persistentIssues} issue(s) still pending`);
     }
-    if (status.totalIssues > status.persistentIssues) {
-      const newIssues = status.totalIssues - status.persistentIssues;
-      if (newIssues > 0) {
-        lines.push(`🆕 ${newIssues} new issue(s) found`);
-      }
+    const newIssues = status.totalIssues - status.persistentIssues;
+    if (newIssues > 0) {
+      lines.push(`🆕 ${newIssues} new issue(s) found`);
     }
     lines.push('');
   }
 
   // Critical issues warning
   if (status.criticalIssues > 0) {
-    lines.push(`🚨 **${status.criticalIssues} critical issue(s) require immediate attention**`);
-    lines.push('');
+    lines.push(`🚨 **${status.criticalIssues} critical issue(s) require immediate attention**`, '');
   }
 
   return lines.join('\n');
@@ -339,11 +333,12 @@ export function generatePersistentIssuesSection(
     return '';
   }
 
-  const lines: string[] = [];
-  lines.push('### Persistent Issues');
-  lines.push('');
-  lines.push('These issues were found in previous reviews and still need attention:');
-  lines.push('');
+  const lines: string[] = [
+    '### Persistent Issues',
+    '',
+    'These issues were found in previous reviews and still need attention:',
+    '',
+  ];
 
   // Group by severity
   const bySeverity: Record<string, ReviewIssueRecord[]> = {};
@@ -368,9 +363,11 @@ export function generatePersistentIssuesSection(
       const emoji = getSeverityEmoji(severity);
 
       const location = issue.line ? `${issue.file}:${issue.line}` : issue.file;
-      lines.push(`${emoji} **[${severity.toUpperCase()}]** \`${location}\`${roundLabel}`);
-      lines.push(`   ${issue.message}`);
-      lines.push('');
+      lines.push(
+        `${emoji} **[${severity.toUpperCase()}]** \`${location}\`${roundLabel}`,
+        `   ${issue.message}`,
+        ''
+      );
     }
   }
 
@@ -424,17 +421,15 @@ export function buildHandoffStatus(
   const currentRound = calculateReviewRound(previousStatus);
   const now = new Date().toISOString();
 
-  // Build issue records with IDs
-  const issueRecords: ReviewIssueRecord[] = [];
-  for (const file of currentResult.files) {
-    for (const issue of file.issues) {
+  // Build issue records with IDs using flatMap instead of nested loop with push
+  const issueRecords: ReviewIssueRecord[] = currentResult.files.flatMap((file) =>
+    file.issues.map((issue) => {
       const id = generateIssueId(file.path, issue.line, issue.message);
-
       // Check if this issue existed before
-      const previousIssue = previousStatus?.issueRecords?.find(p => p.id === id);
+      const previousIssue = previousStatus?.issueRecords?.find((p) => p.id === id);
       const firstSeenRound = previousIssue?.firstSeenRound ?? currentRound;
 
-      issueRecords.push({
+      return {
         id,
         file: file.path,
         line: issue.line,
@@ -442,9 +437,9 @@ export function buildHandoffStatus(
         type: issue.type,
         message: issue.message,
         firstSeenRound,
-      });
-    }
-  }
+      };
+    })
+  );
 
   // Calculate resolved/persistent
   const previousIds = new Set(previousStatus?.issueRecords?.map(i => i.id) ?? []);
@@ -490,31 +485,27 @@ export function generateHandoffBlock(
   options: StatusLineOptions = {}
 ): string {
   const opts = { ...DEFAULT_OPTIONS, ...options };
-  const lines: string[] = [];
-
-  // Status data embed (hidden)
-  lines.push(embedStatusData(status));
-  lines.push('');
-
-  // Header
-  lines.push('## GoReview Status');
-  lines.push('');
-
-  // Main status line
-  lines.push(`> ${generateStatusLine(status, opts)}`);
-  lines.push('');
+  const lines: string[] = [
+    // Status data embed (hidden)
+    embedStatusData(status),
+    '',
+    // Header
+    '## GoReview Status',
+    '',
+    // Main status line
+    `> ${generateStatusLine(status, opts)}`,
+    '',
+  ];
 
   // Inactivity warning
   const inactivityWarning = checkInactivity(status.lastReviewAt, opts);
   if (inactivityWarning) {
-    lines.push(`⚠️ **Warning:** ${inactivityWarning}`);
-    lines.push('');
+    lines.push(`⚠️ **Warning:** ${inactivityWarning}`, '');
   }
 
   // Progress section (if there's history)
   if (status.reviewRound > 1 && previousStatus) {
-    lines.push('### Progress Since Last Review');
-    lines.push('');
+    lines.push('### Progress Since Last Review', '');
 
     if (status.resolvedIssues > 0) {
       lines.push(`✅ **${status.resolvedIssues}** issue(s) resolved`);
@@ -543,23 +534,21 @@ export function generateHandoffBlock(
 
   // Critical issues warning
   if (status.criticalIssues > 0) {
-    lines.push(`🚨 **${status.criticalIssues} critical issue(s) require immediate attention**`);
-    lines.push('');
+    lines.push(`🚨 **${status.criticalIssues} critical issue(s) require immediate attention**`, '');
   }
 
   // Approved files (if any)
   if (status.approvedFiles && status.approvedFiles.length > 0) {
-    lines.push('<details>');
-    lines.push(`<summary>✅ ${status.approvedFiles.length} file(s) approved</summary>`);
-    lines.push('');
-    for (const file of status.approvedFiles.slice(0, 10)) {
-      lines.push(`- \`${file}\``);
-    }
+    lines.push(
+      '<details>',
+      `<summary>✅ ${status.approvedFiles.length} file(s) approved</summary>`,
+      '',
+      ...status.approvedFiles.slice(0, 10).map((file) => `- \`${file}\``)
+    );
     if (status.approvedFiles.length > 10) {
       lines.push(`- ... and ${status.approvedFiles.length - 10} more`);
     }
-    lines.push('</details>');
-    lines.push('');
+    lines.push('</details>', '');
   }
 
   return lines.join('\n');

@@ -52,8 +52,8 @@ adminRouter.get('/jobs', (req: Request, res: Response) => {
   const status = req.query.status as string | undefined;
   const limitParam = typeof req.query.limit === 'string' ? req.query.limit : '50';
   const offsetParam = typeof req.query.offset === 'string' ? req.query.offset : '0';
-  const limit = Math.min(parseInt(limitParam, 10) || 50, 100);
-  const offset = parseInt(offsetParam, 10) || 0;
+  const limit = Math.min(Number.parseInt(limitParam, 10) || 50, 100);
+  const offset = Number.parseInt(offsetParam, 10) || 0;
 
   const allJobs = jobQueue.listJobs();
 
@@ -92,7 +92,7 @@ adminRouter.get('/jobs/:id', (req: Request<{ id: string }>, res: Response) => {
  */
 adminRouter.post('/cleanup', (req: Request, res: Response) => {
   const maxAgeParam = typeof req.query.maxAge === 'string' ? req.query.maxAge : '3600000';
-  const maxAge = parseInt(maxAgeParam, 10) || 3600000; // 1 hour default
+  const maxAge = Number.parseInt(maxAgeParam, 10) || 3600000; // 1 hour default
 
   const removed = jobQueue.cleanup(maxAge);
 

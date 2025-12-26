@@ -294,6 +294,23 @@ func viewFileHistory(store *history.CommitStore, filePath string) error {
 }
 
 func searchAnalyses(store *history.CommitStore, query string) error {
+	opts := buildRecallOptions(query)
+	results, err := store.Recall(opts)
+	if err != nil {
+		return err
+	}
+
+	if len(results) == 0 {
+		printNoResultsMessage(query)
+		return nil
+	}
+
+	printSearchHeader(query)
+	printSearchResults(results)
+	return nil
+}
+
+func buildRecallOptions(query string) history.RecallOptions {
 	opts := history.RecallOptions{
 		Query:    query,
 		FilePath: recallFile,
@@ -303,32 +320,27 @@ func searchAnalyses(store *history.CommitStore, query string) error {
 	}
 
 	if recallSince != "" {
-		t, err := time.Parse(dateFormat, recallSince)
-		if err == nil {
+		if t, err := time.Parse(dateFormat, recallSince); err == nil {
 			opts.Since = t
 		}
 	}
 	if recallUntil != "" {
-		t, err := time.Parse(dateFormat, recallUntil)
-		if err == nil {
+		if t, err := time.Parse(dateFormat, recallUntil); err == nil {
 			opts.Until = t
 		}
 	}
+	return opts
+}
 
-	results, err := store.Recall(opts)
-	if err != nil {
-		return err
+func printNoResultsMessage(query string) {
+	if query != "" {
+		fmt.Printf("No results found for: %s\n", query)
+	} else {
+		fmt.Println("No results found with the given filters.")
 	}
+}
 
-	if len(results) == 0 {
-		if query != "" {
-			fmt.Printf("No results found for: %s\n", query)
-		} else {
-			fmt.Println("No results found with the given filters.")
-		}
-		return nil
-	}
-
+func printSearchHeader(query string) {
 	if query != "" {
 		fmt.Printf("Search Results for: %s\n", query)
 	} else {
@@ -336,22 +348,24 @@ func searchAnalyses(store *history.CommitStore, query string) error {
 	}
 	fmt.Println(strings.Repeat("=", 60))
 	fmt.Println()
+}
 
+func printSearchResults(results []history.RecallResult) {
 	for _, r := range results {
-		date := r.AnalyzedAt.Format(dateFormat)
-		matchIcon := getMatchIcon(r.MatchType)
-
-		fmt.Printf("%s %s  %s  @%s\n", matchIcon, r.CommitHash[:7], date, r.Author)
-
-		if r.FilePath != "" {
-			fmt.Printf("   File: %s\n", r.FilePath)
-		}
-
-		fmt.Printf("   %s\n", r.Snippet)
-		fmt.Println()
+		printSearchResultItem(r)
 	}
+}
 
-	return nil
+func printSearchResultItem(r history.RecallResult) {
+	date := r.AnalyzedAt.Format(dateFormat)
+	matchIcon := getMatchIcon(r.MatchType)
+	fmt.Printf("%s %s  %s  @%s\n", matchIcon, r.CommitHash[:7], date, r.Author)
+
+	if r.FilePath != "" {
+		fmt.Printf("   File: %s\n", r.FilePath)
+	}
+	fmt.Printf("   %s\n", r.Snippet)
+	fmt.Println()
 }
 
 func findRepoRoot() (string, error) {

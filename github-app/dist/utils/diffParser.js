@@ -64,7 +64,7 @@ function parseFileBlock(block) {
     const { content, additions, deletions } = extractHunks(lines);
     return {
         path: newPath || 'unknown',
-        oldPath: oldPath !== newPath ? oldPath : undefined,
+        oldPath: oldPath === newPath ? undefined : oldPath,
         status: determineFileStatus(block),
         language: detectLanguage(newPath || ''),
         content,

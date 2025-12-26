@@ -32,7 +32,7 @@ export const envSchema = z.object({
     GITHUB_APP_ID: z.coerce.number(),
     GITHUB_PRIVATE_KEY: z.string().transform((key) => {
         // Handle escaped newlines from env vars
-        return key.replaceAll('\\n', '\n');
+        return key.replaceAll(String.raw `\n`, '\n');
     }),
     GITHUB_WEBHOOK_SECRET: z.string().min(20),
     GITHUB_CLIENT_ID: z.string().optional(),

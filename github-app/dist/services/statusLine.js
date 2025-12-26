@@ -240,12 +240,8 @@ export function generatePersistentIssuesSection(currentIssues, previousIssues, c
     const bySeverity = {};
     for (const issue of persistent) {
         const sev = issue.severity;
-        if (!bySeverity[sev]) {
-            bySeverity[sev] = [];
-        }
-        const arr = bySeverity[sev];
-        if (arr)
-            arr.push(issue);
+        bySeverity[sev] ??= [];
+        bySeverity[sev].push(issue);
     }
     const severityOrder = ['critical', 'error', 'warning', 'info'];
     for (const severity of severityOrder) {
@@ -332,57 +328,73 @@ export function buildHandoffStatus(currentResult, previousStatus) {
  */
 export function generateHandoffBlock(status, previousStatus, options = {}) {
     const opts = { ...DEFAULT_OPTIONS, ...options };
-    const lines = [
-        // Status data embed (hidden)
+    const lines = buildHandoffHeader(status, opts);
+    appendInactivityWarning(lines, status, opts);
+    appendProgressSection(lines, status, previousStatus);
+    appendCriticalWarning(lines, status);
+    appendApprovedFilesSection(lines, status);
+    return lines.join('\n');
+}
+function buildHandoffHeader(status, opts) {
+    return [
         embedStatusData(status),
         '',
-        // Header
         '## GoReview Status',
         '',
-        // Main status line
         `> ${generateStatusLine(status, opts)}`,
         '',
     ];
-    // Inactivity warning
+}
+function appendInactivityWarning(lines, status, opts) {
     const inactivityWarning = checkInactivity(status.lastReviewAt, opts);
     if (inactivityWarning) {
         lines.push(`⚠️ **Warning:** ${inactivityWarning}`, '');
     }
-    // Progress section (if there's history)
-    if (status.reviewRound > 1 && previousStatus) {
-        lines.push('### Progress Since Last Review', '');
-        if (status.resolvedIssues > 0) {
-            lines.push(`✅ **${status.resolvedIssues}** issue(s) resolved`);
-        }
-        if (status.persistentIssues > 0) {
-            lines.push(`⏳ **${status.persistentIssues}** issue(s) still pending`);
-        }
-        const newIssues = status.totalIssues - status.persistentIssues;
-        if (newIssues > 0) {
-            lines.push(`🆕 **${newIssues}** new issue(s) found`);
-        }
-        lines.push('');
-        // Persistent issues detail
-        if (status.issueRecords && previousStatus.issueRecords) {
-            const persistentSection = generatePersistentIssuesSection(status.issueRecords, previousStatus.issueRecords, status.reviewRound);
-            if (persistentSection) {
-                lines.push(persistentSection);
-            }
-        }
+}
+function appendProgressSection(lines, status, previousStatus) {
+    if (status.reviewRound <= 1 || !previousStatus) {
+        return;
     }
-    // Critical issues warning
+    lines.push('### Progress Since Last Review', '');
+    appendProgressStats(lines, status);
+    appendPersistentIssuesDetail(lines, status, previousStatus);
+}
+function appendProgressStats(lines, status) {
+    if (status.resolvedIssues > 0) {
+        lines.push(`✅ **${status.resolvedIssues}** issue(s) resolved`);
+    }
+    if (status.persistentIssues > 0) {
+        lines.push(`⏳ **${status.persistentIssues}** issue(s) still pending`);
+    }
+    const newIssues = status.totalIssues - status.persistentIssues;
+    if (newIssues > 0) {
+        lines.push(`🆕 **${newIssues}** new issue(s) found`);
+    }
+    lines.push('');
+}
+function appendPersistentIssuesDetail(lines, status, previousStatus) {
+    if (!status.issueRecords || !previousStatus.issueRecords) {
+        return;
+    }
+    const persistentSection = generatePersistentIssuesSection(status.issueRecords, previousStatus.issueRecords, status.reviewRound);
+    if (persistentSection) {
+        lines.push(persistentSection);
+    }
+}
+function appendCriticalWarning(lines, status) {
     if (status.criticalIssues > 0) {
         lines.push(`🚨 **${status.criticalIssues} critical issue(s) require immediate attention**`, '');
     }
-    // Approved files (if any)
-    if (status.approvedFiles && status.approvedFiles.length > 0) {
-        lines.push('<details>', `<summary>✅ ${status.approvedFiles.length} file(s) approved</summary>`, '', ...status.approvedFiles.slice(0, 10).map((file) => `- \`${file}\``));
-        if (status.approvedFiles.length > 10) {
-            lines.push(`- ... and ${status.approvedFiles.length - 10} more`);
-        }
-        lines.push('</details>', '');
+}
+function appendApprovedFilesSection(lines, status) {
+    if (!status.approvedFiles || status.approvedFiles.length === 0) {
+        return;
     }
-    return lines.join('\n');
+    lines.push('<details>', `<summary>✅ ${status.approvedFiles.length} file(s) approved</summary>`, '', ...status.approvedFiles.slice(0, 10).map((file) => `- \`${file}\``));
+    if (status.approvedFiles.length > 10) {
+        lines.push(`- ... and ${status.approvedFiles.length - 10} more`);
+    }
+    lines.push('</details>', '');
 }
 export const statusLineService = {
     generateStatusLine,

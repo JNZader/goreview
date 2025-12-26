@@ -303,38 +303,51 @@ func extractTextFromHTML(htmlContent string) string {
 	}
 
 	var sb strings.Builder
-	var extractText func(*html.Node)
+	extractNodeText(&sb, doc)
+	return strings.TrimSpace(sb.String())
+}
 
-	extractText = func(n *html.Node) {
-		if n.Type == html.TextNode {
-			text := strings.TrimSpace(n.Data)
-			if text != "" {
-				sb.WriteString(text)
-				sb.WriteString(" ")
-			}
-		}
-
-		// Skip script and style elements
-		if n.Type == html.ElementNode {
-			switch n.Data {
-			case "script", "style", "nav", "footer", "header":
-				return
-			}
-		}
-
-		for c := n.FirstChild; c != nil; c = c.NextSibling {
-			extractText(c)
-		}
-
-		// Add newlines after block elements
-		if n.Type == html.ElementNode {
-			switch n.Data {
-			case "p", "div", "h1", "h2", "h3", "h4", "h5", "h6", "li", "br":
-				sb.WriteString("\n")
-			}
-		}
+func extractNodeText(sb *strings.Builder, n *html.Node) {
+	if n.Type == html.TextNode {
+		writeNodeText(sb, n.Data)
 	}
 
-	extractText(doc)
-	return strings.TrimSpace(sb.String())
+	if isSkippableElement(n) {
+		return
+	}
+
+	for c := n.FirstChild; c != nil; c = c.NextSibling {
+		extractNodeText(sb, c)
+	}
+
+	appendBlockNewline(sb, n)
+}
+
+func writeNodeText(sb *strings.Builder, data string) {
+	text := strings.TrimSpace(data)
+	if text != "" {
+		sb.WriteString(text)
+		sb.WriteString(" ")
+	}
+}
+
+func isSkippableElement(n *html.Node) bool {
+	if n.Type != html.ElementNode {
+		return false
+	}
+	switch n.Data {
+	case "script", "style", "nav", "footer", "header":
+		return true
+	}
+	return false
+}
+
+func appendBlockNewline(sb *strings.Builder, n *html.Node) {
+	if n.Type != html.ElementNode {
+		return
+	}
+	switch n.Data {
+	case "p", "div", "h1", "h2", "h3", "h4", "h5", "h6", "li", "br":
+		sb.WriteString("\n")
+	}
 }

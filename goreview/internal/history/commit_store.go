@@ -164,67 +164,81 @@ func (cs *CommitStore) List() ([]CommitSummary, error) {
 
 // Recall searches commit analyses for a query.
 func (cs *CommitStore) Recall(opts RecallOptions) ([]RecallResult, error) {
-	var results []RecallResult
 	query := strings.ToLower(opts.Query)
 
 	// If specific commit requested
 	if opts.CommitHash != "" {
-		analysis, err := cs.Load(opts.CommitHash)
-		if err != nil {
-			return nil, err
-		}
-
-		results = append(results, RecallResult{
-			CommitHash: analysis.CommitHash,
-			CommitMsg:  analysis.CommitMsg,
-			Author:     analysis.Author,
-			AnalyzedAt: analysis.AnalyzedAt,
-			MatchType:  "commit",
-			Snippet:    formatAnalysisSummary(analysis),
-			Score:      1.0,
-		})
-		return results, nil
+		return cs.recallSingleCommit(opts.CommitHash)
 	}
 
 	// Search all analyses
+	results, err := cs.recallAllAnalyses(query, opts)
+	if err != nil {
+		return nil, err
+	}
+
+	// Sort and limit results
+	return cs.sortAndLimitResults(results, opts.Limit), nil
+}
+
+func (cs *CommitStore) recallSingleCommit(commitHash string) ([]RecallResult, error) {
+	analysis, err := cs.Load(commitHash)
+	if err != nil {
+		return nil, err
+	}
+	return []RecallResult{{
+		CommitHash: analysis.CommitHash,
+		CommitMsg:  analysis.CommitMsg,
+		Author:     analysis.Author,
+		AnalyzedAt: analysis.AnalyzedAt,
+		MatchType:  "commit",
+		Snippet:    formatAnalysisSummary(analysis),
+		Score:      1.0,
+	}}, nil
+}
+
+func (cs *CommitStore) recallAllAnalyses(query string, opts RecallOptions) ([]RecallResult, error) {
 	summaries, err := cs.List()
 	if err != nil {
 		return nil, err
 	}
 
+	var results []RecallResult
 	for _, summary := range summaries {
 		analysis, err := cs.Load(summary.Hash)
 		if err != nil {
 			continue
 		}
-
-		// Apply filters
-		if !opts.Since.IsZero() && analysis.AnalyzedAt.Before(opts.Since) {
+		if !cs.matchesFilters(analysis, opts) {
 			continue
 		}
-		if !opts.Until.IsZero() && analysis.AnalyzedAt.After(opts.Until) {
-			continue
-		}
-		if opts.Author != "" && analysis.Author != opts.Author {
-			continue
-		}
-
-		// Search in various fields
 		matches := cs.searchAnalysis(analysis, query, opts)
 		results = append(results, matches...)
 	}
+	return results, nil
+}
 
-	// Sort by score
+func (cs *CommitStore) matchesFilters(analysis *CommitAnalysis, opts RecallOptions) bool {
+	if !opts.Since.IsZero() && analysis.AnalyzedAt.Before(opts.Since) {
+		return false
+	}
+	if !opts.Until.IsZero() && analysis.AnalyzedAt.After(opts.Until) {
+		return false
+	}
+	if opts.Author != "" && analysis.Author != opts.Author {
+		return false
+	}
+	return true
+}
+
+func (cs *CommitStore) sortAndLimitResults(results []RecallResult, limit int) []RecallResult {
 	sort.Slice(results, func(i, j int) bool {
 		return results[i].Score > results[j].Score
 	})
-
-	// Apply limit
-	if opts.Limit > 0 && len(results) > opts.Limit {
-		results = results[:opts.Limit]
+	if limit > 0 && len(results) > limit {
+		results = results[:limit]
 	}
-
-	return results, nil
+	return results
 }
 
 // searchAnalysis searches a single analysis for matches.
@@ -405,11 +419,22 @@ func (cs *CommitStore) Prune(maxAge time.Duration) (int, error) {
 func (cs *CommitStore) generateMarkdownSummary(analysis *CommitAnalysis, path string) error {
 	var sb strings.Builder
 
+	writeMdHeader(&sb, analysis)
+	writeMdSummary(&sb, analysis)
+	writeMdFiles(&sb, analysis)
+	writeMdContext(&sb, analysis)
+
+	return os.WriteFile(path, []byte(sb.String()), 0600) //nolint:gosec // Internal markdown file
+}
+
+func writeMdHeader(sb *strings.Builder, analysis *CommitAnalysis) {
 	sb.WriteString(fmt.Sprintf("# Analysis: %s\n\n", analysis.CommitHash[:7]))
 	sb.WriteString(fmt.Sprintf("**Commit:** %s\n", analysis.CommitMsg))
 	sb.WriteString(fmt.Sprintf("**Author:** %s\n", analysis.Author))
 	sb.WriteString(fmt.Sprintf("**Analyzed:** %s\n\n", analysis.AnalyzedAt.Format(time.RFC3339)))
+}
 
+func writeMdSummary(sb *strings.Builder, analysis *CommitAnalysis) {
 	sb.WriteString("## Summary\n\n")
 	sb.WriteString(fmt.Sprintf("- **Files:** %d\n", analysis.Summary.TotalFiles))
 	sb.WriteString(fmt.Sprintf("- **Issues:** %d\n", analysis.Summary.TotalIssues))
@@ -425,25 +450,33 @@ func (cs *CommitStore) generateMarkdownSummary(analysis *CommitAnalysis, path st
 	if analysis.Summary.Recommendation != "" {
 		sb.WriteString(fmt.Sprintf("\n### Recommendation\n%s\n", analysis.Summary.Recommendation))
 	}
+}
 
+func writeMdFiles(sb *strings.Builder, analysis *CommitAnalysis) {
 	sb.WriteString("\n## Files\n\n")
 	for _, file := range analysis.Files {
-		sb.WriteString(fmt.Sprintf("### %s\n", file.Path))
-		sb.WriteString(fmt.Sprintf("- Language: %s\n", file.Language))
-		sb.WriteString(fmt.Sprintf("- Changes: +%d/-%d\n", file.LinesAdded, file.LinesRemoved))
+		writeMdFile(sb, file)
+	}
+}
 
-		if len(file.Issues) > 0 {
-			sb.WriteString("\n**Issues:**\n")
-			for _, issue := range file.Issues {
-				sb.WriteString(fmt.Sprintf("- [%s] Line %d: %s\n", issue.Severity, issue.Line, issue.Message))
-				if issue.Suggestion != "" {
-					sb.WriteString(fmt.Sprintf("  - *Suggestion:* %s\n", issue.Suggestion))
-				}
+func writeMdFile(sb *strings.Builder, file AnalyzedFile) {
+	sb.WriteString(fmt.Sprintf("### %s\n", file.Path))
+	sb.WriteString(fmt.Sprintf("- Language: %s\n", file.Language))
+	sb.WriteString(fmt.Sprintf("- Changes: +%d/-%d\n", file.LinesAdded, file.LinesRemoved))
+
+	if len(file.Issues) > 0 {
+		sb.WriteString("\n**Issues:**\n")
+		for _, issue := range file.Issues {
+			sb.WriteString(fmt.Sprintf("- [%s] Line %d: %s\n", issue.Severity, issue.Line, issue.Message))
+			if issue.Suggestion != "" {
+				sb.WriteString(fmt.Sprintf("  - *Suggestion:* %s\n", issue.Suggestion))
 			}
 		}
-		sb.WriteString("\n")
 	}
+	sb.WriteString("\n")
+}
 
+func writeMdContext(sb *strings.Builder, analysis *CommitAnalysis) {
 	sb.WriteString("## Context\n\n")
 	sb.WriteString(fmt.Sprintf("- Provider: %s\n", analysis.Context.Provider))
 	sb.WriteString(fmt.Sprintf("- Model: %s\n", analysis.Context.Model))
@@ -453,8 +486,6 @@ func (cs *CommitStore) generateMarkdownSummary(analysis *CommitAnalysis, path st
 	if len(analysis.Context.Modes) > 0 {
 		sb.WriteString(fmt.Sprintf("- Modes: %s\n", strings.Join(analysis.Context.Modes, ", ")))
 	}
-
-	return os.WriteFile(path, []byte(sb.String()), 0600) //nolint:gosec // Internal markdown file
 }
 
 // formatAnalysisSummary formats an analysis for display.

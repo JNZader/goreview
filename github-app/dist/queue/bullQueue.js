@@ -342,9 +342,7 @@ let bullQueueManager = null;
  * Get the BullMQ queue manager instance
  */
 export function getBullQueue() {
-    if (!bullQueueManager) {
-        bullQueueManager = new BullQueueManager();
-    }
+    bullQueueManager ??= new BullQueueManager();
     return bullQueueManager;
 }
 /**

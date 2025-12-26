@@ -10,7 +10,7 @@ export const adminRouter = Router();
  */
 const requireAuth = (req, _res, next) => {
     const authHeader = req.headers.authorization;
-    if (!authHeader || !authHeader.startsWith('Bearer ')) {
+    if (!authHeader?.startsWith('Bearer ')) {
         throw new AppError('Authorization required', 401);
     }
     const token = authHeader.slice(7);

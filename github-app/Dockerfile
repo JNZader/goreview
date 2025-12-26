@@ -40,14 +40,10 @@ RUN npm prune --production
 # -----------------------------------------------------------------------------
 FROM node:20-alpine AS runtime
 
-# Upgrade all packages to get security patches (BusyBox CVE-2024-58251, CVE-2025-46394)
-RUN apk upgrade --no-cache
-
-# Install dumb-init for proper signal handling
-RUN apk add --no-cache dumb-init
-
-# Create non-root user
-RUN addgroup -g 1001 -S nodejs \
+# Upgrade packages, install dumb-init, and create non-root user
+RUN apk upgrade --no-cache \
+    && apk add --no-cache dumb-init \
+    && addgroup -g 1001 -S nodejs \
     && adduser -S nodejs -u 1001
 
 WORKDIR /app

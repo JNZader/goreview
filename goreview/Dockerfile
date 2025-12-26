@@ -42,14 +42,12 @@ RUN CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build \
 # -----------------------------------------------------------------------------
 FROM alpine:3.19 AS runtime
 
-# Install runtime dependencies
+# Install runtime dependencies and create non-root user
 RUN apk add --no-cache \
     ca-certificates \
     git \
-    && rm -rf /var/cache/apk/*
-
-# Create non-root user
-RUN addgroup -g 1000 goreview \
+    && rm -rf /var/cache/apk/* \
+    && addgroup -g 1000 goreview \
     && adduser -u 1000 -G goreview -s /bin/sh -D goreview
 
 # Copy binary from builder

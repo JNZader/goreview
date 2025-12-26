@@ -14,7 +14,7 @@ export function generateStatusLine(status, options = {}) {
     const scoreEmoji = getScoreEmoji(status.score, opts.showEmoji);
     parts.push(`${scoreEmoji} Score: ${status.score}/100`);
     // Issues summary
-    const issuesEmoji = status.criticalIssues > 0 ? '🔴' : status.totalIssues > 0 ? '🟡' : '🟢';
+    const issuesEmoji = getIssuesEmoji(status.criticalIssues, status.totalIssues);
     if (opts.showEmoji) {
         parts.push(`${issuesEmoji} Issues: ${status.totalIssues}`);
     }
@@ -45,41 +45,37 @@ export function generateStatusLine(status, options = {}) {
  */
 export function generateStatusBlock(status, options = {}) {
     const opts = { ...DEFAULT_OPTIONS, ...options };
-    const lines = [];
-    // Header
-    lines.push('## GoReview Status');
-    lines.push('');
-    // Main status line
-    lines.push(`> ${generateStatusLine(status, opts)}`);
-    lines.push('');
+    const lines = [
+        // Header
+        '## GoReview Status',
+        '',
+        // Main status line
+        `> ${generateStatusLine(status, opts)}`,
+        '',
+    ];
     // Inactivity warning
     const inactivityWarning = checkInactivity(status.lastReviewAt, opts);
     if (inactivityWarning) {
-        lines.push(`⚠️ **Warning:** ${inactivityWarning}`);
-        lines.push('');
+        lines.push(`⚠️ **Warning:** ${inactivityWarning}`, '');
     }
     // Progress section (if there's history)
     if (status.reviewRound > 1) {
-        lines.push('### Progress Since Last Review');
-        lines.push('');
+        lines.push('### Progress Since Last Review', '');
         if (status.resolvedIssues > 0) {
             lines.push(`✅ ${status.resolvedIssues} issue(s) resolved`);
         }
         if (status.persistentIssues > 0) {
             lines.push(`⏳ ${status.persistentIssues} issue(s) still pending`);
         }
-        if (status.totalIssues > status.persistentIssues) {
-            const newIssues = status.totalIssues - status.persistentIssues;
-            if (newIssues > 0) {
-                lines.push(`🆕 ${newIssues} new issue(s) found`);
-            }
+        const newIssues = status.totalIssues - status.persistentIssues;
+        if (newIssues > 0) {
+            lines.push(`🆕 ${newIssues} new issue(s) found`);
         }
         lines.push('');
     }
     // Critical issues warning
     if (status.criticalIssues > 0) {
-        lines.push(`🚨 **${status.criticalIssues} critical issue(s) require immediate attention**`);
-        lines.push('');
+        lines.push(`🚨 **${status.criticalIssues} critical issue(s) require immediate attention**`, '');
     }
     return lines.join('\n');
 }
@@ -89,8 +85,9 @@ export function generateStatusBlock(status, options = {}) {
 export function parseExistingStatus(commentBody) {
     try {
         // Look for status data in HTML comment
-        const match = commentBody.match(/<!--goreview-status:(.*?)-->/);
-        if (match && match[1]) {
+        const statusRegex = /<!--goreview-status:(.*?)-->/;
+        const match = statusRegex.exec(commentBody);
+        if (match?.[1]) {
             return JSON.parse(match[1]);
         }
         return null;
@@ -183,6 +180,21 @@ function getProgressEmoji(percentage) {
         return '🔄';
     return '⏳';
 }
+function getIssuesEmoji(criticalIssues, totalIssues) {
+    if (criticalIssues > 0)
+        return '🔴';
+    if (totalIssues > 0)
+        return '🟡';
+    return '🟢';
+}
+function getSeverityEmoji(severity) {
+    switch (severity) {
+        case 'critical': return '🚨';
+        case 'error': return '❌';
+        case 'warning': return '⚠️';
+        default: return 'ℹ️';
+    }
+}
 function checkInactivity(lastReviewAt, options) {
     const lastReview = new Date(lastReviewAt);
     const now = new Date();
@@ -203,7 +215,7 @@ export function generateIssueId(file, line, message) {
     // Simple hash function for consistency
     let hash = 0;
     for (let i = 0; i < content.length; i++) {
-        const char = content.charCodeAt(i);
+        const char = content.codePointAt(i) ?? 0;
         hash = ((hash << 5) - hash) + char;
         hash = hash & hash; // Convert to 32bit integer
     }
@@ -218,11 +230,12 @@ export function generatePersistentIssuesSection(currentIssues, previousIssues, c
     if (persistent.length === 0) {
         return '';
     }
-    const lines = [];
-    lines.push('### Persistent Issues');
-    lines.push('');
-    lines.push('These issues were found in previous reviews and still need attention:');
-    lines.push('');
+    const lines = [
+        '### Persistent Issues',
+        '',
+        'These issues were found in previous reviews and still need attention:',
+        '',
+    ];
     // Group by severity
     const bySeverity = {};
     for (const issue of persistent) {
@@ -242,13 +255,9 @@ export function generatePersistentIssuesSection(currentIssues, previousIssues, c
         for (const issue of issues) {
             const roundsOld = currentRound - issue.firstSeenRound;
             const roundLabel = roundsOld > 0 ? ` (since Round ${issue.firstSeenRound})` : ' (new)';
-            const emoji = severity === 'critical' ? '🚨' :
-                severity === 'error' ? '❌' :
-                    severity === 'warning' ? '⚠️' : 'ℹ️';
+            const emoji = getSeverityEmoji(severity);
             const location = issue.line ? `${issue.file}:${issue.line}` : issue.file;
-            lines.push(`${emoji} **[${severity.toUpperCase()}]** \`${location}\`${roundLabel}`);
-            lines.push(`   ${issue.message}`);
-            lines.push('');
+            lines.push(`${emoji} **[${severity.toUpperCase()}]** \`${location}\`${roundLabel}`, `   ${issue.message}`, '');
         }
     }
     return lines.join('\n');
@@ -274,25 +283,22 @@ export function getApprovedFiles(currentFiles, issueRecords, previousApproved = 
 export function buildHandoffStatus(currentResult, previousStatus) {
     const currentRound = calculateReviewRound(previousStatus);
     const now = new Date().toISOString();
-    // Build issue records with IDs
-    const issueRecords = [];
-    for (const file of currentResult.files) {
-        for (const issue of file.issues) {
-            const id = generateIssueId(file.path, issue.line, issue.message);
-            // Check if this issue existed before
-            const previousIssue = previousStatus?.issueRecords?.find(p => p.id === id);
-            const firstSeenRound = previousIssue?.firstSeenRound ?? currentRound;
-            issueRecords.push({
-                id,
-                file: file.path,
-                line: issue.line,
-                severity: issue.severity,
-                type: issue.type,
-                message: issue.message,
-                firstSeenRound,
-            });
-        }
-    }
+    // Build issue records with IDs using flatMap instead of nested loop with push
+    const issueRecords = currentResult.files.flatMap((file) => file.issues.map((issue) => {
+        const id = generateIssueId(file.path, issue.line, issue.message);
+        // Check if this issue existed before
+        const previousIssue = previousStatus?.issueRecords?.find((p) => p.id === id);
+        const firstSeenRound = previousIssue?.firstSeenRound ?? currentRound;
+        return {
+            id,
+            file: file.path,
+            line: issue.line,
+            severity: issue.severity,
+            type: issue.type,
+            message: issue.message,
+            firstSeenRound,
+        };
+    }));
     // Calculate resolved/persistent
     const previousIds = new Set(previousStatus?.issueRecords?.map(i => i.id) ?? []);
     const currentIds = new Set(issueRecords.map(i => i.id));
@@ -326,26 +332,25 @@ export function buildHandoffStatus(currentResult, previousStatus) {
  */
 export function generateHandoffBlock(status, previousStatus, options = {}) {
     const opts = { ...DEFAULT_OPTIONS, ...options };
-    const lines = [];
-    // Status data embed (hidden)
-    lines.push(embedStatusData(status));
-    lines.push('');
-    // Header
-    lines.push('## GoReview Status');
-    lines.push('');
-    // Main status line
-    lines.push(`> ${generateStatusLine(status, opts)}`);
-    lines.push('');
+    const lines = [
+        // Status data embed (hidden)
+        embedStatusData(status),
+        '',
+        // Header
+        '## GoReview Status',
+        '',
+        // Main status line
+        `> ${generateStatusLine(status, opts)}`,
+        '',
+    ];
     // Inactivity warning
     const inactivityWarning = checkInactivity(status.lastReviewAt, opts);
     if (inactivityWarning) {
-        lines.push(`⚠️ **Warning:** ${inactivityWarning}`);
-        lines.push('');
+        lines.push(`⚠️ **Warning:** ${inactivityWarning}`, '');
     }
     // Progress section (if there's history)
     if (status.reviewRound > 1 && previousStatus) {
-        lines.push('### Progress Since Last Review');
-        lines.push('');
+        lines.push('### Progress Since Last Review', '');
         if (status.resolvedIssues > 0) {
             lines.push(`✅ **${status.resolvedIssues}** issue(s) resolved`);
         }
@@ -367,22 +372,15 @@ export function generateHandoffBlock(status, previousStatus, options = {}) {
     }
     // Critical issues warning
     if (status.criticalIssues > 0) {
-        lines.push(`🚨 **${status.criticalIssues} critical issue(s) require immediate attention**`);
-        lines.push('');
+        lines.push(`🚨 **${status.criticalIssues} critical issue(s) require immediate attention**`, '');
     }
     // Approved files (if any)
     if (status.approvedFiles && status.approvedFiles.length > 0) {
-        lines.push('<details>');
-        lines.push(`<summary>✅ ${status.approvedFiles.length} file(s) approved</summary>`);
-        lines.push('');
-        for (const file of status.approvedFiles.slice(0, 10)) {
-            lines.push(`- \`${file}\``);
-        }
+        lines.push('<details>', `<summary>✅ ${status.approvedFiles.length} file(s) approved</summary>`, '', ...status.approvedFiles.slice(0, 10).map((file) => `- \`${file}\``));
         if (status.approvedFiles.length > 10) {
             lines.push(`- ... and ${status.approvedFiles.length - 10} more`);
         }
-        lines.push('</details>');
-        lines.push('');
+        lines.push('</details>', '');
     }
     return lines.join('\n');
 }

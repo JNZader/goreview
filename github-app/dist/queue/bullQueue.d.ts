@@ -20,11 +20,11 @@ export interface JobResult {
  * BullMQ Queue Manager for PR Reviews
  */
 export declare class BullQueueManager {
-    private queue;
+    private readonly queue;
     private worker;
     private queueEvents;
     private isInitialized;
-    private connection;
+    private readonly connection;
     constructor();
     /**
      * Start the worker to process jobs

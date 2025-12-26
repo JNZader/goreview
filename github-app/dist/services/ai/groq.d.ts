@@ -5,9 +5,9 @@
 import { AIProvider, ReviewRequest, ReviewResponse } from './types.js';
 export declare class GroqProvider implements AIProvider {
     readonly name = "groq";
-    private baseUrl;
-    private model;
-    private apiKey;
+    private readonly baseUrl;
+    private readonly model;
+    private readonly apiKey;
     constructor();
     review(request: ReviewRequest): Promise<ReviewResponse>;
     generateCommitMessage(diff: string): Promise<string>;

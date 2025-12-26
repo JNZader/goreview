@@ -35,9 +35,9 @@ export interface RelatedContext {
  * RelatedPRsService finds PRs and issues related to the current PR
  */
 export declare class RelatedPRsService {
-    private octokit;
-    private owner;
-    private repo;
+    private readonly octokit;
+    private readonly owner;
+    private readonly repo;
     constructor(octokit: Octokit, owner: string, repo: string);
     /**
      * Find related PRs and issues for a given PR
@@ -63,6 +63,7 @@ export declare class RelatedPRsService {
      * Generate markdown section for related PRs/issues
      */
     generateMarkdownSection(context: RelatedContext): string;
+    private getPRStateEmoji;
 }
 /**
  * Create a RelatedPRsService instance

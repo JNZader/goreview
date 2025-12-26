@@ -417,7 +417,13 @@ func parseReviewTime(timeStr sql.NullString) time.Time {
 }
 
 func (s *Store) queryBreakdown(ctx context.Context, column, pattern string) (map[string]int, error) {
-	query := fmt.Sprintf(`SELECT %s, COUNT(*) FROM reviews WHERE file_path LIKE ? GROUP BY %s`, column, column)
+	// Validate column name to prevent SQL injection (gosec G201)
+	validColumns := map[string]bool{"severity": true, "issue_type": true, "file_path": true}
+	if !validColumns[column] {
+		return nil, fmt.Errorf("invalid column: %s", column)
+	}
+
+	query := fmt.Sprintf(`SELECT %s, COUNT(*) FROM reviews WHERE file_path LIKE ? GROUP BY %s`, column, column) //nolint:gosec // column validated above
 	result := make(map[string]int)
 
 	rows, err := s.db.QueryContext(ctx, query, pattern)

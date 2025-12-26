@@ -19,11 +19,11 @@ export interface Job {
  * Simple in-memory job queue with retry support.
  */
 declare class JobQueue {
-    private jobs;
-    private processing;
-    private concurrency;
-    private maxRetries;
-    private retryDelays;
+    private readonly jobs;
+    private readonly processing;
+    private readonly concurrency;
+    private readonly maxRetries;
+    private readonly retryDelays;
     /**
      * Add a job to the queue.
      */

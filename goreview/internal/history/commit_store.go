@@ -271,7 +271,7 @@ func (cs *CommitStore) matchIssues(analysis *CommitAnalysis, query string, opts 
 }
 
 func (cs *CommitStore) matchFileIssues(analysis *CommitAnalysis, file AnalyzedFile, query, severity string) []RecallResult {
-	var results []RecallResult
+	results := make([]RecallResult, 0, len(file.Issues))
 
 	for _, issue := range file.Issues {
 		if severity != "" && issue.Severity != severity {

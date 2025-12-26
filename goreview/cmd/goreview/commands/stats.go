@@ -72,7 +72,8 @@ func runStats(cmd *cobra.Command, args []string) error {
 		return outputStatsJSON(stats)
 	}
 
-	return outputStatsDashboard(stats)
+	outputStatsDashboard(stats)
+	return nil
 }
 
 func outputStatsJSON(stats *history.Stats) error {
@@ -84,11 +85,11 @@ func outputStatsJSON(stats *history.Stats) error {
 	return nil
 }
 
-func outputStatsDashboard(stats *history.Stats) error {
+func outputStatsDashboard(stats *history.Stats) {
 	if stats.TotalIssues == 0 {
 		fmt.Println("No review history found.")
 		fmt.Println("\nRun some reviews first to collect statistics.")
-		return nil
+		return
 	}
 
 	printDashboardHeader()
@@ -98,8 +99,6 @@ func outputStatsDashboard(stats *history.Stats) error {
 	printTypeSection(stats)
 	printTopFilesSection(stats)
 	printDashboardFooter()
-
-	return nil
 }
 
 func printDashboardHeader() {
@@ -184,7 +183,7 @@ func printTypeSection(stats *history.Stats) {
 }
 
 func getSortedTypes(byType map[string]int64) []typeCount {
-	var types []typeCount
+	types := make([]typeCount, 0, len(byType))
 	for t, c := range byType {
 		types = append(types, typeCount{t, c})
 	}
@@ -222,7 +221,7 @@ func printTopFilesSection(stats *history.Stats) {
 }
 
 func getSortedFiles(byFile map[string]int64) []fileCount {
-	var files []fileCount
+	files := make([]fileCount, 0, len(byFile))
 	for f, c := range byFile {
 		files = append(files, fileCount{f, c})
 	}

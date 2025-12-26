@@ -155,33 +155,29 @@ export class RelatedPRsService {
     generateMarkdownSection(context) {
         const sections = [];
         if (context.relatedPRs.length > 0) {
-            sections.push('### Related PRs\n');
-            sections.push('PRs that modified the same files:\n');
-            for (const pr of context.relatedPRs.slice(0, 5)) {
-                const stateEmoji = pr.state === 'merged' ? '🟣' : pr.state === 'open' ? '🟢' : '🔴';
+            sections.push('### Related PRs\n', 'PRs that modified the same files:\n', ...context.relatedPRs.slice(0, 5).map((pr) => {
+                const stateEmoji = this.getPRStateEmoji(pr.state);
                 const overlap = `${pr.overlapPercentage.toFixed(0)}% overlap`;
-                sections.push(`- ${stateEmoji} #${pr.number}: ${pr.title} (${overlap})`);
-            }
-            sections.push('');
+                return `- ${stateEmoji} #${pr.number}: ${pr.title} (${overlap})`;
+            }), '');
         }
         if (context.relatedIssues.length > 0) {
-            sections.push('### Related Issues\n');
-            sections.push('Open issues that may be addressed by this PR:\n');
-            for (const issue of context.relatedIssues.slice(0, 5)) {
-                const labels = issue.labels.length > 0
-                    ? ` [${issue.labels.slice(0, 3).join(', ')}]`
-                    : '';
-                sections.push(`- #${issue.number}: ${issue.title}${labels}`);
-            }
-            sections.push('');
+            sections.push('### Related Issues\n', 'Open issues that may be addressed by this PR:\n', ...context.relatedIssues.slice(0, 5).map((issue) => {
+                const labels = issue.labels.length > 0 ? ` [${issue.labels.slice(0, 3).join(', ')}]` : '';
+                return `- #${issue.number}: ${issue.title}${labels}`;
+            }), '');
         }
         if (context.suggestedReviewers.length > 0) {
-            sections.push('### Suggested Reviewers\n');
-            sections.push('Based on previous contributions to these files:\n');
-            sections.push(`- ${context.suggestedReviewers.map(r => `@${r}`).join(', ')}`);
-            sections.push('');
+            sections.push('### Suggested Reviewers\n', 'Based on previous contributions to these files:\n', `- ${context.suggestedReviewers.map((r) => `@${r}`).join(', ')}`, '');
         }
         return sections.join('\n');
+    }
+    getPRStateEmoji(state) {
+        switch (state) {
+            case 'merged': return '🟣';
+            case 'open': return '🟢';
+            default: return '🔴';
+        }
     }
 }
 /**

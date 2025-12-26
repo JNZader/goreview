@@ -66,7 +66,7 @@ func (f *Fetcher) FetchContext(ctx context.Context, language string, frameworks 
 }
 
 func (f *Fetcher) fetchConfiguredSources(ctx context.Context, language string) []SourceContext {
-	var sources []SourceContext
+	sources := make([]SourceContext, 0, len(f.config.Sources))
 
 	for _, source := range f.config.Sources {
 		if !isSourceRelevant(source, language) {
@@ -101,7 +101,7 @@ func isSourceRelevant(source Source, language string) bool {
 }
 
 func (f *Fetcher) fetchFrameworkSources(ctx context.Context, frameworks []DetectedFramework) []SourceContext {
-	var sources []SourceContext
+	sources := make([]SourceContext, 0, len(frameworks))
 
 	for _, fw := range frameworks {
 		if fw.DocsURL == "" {

@@ -84,7 +84,7 @@ func outputStatsJSON(stats *history.Stats) error {
 	return nil
 }
 
-//nolint:funlen // Dashboard output with multiple statistics sections
+//nolint:funlen,unparam // Dashboard output with multiple statistics sections
 func outputStatsDashboard(stats *history.Stats) error {
 	if stats.TotalIssues == 0 {
 		fmt.Println("No review history found.")

@@ -340,7 +340,7 @@ func formatPlanOutput(reviews []*PlanReview) (string, error) {
 	}
 }
 
-//nolint:gocyclo // Markdown formatting with multiple sections
+//nolint:gocyclo,funlen // Markdown formatting with multiple sections
 func formatPlanMarkdown(reviews []*PlanReview) string {
 	var sb strings.Builder
 

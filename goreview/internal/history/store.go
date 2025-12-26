@@ -166,6 +166,8 @@ func (s *Store) StoreBatch(ctx context.Context, records []*ReviewRecord) error {
 }
 
 // Search performs full-text search on review history.
+//
+//nolint:gocyclo // Complex query builder with multiple filter conditions
 func (s *Store) Search(ctx context.Context, q SearchQuery) (*SearchResult, error) {
 	var args []interface{}
 	var conditions []string
@@ -303,6 +305,8 @@ func (s *Store) Search(ctx context.Context, q SearchQuery) (*SearchResult, error
 }
 
 // GetFileHistory returns the review history for a file or directory.
+//
+//nolint:gocyclo // Aggregation query with multiple statistics calculations
 func (s *Store) GetFileHistory(ctx context.Context, path string) (*FileHistory, error) {
 	pattern := path
 	if strings.HasSuffix(path, "/") || !strings.Contains(filepath.Base(path), ".") {

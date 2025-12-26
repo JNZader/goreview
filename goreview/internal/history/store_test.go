@@ -52,8 +52,8 @@ func TestStoreAndSearch(t *testing.T) {
 		ReviewRound: 1,
 	}
 
-	if err := store.Store(ctx, record); err != nil {
-		t.Fatalf("Failed to store record: %v", err)
+	if storeErr := store.Store(ctx, record); storeErr != nil {
+		t.Fatalf("Failed to store record: %v", storeErr)
 	}
 
 	if record.ID == 0 {
@@ -227,8 +227,8 @@ func TestGetFileHistory(t *testing.T) {
 		},
 	}
 
-	if err := store.StoreBatch(ctx, records); err != nil {
-		t.Fatalf("Failed to store batch: %v", err)
+	if batchErr := store.StoreBatch(ctx, records); batchErr != nil {
+		t.Fatalf("Failed to store batch: %v", batchErr)
 	}
 
 	// Get file history
@@ -306,8 +306,8 @@ func TestGetStats(t *testing.T) {
 		},
 	}
 
-	if err := store.StoreBatch(ctx, records); err != nil {
-		t.Fatalf("Failed to store batch: %v", err)
+	if batchErr := store.StoreBatch(ctx, records); batchErr != nil {
+		t.Fatalf("Failed to store batch: %v", batchErr)
 	}
 
 	stats, err := store.GetStats(ctx)
@@ -355,13 +355,13 @@ func TestMarkResolved(t *testing.T) {
 		ReviewRound: 1,
 	}
 
-	if err := store.Store(ctx, record); err != nil {
-		t.Fatalf("Failed to store record: %v", err)
+	if storeErr := store.Store(ctx, record); storeErr != nil {
+		t.Fatalf("Failed to store record: %v", storeErr)
 	}
 
 	// Mark as resolved
-	if err := store.MarkResolved(ctx, record.ID); err != nil {
-		t.Fatalf("MarkResolved failed: %v", err)
+	if resolveErr := store.MarkResolved(ctx, record.ID); resolveErr != nil {
+		t.Fatalf("MarkResolved failed: %v", resolveErr)
 	}
 
 	// Verify resolved

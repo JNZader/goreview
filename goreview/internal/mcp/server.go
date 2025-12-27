@@ -296,5 +296,5 @@ func (s *Server) writeError(w io.Writer, id interface{}, code int, message, data
 			Data:    data,
 		},
 	}
-	s.writeResponse(w, resp) // nolint:errcheck
+	_ = s.writeResponse(w, resp) // #nosec G104 - best effort error response
 }

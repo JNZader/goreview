@@ -108,7 +108,7 @@ func (e *ObsidianExporter) templateFuncs() template.FuncMap {
 func (e *ObsidianExporter) Export(result *review.Result, metadata *Metadata) error {
 	// Ensure project directory exists
 	projectDir := filepath.Join(e.cfg.VaultPath, e.cfg.FolderName, sanitizeFilename(metadata.ProjectName))
-	if err := os.MkdirAll(projectDir, 0755); err != nil {
+	if err := os.MkdirAll(projectDir, 0750); err != nil {
 		return fmt.Errorf("creating project directory: %w", err)
 	}
 

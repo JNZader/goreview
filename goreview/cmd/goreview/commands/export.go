@@ -1,7 +1,6 @@
 package commands
 
 import (
-	"context"
 	"encoding/json"
 	"fmt"
 	"os"
@@ -77,8 +76,6 @@ func runExport(cmd *cobra.Command, args []string) error {
 }
 
 func runObsidianExport(cmd *cobra.Command) error {
-	ctx := context.Background()
-
 	// Load config
 	cfg, err := config.LoadDefault()
 	if err != nil {
@@ -100,7 +97,7 @@ func runObsidianExport(cmd *cobra.Command) error {
 	}
 
 	// Build metadata
-	metadata, err := buildExportMetadataForExport(ctx, cmd, cfg)
+	metadata, err := buildExportMetadataForExport(cmd, cfg)
 	if err != nil {
 		return fmt.Errorf("building metadata: %w", err)
 	}
@@ -175,7 +172,7 @@ func loadReviewResult(cmd *cobra.Command) (*review.Result, error) {
 	return nil, fmt.Errorf("no input source. Use --from or pipe JSON to stdin")
 }
 
-func buildExportMetadataForExport(ctx context.Context, cmd *cobra.Command, cfg *config.Config) (*export.ExportMetadata, error) {
+func buildExportMetadataForExport(cmd *cobra.Command, cfg *config.Config) (*export.Metadata, error) {
 	projectName, _ := cmd.Flags().GetString("project")
 
 	// Try to get git info
@@ -221,7 +218,7 @@ func buildExportMetadataForExport(ctx context.Context, cmd *cobra.Command, cfg *
 		}
 	}
 
-	return &export.ExportMetadata{
+	return &export.Metadata{
 		ProjectName: projectName,
 		Branch:      branch,
 		CommitHash:  commitHash,

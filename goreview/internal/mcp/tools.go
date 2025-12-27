@@ -13,7 +13,13 @@ import (
 
 // RegisterGoReviewTools registers all GoReview tools with the MCP server.
 func RegisterGoReviewTools(s *Server) {
-	// Review tool
+	registerReviewTools(s)
+	registerUtilityTools(s)
+	registerDocTools(s)
+}
+
+// registerReviewTools registers review and fix related tools.
+func registerReviewTools(s *Server) {
 	s.RegisterTool(&Tool{
 		Name:        "goreview_review",
 		Description: "Analyze code changes and identify issues. Supports staged changes, specific commits, or branch comparisons.",
@@ -49,32 +55,6 @@ func RegisterGoReviewTools(s *Server) {
 		},
 	}, handleReview)
 
-	// Commit message tool
-	s.RegisterTool(&Tool{
-		Name:        "goreview_commit",
-		Description: "Generate an AI-powered commit message following Conventional Commits format.",
-		InputSchema: map[string]interface{}{
-			"type": "object",
-			"properties": map[string]interface{}{
-				"type": map[string]interface{}{
-					"type":        "string",
-					"description": "Force commit type (feat, fix, docs, style, refactor, test, chore)",
-					"enum":        []string{"feat", "fix", "docs", "style", "refactor", "test", "chore"},
-				},
-				"scope": map[string]interface{}{
-					"type":        "string",
-					"description": "Force commit scope",
-				},
-				"breaking": map[string]interface{}{
-					"type":        "boolean",
-					"description": "Mark as breaking change",
-					"default":     false,
-				},
-			},
-		},
-	}, handleCommit)
-
-	// Fix tool
 	s.RegisterTool(&Tool{
 		Name:        "goreview_fix",
 		Description: "Automatically fix issues found in code review.",
@@ -104,8 +84,34 @@ func RegisterGoReviewTools(s *Server) {
 			},
 		},
 	}, handleFix)
+}
 
-	// Search history tool
+// registerUtilityTools registers commit, search, and stats tools.
+func registerUtilityTools(s *Server) {
+	s.RegisterTool(&Tool{
+		Name:        "goreview_commit",
+		Description: "Generate an AI-powered commit message following Conventional Commits format.",
+		InputSchema: map[string]interface{}{
+			"type": "object",
+			"properties": map[string]interface{}{
+				"type": map[string]interface{}{
+					"type":        "string",
+					"description": "Force commit type (feat, fix, docs, style, refactor, test, chore)",
+					"enum":        []string{"feat", "fix", "docs", "style", "refactor", "test", "chore"},
+				},
+				"scope": map[string]interface{}{
+					"type":        "string",
+					"description": "Force commit scope",
+				},
+				"breaking": map[string]interface{}{
+					"type":        "boolean",
+					"description": "Mark as breaking change",
+					"default":     false,
+				},
+			},
+		},
+	}, handleCommit)
+
 	s.RegisterTool(&Tool{
 		Name:        "goreview_search",
 		Description: "Search through past code reviews and findings.",
@@ -135,7 +141,6 @@ func RegisterGoReviewTools(s *Server) {
 		},
 	}, handleSearch)
 
-	// Stats tool
 	s.RegisterTool(&Tool{
 		Name:        "goreview_stats",
 		Description: "Get code review statistics and project health metrics.",
@@ -156,8 +161,10 @@ func RegisterGoReviewTools(s *Server) {
 			},
 		},
 	}, handleStats)
+}
 
-	// Changelog tool
+// registerDocTools registers changelog and documentation tools.
+func registerDocTools(s *Server) {
 	s.RegisterTool(&Tool{
 		Name:        "goreview_changelog",
 		Description: "Generate changelog from git commits.",
@@ -183,7 +190,6 @@ func RegisterGoReviewTools(s *Server) {
 		},
 	}, handleChangelog)
 
-	// Documentation tool
 	s.RegisterTool(&Tool{
 		Name:        "goreview_doc",
 		Description: "Generate documentation for code changes.",
@@ -216,31 +222,38 @@ func RegisterGoReviewTools(s *Server) {
 
 func handleReview(ctx context.Context, params map[string]interface{}) (interface{}, error) {
 	args := []string{"review"}
+	args = appendTargetArgs(args, params)
+	args = appendReviewOptions(args, params)
+	args = append(args, "--format", "json")
+	return runGoReview(ctx, args)
+}
 
+// appendTargetArgs appends target-related arguments based on params.
+func appendTargetArgs(args []string, params map[string]interface{}) []string {
 	target, _ := params["target"].(string)
-	if target == "" || target == "staged" {
-		args = append(args, "--staged")
-	} else if target == "HEAD" {
-		args = append(args, "--commit", "HEAD")
-	} else if strings.HasPrefix(target, "origin/") || !strings.Contains(target, "/") && len(target) < 40 {
-		// Looks like a branch or short commit
-		args = append(args, "--branch", target)
-	} else {
-		args = append(args, "--commit", target)
+	switch {
+	case target == "" || target == "staged":
+		return append(args, "--staged")
+	case target == "HEAD":
+		return append(args, "--commit", "HEAD")
+	case strings.HasPrefix(target, "origin/") || !strings.Contains(target, "/") && len(target) < 40:
+		return append(args, "--branch", target)
+	default:
+		return append(args, "--commit", target)
 	}
+}
 
+// appendReviewOptions appends optional review arguments.
+func appendReviewOptions(args []string, params map[string]interface{}) []string {
 	if mode, ok := params["mode"].(string); ok && mode != "" {
 		args = append(args, "--mode", mode)
 	}
-
 	if personality, ok := params["personality"].(string); ok && personality != "" {
 		args = append(args, "--personality", personality)
 	}
-
 	if trace, ok := params["trace"].(bool); ok && trace {
 		args = append(args, "--trace")
 	}
-
 	if files, ok := params["files"].([]interface{}); ok {
 		for _, f := range files {
 			if fs, ok := f.(string); ok {
@@ -248,10 +261,7 @@ func handleReview(ctx context.Context, params map[string]interface{}) (interface
 			}
 		}
 	}
-
-	args = append(args, "--format", "json")
-
-	return runGoReview(ctx, args)
+	return args
 }
 
 func handleCommit(ctx context.Context, params map[string]interface{}) (interface{}, error) {

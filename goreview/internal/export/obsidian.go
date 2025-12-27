@@ -24,7 +24,7 @@ type ObsidianExporter struct {
 type obsidianTemplateData struct {
 	Frontmatter    *ObsidianFrontmatter
 	Result         *review.Result
-	Metadata       *ExportMetadata
+	Metadata       *Metadata
 	Config         *config.ObsidianExportConfig
 	RelatedReviews []string
 }
@@ -105,7 +105,7 @@ func (e *ObsidianExporter) templateFuncs() template.FuncMap {
 }
 
 // Export exports the review result to the Obsidian vault.
-func (e *ObsidianExporter) Export(result *review.Result, metadata *ExportMetadata) error {
+func (e *ObsidianExporter) Export(result *review.Result, metadata *Metadata) error {
 	// Ensure project directory exists
 	projectDir := filepath.Join(e.cfg.VaultPath, e.cfg.FolderName, sanitizeFilename(metadata.ProjectName))
 	if err := os.MkdirAll(projectDir, 0755); err != nil {
@@ -141,7 +141,7 @@ func (e *ObsidianExporter) Export(result *review.Result, metadata *ExportMetadat
 
 	// Write file
 	outputPath := filepath.Join(projectDir, filename)
-	if err := os.WriteFile(outputPath, []byte(sb.String()), 0644); err != nil {
+	if err := os.WriteFile(outputPath, []byte(sb.String()), 0600); err != nil {
 		return fmt.Errorf("writing export file: %w", err)
 	}
 
@@ -149,14 +149,14 @@ func (e *ObsidianExporter) Export(result *review.Result, metadata *ExportMetadat
 }
 
 // GetOutputPath returns the path where the export file will be written.
-func (e *ObsidianExporter) GetOutputPath(metadata *ExportMetadata) string {
+func (e *ObsidianExporter) GetOutputPath(metadata *Metadata) string {
 	projectDir := filepath.Join(e.cfg.VaultPath, e.cfg.FolderName, sanitizeFilename(metadata.ProjectName))
 	filename := e.generateFilename(projectDir, metadata)
 	return filepath.Join(projectDir, filename)
 }
 
 // generateFilename generates the filename for the export.
-func (e *ObsidianExporter) generateFilename(projectDir string, metadata *ExportMetadata) string {
+func (e *ObsidianExporter) generateFilename(projectDir string, metadata *Metadata) string {
 	// Find next review number
 	reviewNum := e.findNextReviewNumber(projectDir)
 
@@ -190,7 +190,7 @@ func (e *ObsidianExporter) findNextReviewNumber(projectDir string) int {
 }
 
 // buildFrontmatter builds the Obsidian frontmatter from the review result.
-func (e *ObsidianExporter) buildFrontmatter(result *review.Result, metadata *ExportMetadata) *ObsidianFrontmatter {
+func (e *ObsidianExporter) buildFrontmatter(result *review.Result, metadata *Metadata) *ObsidianFrontmatter {
 	fm := &ObsidianFrontmatter{
 		Date:          metadata.ReviewDate.Format(time.RFC3339),
 		Project:       metadata.ProjectName,
@@ -286,11 +286,11 @@ func (e *ObsidianExporter) buildTags(result *review.Result) []string {
 
 // findRelatedReviews finds previous reviews in the same project directory.
 func (e *ObsidianExporter) findRelatedReviews(projectDir string, currentFilename string) []string {
-	var related []string
 	entries, err := os.ReadDir(projectDir)
 	if err != nil {
-		return related
+		return nil
 	}
+	related := make([]string, 0, len(entries))
 
 	for _, entry := range entries {
 		if entry.IsDir() || !strings.HasSuffix(entry.Name(), ".md") {
@@ -348,9 +348,9 @@ func severityCallout(severity providers.Severity) string {
 
 // formatTags formats tags as Obsidian hashtags.
 func formatTags(tags []string) string {
-	var result []string
-	for _, t := range tags {
-		result = append(result, "#"+t)
+	result := make([]string, len(tags))
+	for i, t := range tags {
+		result[i] = "#" + t
 	}
 	return strings.Join(result, " ")
 }

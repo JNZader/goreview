@@ -10,14 +10,14 @@ import (
 // Exporter defines the interface for exporting review results.
 type Exporter interface {
 	// Export exports a review result to the target destination.
-	Export(result *review.Result, metadata *ExportMetadata) error
+	Export(result *review.Result, metadata *Metadata) error
 
 	// Name returns the exporter name.
 	Name() string
 }
 
-// ExportMetadata contains metadata for the export.
-type ExportMetadata struct {
+// Metadata contains metadata for the export.
+type Metadata struct {
 	// ProjectName is the name of the project being reviewed
 	ProjectName string
 

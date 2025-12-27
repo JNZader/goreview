@@ -546,10 +546,7 @@ func exportToObsidian(ctx context.Context, cmd *cobra.Command, cfg *config.Confi
 	}
 
 	// Build metadata
-	metadata, err := buildExportMetadata(ctx, cfg)
-	if err != nil {
-		return err
-	}
+	metadata := buildExportMetadata(ctx, cfg)
 
 	// Export
 	if err := exporter.Export(result, metadata); err != nil {
@@ -563,17 +560,17 @@ func exportToObsidian(ctx context.Context, cmd *cobra.Command, cfg *config.Confi
 }
 
 // buildExportMetadata builds metadata for the export
-func buildExportMetadata(ctx context.Context, cfg *config.Config) (*export.ExportMetadata, error) {
+func buildExportMetadata(ctx context.Context, cfg *config.Config) *export.Metadata {
 	gitRepo, err := git.NewRepo(".")
 	if err != nil {
 		// Not in a git repo - use defaults
 		cwd, _ := os.Getwd()
-		return &export.ExportMetadata{
+		return &export.Metadata{
 			ProjectName: filepath.Base(cwd),
 			Branch:      "unknown",
 			ReviewDate:  time.Now(),
 			ReviewMode:  cfg.Review.Mode,
-		}, nil
+		}
 	}
 
 	branch, _ := gitRepo.GetCurrentBranch(ctx)
@@ -589,7 +586,7 @@ func buildExportMetadata(ctx context.Context, cfg *config.Config) (*export.Expor
 
 	author := getGitAuthor()
 
-	return &export.ExportMetadata{
+	return &export.Metadata{
 		ProjectName: projectName,
 		Branch:      branch,
 		CommitHash:  commitHash,
@@ -598,7 +595,7 @@ func buildExportMetadata(ctx context.Context, cfg *config.Config) (*export.Expor
 		ReviewDate:  time.Now(),
 		ReviewMode:  cfg.Review.Mode,
 		BaseBranch:  cfg.Git.BaseBranch,
-	}, nil
+	}
 }
 
 // getGitCommitHash returns the current HEAD commit hash

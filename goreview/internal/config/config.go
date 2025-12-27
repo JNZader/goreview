@@ -37,6 +37,9 @@ type Config struct {
 
 	// RAG configures Retrieval-Augmented Generation with external docs
 	RAG RAGConfig `mapstructure:"rag" yaml:"rag"`
+
+	// Export configures export behavior to external systems
+	Export ExportConfig `mapstructure:"export" yaml:"export"`
 }
 
 // RAGConfig configures the RAG system for external documentation.
@@ -271,6 +274,42 @@ type HebbianConfig struct {
 
 	// MinStrength is the minimum association strength before removal
 	MinStrength float64 `mapstructure:"min_strength" yaml:"min_strength"`
+}
+
+// ExportConfig configures export behavior to external systems.
+type ExportConfig struct {
+	// Obsidian configures Obsidian vault export
+	Obsidian ObsidianExportConfig `mapstructure:"obsidian" yaml:"obsidian"`
+}
+
+// ObsidianExportConfig configures Obsidian export settings.
+type ObsidianExportConfig struct {
+	// Enabled enables automatic Obsidian export after reviews
+	Enabled bool `mapstructure:"enabled" yaml:"enabled"`
+
+	// VaultPath is the path to the Obsidian vault
+	VaultPath string `mapstructure:"vault_path" yaml:"vault_path"`
+
+	// FolderName is the folder name within the vault (default: "GoReview")
+	FolderName string `mapstructure:"folder_name" yaml:"folder_name"`
+
+	// IncludeTags enables Obsidian tag generation (#security, #bug, etc.)
+	IncludeTags bool `mapstructure:"include_tags" yaml:"include_tags"`
+
+	// IncludeCallouts enables Obsidian callouts (> [!warning])
+	IncludeCallouts bool `mapstructure:"include_callouts" yaml:"include_callouts"`
+
+	// IncludeLinks enables wiki-style links [[related]]
+	IncludeLinks bool `mapstructure:"include_links" yaml:"include_links"`
+
+	// LinkToPreviousReviews links to previous reviews of the same project
+	LinkToPreviousReviews bool `mapstructure:"link_to_previous" yaml:"link_to_previous"`
+
+	// CustomTags are additional tags to add to all exports
+	CustomTags []string `mapstructure:"custom_tags" yaml:"custom_tags"`
+
+	// TemplateFile is an optional custom template file path
+	TemplateFile string `mapstructure:"template_file" yaml:"template_file"`
 }
 
 // Validate validates the configuration and returns an error if invalid.

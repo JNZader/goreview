@@ -97,10 +97,7 @@ func runObsidianExport(cmd *cobra.Command) error {
 	}
 
 	// Build metadata
-	metadata, err := buildExportMetadataForExport(cmd, cfg)
-	if err != nil {
-		return fmt.Errorf("building metadata: %w", err)
-	}
+	metadata := buildExportMetadataForExport(cmd, cfg)
 
 	// Create exporter
 	exporter, err := export.NewObsidianExporter(&cfg.Export.Obsidian)
@@ -172,7 +169,7 @@ func loadReviewResult(cmd *cobra.Command) (*review.Result, error) {
 	return nil, fmt.Errorf("no input source. Use --from or pipe JSON to stdin")
 }
 
-func buildExportMetadataForExport(cmd *cobra.Command, cfg *config.Config) (*export.Metadata, error) {
+func buildExportMetadataForExport(cmd *cobra.Command, cfg *config.Config) *export.Metadata {
 	projectName, _ := cmd.Flags().GetString("project")
 
 	// Try to get git info
@@ -227,5 +224,5 @@ func buildExportMetadataForExport(cmd *cobra.Command, cfg *config.Config) (*expo
 		ReviewDate:  time.Now(),
 		ReviewMode:  "export",
 		BaseBranch:  cfg.Git.BaseBranch,
-	}, nil
+	}
 }

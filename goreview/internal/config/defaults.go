@@ -111,6 +111,20 @@ func DefaultConfig() *Config {
 				MinStrength:  0.1,
 			},
 		},
+
+		Export: ExportConfig{
+			Obsidian: ObsidianExportConfig{
+				Enabled:               false, // Disabled by default
+				VaultPath:             "",    // Must be set by user
+				FolderName:            "GoReview",
+				IncludeTags:           true,
+				IncludeCallouts:       true,
+				IncludeLinks:          true,
+				LinkToPreviousReviews: true,
+				CustomTags:            []string{},
+				TemplateFile:          "",
+			},
+		},
 	}
 }
 

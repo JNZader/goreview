@@ -120,6 +120,17 @@ func (l *Loader) setDefaults(cfg *Config) {
 
 	// Rules defaults
 	l.v.SetDefault("rules.preset", cfg.Rules.Preset)
+
+	// Export defaults
+	l.v.SetDefault("export.obsidian.enabled", cfg.Export.Obsidian.Enabled)
+	l.v.SetDefault("export.obsidian.vault_path", cfg.Export.Obsidian.VaultPath)
+	l.v.SetDefault("export.obsidian.folder_name", cfg.Export.Obsidian.FolderName)
+	l.v.SetDefault("export.obsidian.include_tags", cfg.Export.Obsidian.IncludeTags)
+	l.v.SetDefault("export.obsidian.include_callouts", cfg.Export.Obsidian.IncludeCallouts)
+	l.v.SetDefault("export.obsidian.include_links", cfg.Export.Obsidian.IncludeLinks)
+	l.v.SetDefault("export.obsidian.link_to_previous", cfg.Export.Obsidian.LinkToPreviousReviews)
+	l.v.SetDefault("export.obsidian.custom_tags", cfg.Export.Obsidian.CustomTags)
+	l.v.SetDefault("export.obsidian.template_file", cfg.Export.Obsidian.TemplateFile)
 }
 
 // ConfigFileUsed returns the path of the config file used, if any.

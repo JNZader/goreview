@@ -1,0 +1,46 @@
+{
+  "PreToolUse": [
+    {
+      "matcher": "Bash",
+      "hooks": [
+        {
+          "type": "command",
+          "command": "python3 -c \"import json,sys; d=json.load(sys.stdin); cmd=d.get('tool_input',{}).get('command',''); exit(0) if 'git commit' not in cmd else print(json.dumps({'systemMessage':'💡 Tip: Use /commit-ai for AI-generated commit messages with goreview commit'}))\""
+        }
+      ]
+    }
+  ],
+  "PostToolUse": [
+    {
+      "matcher": "Edit|Write",
+      "hooks": [
+        {
+          "type": "command",
+          "command": "goreview review --staged --preset=minimal --format json 2>/dev/null | python3 -c \"import json,sys; r=json.load(sys.stdin) if sys.stdin.read() else {}; c=sum(1 for f in r.get('files',[]) for i in f.get('response',{}).get('issues',[]) if i.get('severity') in ['critical','error']); print(json.dumps({'systemMessage':f'⚠️ GoReview: {c} critical/error issues found. Run /review for details.'})) if c > 0 else None\" 2>/dev/null || true"
+        }
+      ]
+    }
+  ],
+  "SessionStart": [
+    {
+      "matcher": "startup",
+      "hooks": [
+        {
+          "type": "command",
+          "command": "goreview stats --format json 2>/dev/null | python3 -c \"import json,sys; s=json.load(sys.stdin) if sys.stdin.read() else {}; print(json.dumps({'systemMessage':f'📊 Project health: {s.get(\"average_score\",\"N/A\")}/100 score, {s.get(\"total_issues\",0)} issues in last week'})) if s else None\" 2>/dev/null || true"
+        }
+      ]
+    }
+  ],
+  "Stop": [
+    {
+      "matcher": "*",
+      "hooks": [
+        {
+          "type": "command",
+          "command": "git diff --staged --quiet 2>/dev/null || goreview review --staged --preset=minimal --format json -o .claude/last-review.json 2>/dev/null || true"
+        }
+      ]
+    }
+  ]
+}

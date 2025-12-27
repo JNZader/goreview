@@ -402,7 +402,7 @@ func runGoReview(ctx context.Context, args []string) (interface{}, error) {
 		return nil, err
 	}
 
-	cmd := exec.CommandContext(ctx, binary, args...)
+	cmd := exec.CommandContext(ctx, binary, args...) // #nosec G204 - binary path is validated by findGoReviewBinary
 	cmd.Dir, _ = os.Getwd()
 
 	var stdout, stderr bytes.Buffer

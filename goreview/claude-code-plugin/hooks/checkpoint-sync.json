@@ -1,0 +1,27 @@
+{
+  "_comment": "Checkpoint synchronization hooks - save review state with each checkpoint",
+
+  "PreCompact": [
+    {
+      "matcher": "*",
+      "hooks": [
+        {
+          "type": "command",
+          "command": "mkdir -p .claude/checkpoints && goreview review --staged --format json -o \".claude/checkpoints/review-$(date +%Y%m%d-%H%M%S).json\" 2>/dev/null || true"
+        }
+      ]
+    }
+  ],
+
+  "SessionEnd": [
+    {
+      "matcher": "*",
+      "hooks": [
+        {
+          "type": "command",
+          "command": "if [ -d .claude/checkpoints ]; then find .claude/checkpoints -name 'review-*.json' -mtime +7 -delete 2>/dev/null; fi || true"
+        }
+      ]
+    }
+  ]
+}

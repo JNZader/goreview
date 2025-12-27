@@ -49,6 +49,73 @@ Herramienta de linea de comandos para code review con IA. Analiza cambios de cod
 - **RAG**: Integra guias de estilo y documentacion externa
 - **AST Parsing**: Contexto multi-lenguaje (Go, JS/TS, Python, Java, Rust)
 
+### Integraciones
+- **Claude Code**: Plugin completo con MCP server, agentes y hooks
+- **Obsidian**: Exportar reviews a vault de Obsidian
+- **SARIF**: Integracion con IDEs via Static Analysis Results Format
+
+## Integracion con Claude Code
+
+GoReview se integra nativamente con [Claude Code](https://claude.com/product/claude-code) para proporcionar code review automatizado dentro de tu flujo de trabajo con IA.
+
+### Instalacion Rapida
+
+```bash
+# Agregar como servidor MCP
+claude mcp add --transport stdio goreview -- goreview mcp-serve
+```
+
+### Caracteristicas
+
+| Caracteristica | Descripcion |
+|----------------|-------------|
+| **MCP Server** | 7 herramientas disponibles para Claude |
+| **Plugin** | Slash commands, agentes, skills, hooks |
+| **Background Watcher** | Monitoreo continuo de cambios |
+| **Checkpoint Sync** | Reviews sincronizados con checkpoints |
+
+### Herramientas MCP Disponibles
+
+```
+goreview_review    - Analizar codigo
+goreview_commit    - Generar commits
+goreview_fix       - Auto-corregir issues
+goreview_search    - Buscar en historial
+goreview_stats     - Ver estadisticas
+goreview_changelog - Generar changelog
+goreview_doc       - Generar documentacion
+```
+
+### Uso en Claude Code
+
+```
+Revisa mis cambios staged con enfoque en seguridad
+Genera un mensaje de commit para estos cambios
+Busca issues de SQL injection en el historial
+```
+
+### Plugin para Claude Code
+
+El plugin incluye:
+- **6 Slash Commands**: `/review`, `/commit-ai`, `/fix-issues`, `/changelog`, `/stats`, `/security-scan`
+- **5 Subagents**: security-reviewer, perf-reviewer, test-reviewer, fix-agent, goreview-watcher
+- **2 Skills**: goreview-workflow, commit-standards
+- **Hooks**: Auto-review, project health, checkpoint sync
+
+```bash
+# Instalar plugin
+cd claude-code-plugin
+/plugin install --local .
+```
+
+### Documentacion
+
+- [MCP Server](docs/MCP_SERVER.md) - Guia completa del servidor MCP
+- [Plugin Guide](docs/PLUGIN_GUIDE.md) - Guia del plugin para Claude Code
+- [Background Watcher](docs/BACKGROUND_WATCHER.md) - Monitoreo continuo
+- [Checkpoint Sync](docs/CHECKPOINT_SYNC.md) - Sincronizacion con checkpoints
+- [Integracion Completa](docs/CLAUDE_CODE_INTEGRATION.md) - Guia de integracion
+
 ## Instalacion
 
 ### Desde codigo fuente

@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"strings"
 	"time"
@@ -13,6 +14,7 @@ import (
 
 	"github.com/JNZader/goreview/goreview/internal/cache"
 	"github.com/JNZader/goreview/goreview/internal/config"
+	"github.com/JNZader/goreview/goreview/internal/export"
 	"github.com/JNZader/goreview/goreview/internal/git"
 	"github.com/JNZader/goreview/goreview/internal/profiler"
 	"github.com/JNZader/goreview/goreview/internal/providers"
@@ -86,6 +88,10 @@ func init() {
 	reviewCmd.Flags().String("memprofile", "", "Write memory profile to file")
 	reviewCmd.Flags().String("pprof-addr", "", "Enable pprof HTTP server (e.g., :6060)")
 
+	// Export flags
+	reviewCmd.Flags().Bool("export-obsidian", false, "Export results to Obsidian vault")
+	reviewCmd.Flags().String("obsidian-vault", "", "Override Obsidian vault path")
+
 	// Bind to viper
 	_ = viper.BindPFlag("review.staged", reviewCmd.Flags().Lookup("staged"))
 	_ = viper.BindPFlag("review.commit", reviewCmd.Flags().Lookup("commit"))
@@ -137,6 +143,15 @@ func runReview(cmd *cobra.Command, args []string) error {
 	// Generate and write report
 	if err := outputReport(cmd, result); err != nil {
 		return err
+	}
+
+	// Export to Obsidian if requested
+	exportObsidian, _ := cmd.Flags().GetBool("export-obsidian")
+	if exportObsidian || cfg.Export.Obsidian.Enabled {
+		if err := exportToObsidian(ctx, cmd, cfg, result); err != nil {
+			// Non-fatal - log warning but don't fail
+			fmt.Fprintf(os.Stderr, "Warning: Obsidian export failed: %v\n", err)
+		}
 	}
 
 	// Exit with error code if critical issues found
@@ -511,4 +526,102 @@ func getExpectedTestPath(path string) string {
 		return variants[0]
 	}
 	return path + " (test file)"
+}
+
+// exportToObsidian exports the review result to an Obsidian vault
+func exportToObsidian(ctx context.Context, cmd *cobra.Command, cfg *config.Config, result *review.Result) error {
+	// Override vault path from flag if provided
+	if vaultPath, _ := cmd.Flags().GetString("obsidian-vault"); vaultPath != "" {
+		cfg.Export.Obsidian.VaultPath = vaultPath
+	}
+
+	if cfg.Export.Obsidian.VaultPath == "" {
+		return fmt.Errorf("obsidian vault path not configured (use --obsidian-vault or config)")
+	}
+
+	// Create exporter
+	exporter, err := export.NewObsidianExporter(&cfg.Export.Obsidian)
+	if err != nil {
+		return err
+	}
+
+	// Build metadata
+	metadata := buildExportMetadata(ctx, cfg)
+
+	// Export
+	if err := exporter.Export(result, metadata); err != nil {
+		return err
+	}
+
+	outputPath := exporter.GetOutputPath(metadata)
+	fmt.Fprintf(os.Stderr, "Exported to Obsidian: %s\n", outputPath)
+
+	return nil
+}
+
+// buildExportMetadata builds metadata for the export
+func buildExportMetadata(ctx context.Context, cfg *config.Config) *export.Metadata {
+	gitRepo, err := git.NewRepo(".")
+	if err != nil {
+		// Not in a git repo - use defaults
+		cwd, _ := os.Getwd()
+		return &export.Metadata{
+			ProjectName: filepath.Base(cwd),
+			Branch:      "unknown",
+			ReviewDate:  time.Now(),
+			ReviewMode:  cfg.Review.Mode,
+		}
+	}
+
+	branch, _ := gitRepo.GetCurrentBranch(ctx)
+	repoRoot, _ := gitRepo.GetRepoRoot(ctx)
+	projectName := filepath.Base(repoRoot)
+
+	// Get current commit info using git log
+	commitHash := getGitCommitHash()
+	commitShort := ""
+	if len(commitHash) >= 7 {
+		commitShort = commitHash[:7]
+	}
+
+	author := getGitAuthor()
+
+	return &export.Metadata{
+		ProjectName: projectName,
+		Branch:      branch,
+		CommitHash:  commitHash,
+		CommitShort: commitShort,
+		Author:      author,
+		ReviewDate:  time.Now(),
+		ReviewMode:  cfg.Review.Mode,
+		BaseBranch:  cfg.Git.BaseBranch,
+	}
+}
+
+// getGitCommitHash returns the current HEAD commit hash
+func getGitCommitHash() string {
+	out, err := runGitCommand("rev-parse", "HEAD")
+	if err != nil {
+		return ""
+	}
+	return strings.TrimSpace(out)
+}
+
+// getGitAuthor returns the author of the HEAD commit
+func getGitAuthor() string {
+	out, err := runGitCommand("log", "-1", "--format=%an")
+	if err != nil {
+		return ""
+	}
+	return strings.TrimSpace(out)
+}
+
+// runGitCommand executes a git command and returns the output
+func runGitCommand(args ...string) (string, error) {
+	cmd := exec.Command("git", args...) // #nosec G204 - git command with controlled args
+	out, err := cmd.Output()
+	if err != nil {
+		return "", err
+	}
+	return string(out), nil
 }

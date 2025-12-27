@@ -1,0 +1,51 @@
+{
+  "name": "goreview",
+  "version": "1.0.0",
+  "description": "AI-powered code review, commit generation, and code quality tools. Integrates GoReview CLI with Claude Code for automated reviews, security scanning, and intelligent commit messages.",
+  "authors": ["GoReview Team"],
+  "homepage": "https://github.com/JNZader/goreview",
+  "license": "MIT",
+  "keywords": [
+    "code-review",
+    "security",
+    "linting",
+    "commit",
+    "changelog",
+    "documentation"
+  ],
+  "commands": ["commands/"],
+  "agents": ["agents/"],
+  "skills": ["skills/"],
+  "hooks": "hooks/hooks.json",
+  "mcpServers": {
+    "goreview": {
+      "type": "stdio",
+      "command": "goreview",
+      "args": ["mcp-serve"],
+      "description": "GoReview MCP server for code review, commit generation, and more"
+    }
+  },
+  "requirements": {
+    "claudeCode": ">=2.0.12",
+    "binaries": ["goreview"]
+  },
+  "configuration": {
+    "goreview.autoReview": {
+      "type": "boolean",
+      "default": true,
+      "description": "Automatically review code after edits"
+    },
+    "goreview.mode": {
+      "type": "string",
+      "default": "standard",
+      "enum": ["minimal", "standard", "strict"],
+      "description": "Default review preset"
+    },
+    "goreview.personality": {
+      "type": "string",
+      "default": "senior",
+      "enum": ["senior", "strict", "friendly", "security-expert"],
+      "description": "Default reviewer personality"
+    }
+  }
+}
